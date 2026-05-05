@@ -294,8 +294,8 @@ function Features() {
           Everything you need to manage your Powerwall
         </h2>
         <p className="text-muted mx-auto max-w-xl">
-          Clear visiblity and full control. Automate your settings over your
-          Powerwall's capacity and analyze your solar's charging trends.
+          Clear visibility and full control. Automate your settings over your
+          Powerwall&apos;s capacity and analyze your solar&apos;s charging trends.
         </p>
       </div>
 
