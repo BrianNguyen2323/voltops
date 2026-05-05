@@ -164,7 +164,7 @@ const features = [
   {
     title: "Real-time Monitoring",
     description:
-      "Placeholder: Describe your monitoring capabilities here. What metrics do you track? How do alerts work? What makes this unique compared to alternatives?",
+      "Detailed information of your current Powerwall's charge and current productions and consumptions of clean energy. View and control your kW usage with detailed charts.",
     icon: (
       <svg
         className="h-5 w-5"
@@ -184,7 +184,7 @@ const features = [
   {
     title: "Automated Workflows",
     description:
-      "Placeholder: Explain your automation features. What triggers and actions are available? How easy is it to configure? Any code-free options?",
+      "Run scripts to automate your Powerwall reserve capacity and maximize your home's clean energy.",
     icon: (
       <svg
         className="h-5 w-5"
@@ -202,9 +202,9 @@ const features = [
     ),
   },
   {
-    title: "Instant Deployments",
+    title: "Weather Forecasting",
     description:
-      "Placeholder: Describe your deployment pipeline. How fast are deployments? What environments are supported? What does rollback look like?",
+      "Monitor your local weather and with VoltOps, create necessary reserves to save solar energy for high-rate hours.",
     icon: (
       <svg
         className="h-5 w-5"
@@ -214,7 +214,7 @@ const features = [
         strokeWidth="2"
       >
         <path
-          d="M13 10V3L4 14h7v7l9-11h-7z"
+          d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -222,9 +222,9 @@ const features = [
     ),
   },
   {
-    title: "Team Collaboration",
+    title: "Analyze Trends",
     description:
-      "Placeholder: Describe collaboration features. How do teams work together? What roles and permissions exist? How are changes communicated?",
+      "Build an optimized Powerwall by viewing and understanding at a deepr level the trends of power usage in your home. ",
     icon: (
       <svg
         className="h-5 w-5"
@@ -234,7 +234,7 @@ const features = [
         strokeWidth="2"
       >
         <path
-          d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
+          d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -244,7 +244,7 @@ const features = [
   {
     title: "Security & Compliance",
     description:
-      "Placeholder: Describe your security posture. What certifications do you have? How is data encrypted? What compliance standards are met?",
+      "Your energy data stays yours. All database queries are parameterized through Drizzle ORM, blocking SQL injection. Compelete protection on your Tesla credentials. OAuth refresh tokens are encrypted before being stored, with encryption keys held separately in secured environment variables.",
     icon: (
       <svg
         className="h-5 w-5"
@@ -264,7 +264,7 @@ const features = [
   {
     title: "Integrations",
     description:
-      "Placeholder: List key integrations. What tools does VoltOps connect with? How difficult is it to set up a new integration?",
+      "Connect with your Tesla account with a streamlined process and start managing your Powerwall with increased efficiency.",
     icon: (
       <svg
         className="h-5 w-5"
@@ -291,11 +291,11 @@ function Features() {
           Features
         </p>
         <h2 className="text-foreground mb-4 text-3xl font-bold tracking-tight md:text-4xl">
-          Everything you need to operate at scale
+          Everything you need to manage your Powerwall
         </h2>
         <p className="text-muted mx-auto max-w-xl">
-          Placeholder: One or two sentences describing the overall platform
-          capabilities and what sets VoltOps apart from the competition.
+          Clear visiblity and full control. Automate your settings over your
+          Powerwall's capacity and analyze your solar's charging trends.
         </p>
       </div>
 
@@ -326,21 +326,21 @@ function Features() {
 const steps = [
   {
     number: "01",
-    title: "Connect Your Infrastructure",
+    title: "Connect Your Tesla Account",
     description:
-      "Placeholder: Describe the onboarding step. How do users connect their systems? What integrations are available out of the box?",
+      "Onboarding is simple as logging in and connecting your Tesla Account with VoltOps.",
   },
   {
     number: "02",
-    title: "Configure Your Workflows",
+    title: "Configure Your Scripts",
     description:
-      "Placeholder: Explain how users set up their automation. Is it code-based, UI-based, or both? How long does this typically take?",
+      "Set your prefrences for energy usage times and provide details on your energy providers local rates. VoltOps will begin handling the rest to currate a lower energy bill for your home.",
   },
   {
     number: "03",
     title: "Deploy and Monitor",
     description:
-      "Placeholder: Describe what happens after setup. How do users deploy and monitor their operations on an ongoing basis?",
+      "Once setup, VoltOps will begin analyze trends of your energy usage and average charging trends. Continue monitoring your dashboard and edit any prefrences as VoltOps adapts and provides best practices and efficient energy control.",
   },
 ];
 
@@ -356,7 +356,7 @@ function HowItWorks() {
             Up and running in minutes
           </h2>
           <p className="text-muted">
-            Placeholder: One sentence describing how fast onboarding is.
+            Simply connect via OAuth with your Tesla account.
           </p>
         </div>
 
@@ -536,8 +536,8 @@ function CTA() {
           ?
         </h2>
         <p className="text-muted mb-8 text-lg">
-          Placeholder: Final call-to-action text. One or two sentences
-          encouraging the reader to sign up. What is the risk-free offer?
+          Begin taking full advantage of your Tesla Powerwall and save on your
+          electricity bill. Start free today!
         </p>
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
           <a
@@ -546,12 +546,12 @@ function CTA() {
           >
             Get Started Free
           </a>
-          <a
+          {/* <a
             href="#"
             className="border-border text-foreground hover:border-primary/40 rounded-lg border px-8 py-3 font-semibold transition-colors"
           >
             Talk to Sales
-          </a>
+          </a> */}
         </div>
       </div>
     </section>
@@ -602,18 +602,26 @@ function Footer() {
 
         <div className="border-border mt-12 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row">
           <p className="text-muted text-sm">
-            © 2025 VoltOps. All rights reserved.
+            {/* © 2025 VoltOps. All rights reserved. */}
+            Designed and engineered by Brian Nguyen
           </p>
           <div className="flex gap-6">
-            {["Twitter", "GitHub", "LinkedIn"].map((social) => (
-              <a
-                key={social}
-                href="#"
-                className="text-muted hover:text-foreground text-sm transition-colors"
-              >
-                {social}
-              </a>
-            ))}
+            <a
+              href="https://github.com/BrianNguyen2323"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted hover:text-foreground text-sm transition-colors"
+            >
+              GitHub
+            </a>
+            <a
+              href="https://www.linkedin.com/in/ngynbrian/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted hover:text-foreground text-sm transition-colors"
+            >
+              LinkedIn
+            </a>
           </div>
         </div>
       </div>
@@ -630,7 +638,7 @@ export default function Home() {
       <Hero />
       <Features />
       <HowItWorks />
-      <Pricing />
+      {/* <Pricing /> */}
       <CTA />
       <Footer />
     </div>
