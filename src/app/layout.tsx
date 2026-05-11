@@ -1,8 +1,11 @@
 import "~/styles/globals.css";
 
 import { type Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Figtree } from "next/font/google";
 import { TRPCReactProvider } from "~/trpc/react";
+import { cn } from "~/lib/utils";
+
+const figtree = Figtree({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "VoltOps",
@@ -19,7 +22,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable} dark`}>
+    <html lang="en" className={cn("dark", geist.variable, "font-sans", figtree.variable)}>
       <body>
         <TRPCReactProvider>{children}</TRPCReactProvider>
       </body>
