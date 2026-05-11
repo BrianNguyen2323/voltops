@@ -1,27 +1,50 @@
-// Example model schema from the Drizzle docs
-// https://orm.drizzle.team/docs/sql-schema-declaration
-
 import { sql } from "drizzle-orm";
-import { index, sqliteTableCreator } from "drizzle-orm/sqlite-core";
+import { index, pgTableCreator, unique } from "drizzle-orm/pg-core";
 
-/**
- * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
- * database instance for multiple projects.
- *
- * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
- */
-export const createTable = sqliteTableCreator((name) => `voltops_${name}`);
+export const createTable = pgTableCreator((name) => `voltops_${name}`);
 
-export const posts = createTable(
-  "post",
+// Core user identity — one row per VoltOps account
+export const users = createTable(
+  "user",
   (d) => ({
-    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
-    name: d.text({ length: 256 }),
-    createdAt: d
-      .integer({ mode: "timestamp" })
-      .default(sql`(unixepoch())`)
-      .notNull(),
-    updatedAt: d.integer({ mode: "timestamp" }).$onUpdate(() => new Date()),
+    id: d
+      .text()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    teslaUserId: d.varchar({ length: 256 }).notNull(),
+    email: d.varchar({ length: 256 }).notNull(),
+    displayName: d.varchar({ length: 256 }),
+    createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
   }),
-  (t) => [index("name_idx").on(t.name)],
+  (t) => [
+    unique("uq_tesla_user_id").on(t.teslaUserId),
+    unique("uq_email").on(t.email),
+    index("idx_tesla_user_id").on(t.teslaUserId),
+  ],
+);
+
+// Tesla OAuth credentials — encrypted at the application layer before insert
+export const teslaTokens = createTable(
+  "tesla_token",
+  (d) => ({
+    id: d
+      .text()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    encryptedRefreshToken: d.text().notNull(),
+    iv: d.varchar({ length: 64 }).notNull(),
+    scope: d.text(),
+    accessTokenExpiresAt: d.timestamp({ withTimezone: true }),
+    createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    unique("uq_user_token").on(t.userId),
+    index("idx_token_user_id").on(t.userId),
+  ],
 );
