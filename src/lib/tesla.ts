@@ -4,6 +4,17 @@ import { decrypt, encrypt } from "~/lib/crypto";
 import { db } from "~/server/db";
 import { teslaTokens } from "~/server/db/schema";
 
+const TESLA_FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
+
+export type PowerwallReading = {
+  solar_kw: number;
+  battery_pct: number;
+  battery_kw: number;   // positive = discharging to home, negative = charging from solar
+  home_kw: number;
+  grid_kw: number;      // positive = importing from grid, negative = exporting to grid
+  timestamp: string;
+};
+
 /**
  * Decrypts the stored refresh token, exchanges it for a fresh access token,
  * then re-encrypts and stores the rotated refresh token Tesla returns.
@@ -64,4 +75,68 @@ export async function getAccessToken(userId: string): Promise<string> {
     .where(eq(teslaTokens.userId, userId));
 
   return tokens.access_token;
+}
+
+async function fleetGet<T>(path: string, accessToken: string): Promise<T> {
+  const res = await fetch(`${TESLA_FLEET_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Tesla Fleet API ${path} failed: ${res.status} ${body}`);
+  }
+  return (await res.json()) as T;
+}
+
+async function getEnergySiteId(accessToken: string): Promise<number> {
+  const data = await fleetGet<{
+    response: { energy_site_id?: number; resource_type?: string }[];
+  }>("/api/1/products", accessToken);
+
+  const site = data.response.find((p) => p.resource_type === "battery");
+  if (!site?.energy_site_id) {
+    throw new Error("No Powerwall energy site found on this Tesla account");
+  }
+  return site.energy_site_id;
+}
+
+export async function getPowerwallLiveStatus(
+  userId: string,
+): Promise<PowerwallReading> {
+  const accessToken = await getAccessToken(userId);
+  const siteId = await getEnergySiteId(accessToken);
+
+  const data = await fleetGet<{
+    response: {
+      solar_power: number;
+      percentage_charged: number;
+      battery_power: number;
+      load_power: number;
+      grid_power: number;
+      timestamp: string;
+    };
+  }>(`/api/1/energy_sites/${siteId}/live_status`, accessToken);
+
+  const r = data.response;
+
+  const reading: PowerwallReading = {
+    solar_kw: Math.round((r.solar_power / 1000) * 1000) / 1000,
+    battery_pct: Math.round(r.percentage_charged * 10) / 10,
+    battery_kw: Math.round((r.battery_power / 1000) * 1000) / 1000,
+    home_kw: Math.round((r.load_power / 1000) * 1000) / 1000,
+    grid_kw: Math.round((r.grid_power / 1000) * 1000) / 1000,
+    timestamp: r.timestamp,
+  };
+
+  // --- DEBUG: remove before production ---
+  console.log("[Powerwall Live Status]");
+  console.log(`  Energy Site ID : ${siteId}`);
+  console.log(`  Solar          : ${reading.solar_kw} kW`);
+  console.log(`  Battery        : ${reading.battery_pct}% (${reading.battery_kw > 0 ? "+" : ""}${reading.battery_kw} kW)`);
+  console.log(`  Home Load      : ${reading.home_kw} kW`);
+  console.log(`  Grid           : ${reading.grid_kw > 0 ? "importing" : "exporting"} ${Math.abs(reading.grid_kw)} kW`);
+  console.log(`  Timestamp      : ${reading.timestamp}`);
+  // --- END DEBUG ---
+
+  return reading;
 }
