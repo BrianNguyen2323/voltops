@@ -5,7 +5,9 @@ import { env } from "~/env";
 import { encrypt } from "~/lib/crypto";
 import { setSession } from "~/lib/session";
 import { db } from "~/server/db";
-import { teslaTokens, users } from "~/server/db/schema";
+import { energySites, tariffSchedules, teslaTokens, users } from "~/server/db/schema";
+
+const FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -43,23 +45,19 @@ export async function GET(request: NextRequest) {
     `${env.TESLA_CLIENT_ID}:${env.TESLA_CLIENT_SECRET}`,
   ).toString("base64");
 
-  const tokenBody = new URLSearchParams({
-    grant_type: "authorization_code",
-    client_id: env.TESLA_CLIENT_ID,
-    code,
-    redirect_uri: env.TESLA_REDIRECT_URI,
-    code_verifier: codeVerifier,
-  });
-
-  console.log("[Tesla OAuth] Exchanging code, redirect_uri:", env.TESLA_REDIRECT_URI);
-
   const tokenRes = await fetch("https://auth.tesla.com/oauth2/v3/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": `Basic ${basicAuth}`,
+      Authorization: `Basic ${basicAuth}`,
     },
-    body: tokenBody,
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: env.TESLA_CLIENT_ID,
+      code,
+      redirect_uri: env.TESLA_REDIRECT_URI,
+      code_verifier: codeVerifier,
+    }),
   });
 
   if (!tokenRes.ok) {
@@ -85,12 +83,60 @@ export async function GET(request: NextRequest) {
 
   console.log("[Tesla OAuth] Identity:", idPayload.sub, idPayload.email);
 
-  // Find or create user
+  // --- Fetch energy site using the fresh access token (no separate refresh needed) ---
+
+  type ProductsResponse = {
+    response: { energy_site_id?: number; resource_type?: string }[];
+  };
+  type SiteInfoResponse = {
+    response: {
+      installation_time_zone?: string;
+      tariff_id?: string;
+      utility?: string;
+      tariff_content?: {
+        name?: string;
+        currency?: string;
+        [key: string]: unknown;
+      };
+    };
+  };
+
+  let teslaEnergySiteId: string | null = null;
+  let siteInfo: SiteInfoResponse["response"] | null = null;
+
+  const productsRes = await fetch(`${FLEET_BASE}/api/1/products`, {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  });
+
+  if (productsRes.ok) {
+    const products = (await productsRes.json()) as ProductsResponse;
+    const site = products.response.find((p) => p.resource_type === "battery");
+    if (site?.energy_site_id) {
+      teslaEnergySiteId = String(site.energy_site_id);
+
+      const infoRes = await fetch(
+        `${FLEET_BASE}/api/1/energy_sites/${teslaEnergySiteId}/site_info`,
+        { headers: { Authorization: `Bearer ${tokens.access_token}` } },
+      );
+      if (infoRes.ok) {
+        siteInfo = ((await infoRes.json()) as SiteInfoResponse).response;
+      } else {
+        console.warn("[Tesla OAuth] Could not fetch site_info:", await infoRes.text());
+      }
+    }
+  } else {
+    console.warn("[Tesla OAuth] Could not fetch products:", await productsRes.text());
+  }
+
+  console.log("[Tesla OAuth] Energy site:", teslaEnergySiteId ?? "none found");
+  console.log("[Tesla OAuth] Timezone:", siteInfo?.installation_time_zone ?? "none");
+  console.log("[Tesla OAuth] Tariff:", siteInfo?.tariff_id ?? "none");
+
+  // --- Find or create user ---
+
   let user = await db.query.users.findFirst({
     where: eq(users.teslaUserId, idPayload.sub),
   });
-
-  console.log("[Tesla OAuth] Existing user:", user ? user.id : "not found");
 
   if (!user) {
     const [created] = await db
@@ -103,6 +149,8 @@ export async function GET(request: NextRequest) {
       .returning();
     user = created;
     console.log("[Tesla OAuth] Created user:", user?.id);
+  } else {
+    console.log("[Tesla OAuth] Existing user:", user.id);
   }
 
   if (!user) {
@@ -111,10 +159,61 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Encrypt refresh token before storing
-  const { ciphertext: encryptedRefreshToken, iv } = encrypt(
-    tokens.refresh_token,
-  );
+  // --- Upsert energy site (keyed on Tesla's site ID so re-logins stay idempotent) ---
+  // latitude/longitude/city/state are not returned by site_info — left null until
+  // a separate geocoding step populates them (deferred to weather API integration).
+
+  let siteRowId: string | null = null;
+
+  if (teslaEnergySiteId) {
+    const [siteRow] = await db
+      .insert(energySites)
+      .values({
+        userId: user.id,
+        teslaEnergySiteId,
+        timezone: siteInfo?.installation_time_zone ?? null,
+      })
+      .onConflictDoUpdate({
+        target: energySites.teslaEnergySiteId,
+        set: {
+          timezone: siteInfo?.installation_time_zone ?? null,
+          updatedAt: new Date(),
+        },
+      })
+      .returning({ id: energySites.id });
+
+    siteRowId = siteRow?.id ?? null;
+  }
+
+  // --- Upsert tariff schedule (one per site, refreshed on each login) ---
+
+  if (siteRowId && siteInfo?.tariff_id) {
+    await db
+      .insert(tariffSchedules)
+      .values({
+        energySiteId: siteRowId,
+        tariffId: siteInfo.tariff_id,
+        tariffName: siteInfo.tariff_content?.name ?? null,
+        utility: siteInfo.utility ?? null,
+        currency: siteInfo.tariff_content?.currency ?? null,
+        tariffContent: siteInfo.tariff_content ?? null,
+      })
+      .onConflictDoUpdate({
+        target: tariffSchedules.energySiteId,
+        set: {
+          tariffId: siteInfo.tariff_id,
+          tariffName: siteInfo.tariff_content?.name ?? null,
+          utility: siteInfo.utility ?? null,
+          currency: siteInfo.tariff_content?.currency ?? null,
+          tariffContent: siteInfo.tariff_content ?? null,
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  // --- Encrypt and upsert refresh token ---
+
+  const { ciphertext: encryptedRefreshToken, iv } = encrypt(tokens.refresh_token);
 
   await db
     .insert(teslaTokens)
@@ -131,9 +230,7 @@ export async function GET(request: NextRequest) {
         encryptedRefreshToken,
         iv,
         scope: tokens.scope,
-        accessTokenExpiresAt: new Date(
-          Date.now() + tokens.expires_in * 1000,
-        ),
+        accessTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
         updatedAt: new Date(),
       },
     });
