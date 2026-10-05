@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const loginUrl = new URL("/home", request.url);
+  // Browser-facing origin; request.url carries the bind host (0.0.0.0) in Docker.
+  const loginUrl = new URL("/home", env.TESLA_REDIRECT_URI);
 
   if (error) {
     loginUrl.searchParams.set("error", "access_denied");
@@ -188,5 +189,5 @@ export async function GET(request: NextRequest) {
     .values({ id: 1, ...cred })
     .onConflictDoUpdate({ target: credentials.id, set: cred });
 
-  return NextResponse.redirect(new URL("/home", request.url));
+  return NextResponse.redirect(new URL("/home", env.TESLA_REDIRECT_URI));
 }
