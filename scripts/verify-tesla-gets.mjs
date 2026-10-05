@@ -8,9 +8,10 @@ import { pathToFileURL } from "node:url";
 
 const FLEET = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 const REDACT_KEYS = new Set(
-  "energy_site_id,id,id_s,asset_site_id,site_name,gateway_id,din,serial_number,vin,email,user_id,address,address_line1,address_line2,city,state,zip,postal_code".split(","),
+  "energy_site_id,id,id_s,asset_site_id,site_name,gateway_id,din,serial_number,vin,device_id,site_id,grid_installation_id,warp_site_number,vehicle_id,display_name,email,user_id,address,address_line1,address_line2,city,state,zip,postal_code".split(","),
 );
 const COORD_KEYS = new Set(["latitude", "longitude", "lat", "lon", "lng"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SECRET_KEYS = ["id", "din", "serial_number", "gateway_id", "vin"];
 
 // Same format as src/lib/crypto.ts: hex(enc || 16-byte tag), 12-byte IV.
@@ -28,6 +29,9 @@ export function decrypt(ciphertext, iv, keyHex) {
   return Buffer.concat([d.update(data.subarray(0, -16)), d.final()]).toString("utf8");
 }
 
+export const missingEnv = (env) =>
+  ["DATABASE_URL", "TESLA_CLIENT_ID", "TESLA_CLIENT_SECRET", "ENCRYPTION_KEY"].filter((k) => !env[k]);
+
 export function anonymize(value, secrets) {
   if (Array.isArray(value)) return value.map((v) => anonymize(v, secrets));
   if (value && typeof value === "object") {
@@ -43,7 +47,7 @@ export function anonymize(value, secrets) {
   if (typeof value === "string") {
     let s = value;
     for (const sec of secrets) if (String(sec) !== "") s = s.split(String(sec)).join("REDACTED");
-    return s;
+    return UUID.test(s) ? "REDACTED" : s;
   }
   if (typeof value === "number" && secrets.some((s) => typeof s === "number" && s === value)) return "REDACTED";
   return value;
@@ -130,7 +134,13 @@ export async function run(deps) {
     }
     const is2xx = status >= 200 && status < 300;
     const ok = is2xx && !!body && typeof body === "object" && "response" in body;
-    if (name === "products") collect(body);
+    if (name === "products" && Array.isArray(body?.response)) {
+      body.response = body.response.filter((i) => (i?.device_type ?? "energy") === "energy" && i?.resource_type !== "vehicle");
+      if ("count" in body) body.count = body.response.length;
+      collect(body);
+      const sid = body.response.find((i) => i.resource_type === "battery")?.energy_site_id;
+      if (sid != null) secrets.push(String(sid), Number(sid));
+    }
     if (is2xx && body && typeof body === "object") await deps.writeFixture(name, anonymize(body, secrets));
     if (!ok) log(`${name} error: ${JSON.stringify(anonymize(body, secrets)).slice(0, 300)}`);
     results.push({ name, path, status, ok });
@@ -143,7 +153,6 @@ export async function run(deps) {
   if (siteId == null) {
     log("no battery product found; stopping");
   } else {
-    secrets.push(String(siteId), Number(siteId));
     const base = `/api/1/energy_sites/${siteId}`;
     const info = await call("site_info", `${base}/site_info`);
     const tz = info?.installation_time_zone || "UTC";
@@ -165,6 +174,11 @@ async function main() {
   const postgres = require("postgres");
   const fs = await import("node:fs/promises");
   const env = process.env;
+  const missing = missingEnv(env);
+  if (missing.length) {
+    console.log(`Missing env: ${missing.join(", ")}`);
+    process.exit(1);
+  }
   const sql = postgres(env.DATABASE_URL);
   let failed = false;
   try {
