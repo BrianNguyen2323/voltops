@@ -1,6 +1,6 @@
 # SPEC — Database adjustments + Docker (SQLite file)
 
-Revision 2
+Revision 3
 
 ## Goal
 VoltOps runs self-hosted with `docker compose up`: one `web` container plus one SQLite file on a named volume. Single owner. Supabase/Postgres and the Netlify app deploy are gone. (CLAUDE.md D1, D2, D4, D6, D10.)
@@ -49,6 +49,27 @@ Remove `DATABASE_URL`. Add `DATABASE_PATH` (optional) and `AUTH_DISABLED` (optio
 - `Dockerfile` (repo root), multi-stage `node:22-slim`. pnpm via corepack. Build with `SKIP_ENV_VALIDATION=1`. The runtime stage copies the standalone output, `.next/static`, `public`, `drizzle/` and `scripts/migrate.mjs`. `USER node`, `/data` owned by node, `EXPOSE 3000`, `CMD node scripts/migrate.mjs && node server.js`. Also add `.dockerignore`.
 - `compose.yaml` (repo root): service `web` (build `.`, `ports: "3000:3000"`, `env_file: .env`, `environment: DATABASE_PATH=/data/voltops.db`, volume `voltops-data:/data`, `restart: unless-stopped`). No worker yet.
 - Remove deps `postgres`, `@supabase/ssr`, `@supabase/supabase-js`, `@netlify/plugin-nextjs`. `netlify.toml` becomes static only: `[build] publish = "public"`, no command, no plugin. `.gitignore` adds `/data/`.
+
+## Fail-fast config (Rev 3, Decision round 2 Q2 A)
+- The zod server schema lives in one plain-JS file, `src/env.schema.js` (export `server`). `src/env.js` passes it to `createEnv`, so there is no second copy.
+- `scripts/check-env.mjs` validates `process.env` against that schema, with empty strings counting as unset (same as `emptyStringAsUndefined`). It honours `SKIP_ENV_VALIDATION`. On failure it prints one line per bad key (key + problem, never the value) and exits 1. Special hint: if `VOLTOPS_SECRET_KEY` is missing and `ENCRYPTION_KEY` is set, print `VOLTOPS_SECRET_KEY missing (old name: ENCRYPTION_KEY — rename it)`. On success it prints nothing and exits 0.
+- Container `CMD`: `node scripts/check-env.mjs && node scripts/migrate.mjs && node server.js`. The runtime image copies `src/env.schema.js` and `scripts/check-env.mjs`.
+- `compose.yaml` `web`: `healthcheck` = `node -e` fetching `http://localhost:3000/login` (redirects followed; healthy on 2xx). There's no curl in the slim image. Host port: `"${VOLTOPS_PORT:-3000}:3000"`.
+- With `restart: unless-stopped`, a bad `.env` shows as a restarting container, and `docker compose logs web` shows the message. That's accepted.
+
+## Logging (Rev 3, Q3 A)
+- The Tesla callback never logs a Tesla response body. Failed `products`/`site_info` calls log `status` + Tesla's `error` code (string, else `unknown`), the same as the token-exchange path. Keep the "Energy site: found/none" and timezone lines. Drop the tariff-ID line.
+
+## Smoke test (Rev 3, CLOSEOUT item 4)
+`scripts/docker-smoke.sh`: honours `SMOKE_PORT` (default 3000; passed to compose as `VOLTOPS_PORT`). It also asserts:
+- (a) the container reaches `healthy`;
+- (b) `GET /api/auth/tesla` with an admin session returns a redirect whose `redirect_uri` equals the container's `TESLA_REDIRECT_URI`. It runs inside the container via `node -e`: insert a throwaway admin row into the smoke volume's DB, and sign the cookie `voltops_session=admin.<hex HMAC-SHA256("admin", SESSION_SECRET)>`. No network;
+- (c) `docker compose run --rm -e VOLTOPS_SECRET_KEY= web` exits non-zero and prints `VOLTOPS_SECRET_KEY`.
+
+## Cleanup (Rev 3, CLOSEOUT item 6)
+- Delete `src/app/page_extras.tsx`; remove the `@supabase` registry from `components.json`.
+- `drizzle.config.ts` and `scripts/verify-tesla-gets.mjs`: `DATABASE_PATH ||` instead of `??`.
+- Verify script: drop the dead `userId` from `run()`'s `saveToken` payload, and open the DB with `{ fileMustExist: true }` (a missing file is an error, not a new empty DB).
 
 ## Tests
 Vitest (CLAUDE.md §11) for `src/**`: `pnpm test` = `vitest run`. Scripts keep `node --test`. No network. DB tests use a temp file or `:memory:`.

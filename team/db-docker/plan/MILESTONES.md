@@ -7,3 +7,8 @@
 
 ## M2 — Docker (`docker compose up` works, data survives a restart)
 - B004 Dockerfile, compose, standalone, migrate at start, remove Postgres/Supabase/Netlify app. Starts after B002 merges.
+
+## M3 — Config + hygiene (bad `.env` fails at start; no Tesla bodies in logs)
+- B007 Fail-fast env check, healthcheck, configurable host port, smoke-test assertions. Tester → implementer.
+- B008 Callback log redaction. Tester → implementer. Parallel with B007.
+- B009 Cleanup batch (cleaner). Parallel with B007/B008; no shared files.

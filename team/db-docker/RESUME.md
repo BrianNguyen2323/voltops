@@ -1,9 +1,10 @@
 # Resume board — db-docker
 
-- **Status: REOPENED (2026-10-05). Decision round 2 is waiting on the PO** (TODO.md, Q1–Q4).
-- **Round 1 (closed):** B001–B006 shipped and were merged into `main` via PR #7. See `CLOSEOUT.md`. SPEC is at Revision 2.
-- **Round 2 topic:** config + hygiene follow-ups from CLOSEOUT.md "Suggestions — next round": fail-fast env at container start, Tesla log redaction, smoke-test port + redirect assertion, cleanup batch.
-- **Integration branch:** `main`. The round-1 "merge into `database-docker`" answer applied only to that branch, and it is now merged.
-- **Last action:** wrote Decision round 2 in TODO.md, checking each suggestion against main@968882e. Finding: `src/env.js` already validates with zod, but the standalone server loads it lazily, so bad config shows up as a 500 instead of a startup failure.
-- **Next action:** record the PO's answers, write SPEC Revision 3 + `design/revisions/R003.md`, add milestone M3 + briefs B007+ to board/ready, then build tests-first.
-- **Open branches:** none of ours. Pending Q4: `database-docker` + 7 stale `worktree-agent-*` local branches.
+- **Status: REOPENED (2026-10-05). Round 2 is building M3.**
+- **Round 1 (closed):** B001–B006 merged into `main` via PR #7. See `CLOSEOUT.md`.
+- **Round 2 topic:** config + hygiene (Decision round 2 answered: 1A 2A 3A-keep-timezone 4A). SPEC Revision 3, R003.
+- **Integration branch:** `main`.
+- **Last action:** spawned the B007 tester, B008 tester and B009 cleaner in parallel (worktrees).
+- **Next action:** when each tester reports, spawn its implementer on the tester's branch. Then a reviewer per brief, then gate + merge `--no-ff` into main, with the full build + docker smoke (`SMOKE_PORT=3100`) on main. Then a TODO Review item for the PO.
+- **Open branches:** `phase1/fail-fast-env-tests`, `phase1/callback-logs-tests`, `phase1/cleanup-batch` (in progress).
+- **Housekeeping:** the 8 stale local branches are deleted. The PO deletes `origin/database-docker`.
