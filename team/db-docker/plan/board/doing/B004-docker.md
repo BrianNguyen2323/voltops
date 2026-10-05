@@ -15,10 +15,10 @@
 
 ## Owned files
 - **Tester:** `scripts/docker-smoke.sh`.
-- **Implementer:** `Dockerfile`, `.dockerignore`, `compose.yaml`, `next.config.js`, `netlify.toml`, `package.json`, `pnpm-lock.yaml`, `README.md`.
+- **Implementer:** `Dockerfile`, `.dockerignore`, `compose.yaml`, `next.config.js`, `netlify.toml`, `package.json`, `pnpm-lock.yaml`, `README.md`, `.gitattributes` (add `*.sh text eol=lf` so the smoke script keeps LF on Windows).
 
 ## Base
-`database-docker` (the PO's integration branch for this scope; B001–B003 are merged there). Branches `phase1/docker-tests` → `phase1/docker-impl`.
+`database-docker` (the PO's integration branch for this scope; B001–B003 are merged there). Branches `phase1/docker-tests` → `phase1/docker-impl`. The tests branch adds `scripts/docker-smoke.sh`. It expects compose service `web` on `localhost:3000` and `better-sqlite3` requireable from the container workdir (`node -e` WAL check).
 
 ## Judged by
 `bash scripts/docker-smoke.sh` exits 0. The script:
