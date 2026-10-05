@@ -3,6 +3,8 @@
 PO question: is a DB needed for Fleet API metrics, or should we "dockerize and store locally"?
 **Answer: both. It's one SQLite file on a Docker volume.** "Local storage" still needs a store, and SQLite is that store.
 
+> Moved from `team/tesla-api-connection` on 2026-10-05. Decisions: `team/db-docker/TODO.md`.
+
 ## Why storage is required (CLAUDE.md goals that can't work without it)
 | Need | Why Tesla can't serve it on demand |
 |---|---|
