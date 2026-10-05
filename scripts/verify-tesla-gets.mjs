@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 
 const FLEET = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 const REDACT_KEYS = new Set(
-  "energy_site_id,id,id_s,asset_site_id,site_name,gateway_id,din,serial_number,vin,device_id,site_id,grid_installation_id,warp_site_number,vehicle_id,display_name,email,user_id,address,address_line1,address_line2,city,state,zip,postal_code".split(","),
+  "energy_site_id,id,id_s,asset_site_id,site_name,gateway_id,din,serial_number,vin,device_id,site_id,grid_installation_id,warp_site_number,vehicle_id,display_name,email,user_id,address,address_line1,address_line2,city,state,zip,postal_code,cached_data".split(","),
 );
 const COORD_KEYS = new Set(["latitude", "longitude", "lat", "lon", "lng"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -134,8 +134,10 @@ export async function run(deps) {
     }
     const is2xx = status >= 200 && status < 300;
     const ok = is2xx && !!body && typeof body === "object" && "response" in body;
-    if (name === "products" && Array.isArray(body?.response)) {
-      body.response = body.response.filter((i) => (i?.device_type ?? "energy") === "energy" && i?.resource_type !== "vehicle");
+    if (name === "products" && body && typeof body === "object" && "response" in body) {
+      body.response = Array.isArray(body.response)
+        ? body.response.filter((i) => i?.device_type === "energy" || (i?.device_type == null && typeof i?.resource_type === "string" && i.resource_type !== "" && i.resource_type !== "vehicle"))
+        : [];
       if ("count" in body) body.count = body.response.length;
       collect(body);
       const sid = body.response.find((i) => i.resource_type === "battery")?.energy_site_id;
