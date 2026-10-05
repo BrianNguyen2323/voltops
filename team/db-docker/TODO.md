@@ -77,4 +77,8 @@ What to try:
 5. **Wrong password:** log out, try a wrong password, and you should see "Incorrect password".
 6. **Merge:** merge `database-docker` into `main` when you're happy. Once that lands, Netlify publishes only `public/`. Then check that https://voltops.netlify.app/.well-known/appspecific/com.tesla.3p.public-key.pem still loads.
 - Known: the image is ~900 MB (follow-up 14). On Windows, run the smoke script from a path on D:, because Docker bake refuses a Temp-folder build context.
-- Result:
+- Result: (PO, 2026-10-05) `docker compose up -d --build` builds, but http://localhost:3000 returns 500. Lead diagnosis:
+  - the `.env` has the old `ENCRYPTION_KEY` instead of `VOLTOPS_SECRET_KEY`, so env validation fails;
+  - `TESLA_CLIENT_SECRET` contains `$` and Compose reads `$XU` as a variable;
+  - an empty `DATABASE_PATH=` overrides `/data/voltops.db`, and the app silently uses a temp DB.
+  - **PO steps:** rename `ENCRYPTION_KEY` → `VOLTOPS_SECRET_KEY` (same 64-char value), delete the `DATABASE_PATH=` line, single-quote the `TESLA_CLIENT_SECRET` value, then `docker compose up -d --force-recreate`. Code hotfix: B005.
