@@ -1,11 +1,10 @@
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { env } from "~/env";
 import { encrypt } from "~/lib/crypto";
 import { setSession } from "~/lib/session";
 import { db } from "~/server/db";
-import { energySites, tariffSchedules, teslaTokens, users } from "~/server/db/schema";
+import { credentials, sites, tariffSchedule } from "~/server/db/schema";
 
 const FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
@@ -70,18 +69,9 @@ export async function GET(request: NextRequest) {
   const tokens = (await tokenRes.json()) as {
     access_token: string;
     refresh_token: string;
-    id_token: string;
     expires_in: number;
     scope: string;
   };
-
-  // Decode the JWT id_token to extract user identity (no verification needed —
-  // the token came directly from Tesla's token endpoint over HTTPS)
-  const idPayload = JSON.parse(
-    Buffer.from(tokens.id_token.split(".")[1]!, "base64url").toString(),
-  ) as { sub: string; email: string; name?: string };
-
-  console.log("[Tesla OAuth] Identity:", idPayload.sub, idPayload.email);
 
   // --- Fetch energy site using the fresh access token (no separate refresh needed) ---
 
@@ -132,110 +122,63 @@ export async function GET(request: NextRequest) {
   console.log("[Tesla OAuth] Timezone:", siteInfo?.installation_time_zone ?? "none");
   console.log("[Tesla OAuth] Tariff:", siteInfo?.tariff_id ?? "none");
 
-  // --- Find or create user ---
+  // --- Upsert site (keyed on Tesla's site ID so re-logins stay idempotent) ---
 
-  let user = await db.query.users.findFirst({
-    where: eq(users.teslaUserId, idPayload.sub),
-  });
-
-  if (!user) {
-    const [created] = await db
-      .insert(users)
-      .values({
-        teslaUserId: idPayload.sub,
-        email: idPayload.email,
-        displayName: idPayload.name,
-      })
-      .returning();
-    user = created;
-    console.log("[Tesla OAuth] Created user:", user?.id);
-  } else {
-    console.log("[Tesla OAuth] Existing user:", user.id);
-  }
-
-  if (!user) {
-    console.error("[Tesla OAuth] Failed to create user in DB");
-    loginUrl.searchParams.set("error", "db_error");
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // --- Upsert energy site (keyed on Tesla's site ID so re-logins stay idempotent) ---
-  // latitude/longitude/city/state are not returned by site_info — left null until
-  // a separate geocoding step populates them (deferred to weather API integration).
-
-  let siteRowId: string | null = null;
+  const now = new Date();
+  let siteRowId: number | null = null;
 
   if (teslaEnergySiteId) {
+    const tz = siteInfo?.installation_time_zone ?? null;
     const [siteRow] = await db
-      .insert(energySites)
+      .insert(sites)
       .values({
-        userId: user.id,
-        teslaEnergySiteId,
-        timezone: siteInfo?.installation_time_zone ?? null,
+        source: "fleet-api",
+        externalId: teslaEnergySiteId,
+        timezone: tz,
+        createdAt: now,
+        updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: energySites.teslaEnergySiteId,
-        set: {
-          timezone: siteInfo?.installation_time_zone ?? null,
-          updatedAt: new Date(),
-        },
+        target: sites.externalId,
+        set: { timezone: tz, updatedAt: now },
       })
-      .returning({ id: energySites.id });
-
+      .returning({ id: sites.id });
     siteRowId = siteRow?.id ?? null;
   }
 
   // --- Upsert tariff schedule (one per site, refreshed on each login) ---
 
   if (siteRowId && siteInfo?.tariff_id) {
+    const row = {
+      tariffId: siteInfo.tariff_id,
+      name: siteInfo.tariff_content?.name ?? null,
+      utility: siteInfo.utility ?? null,
+      currency: siteInfo.tariff_content?.currency ?? null,
+      content: siteInfo.tariff_content ?? null,
+      updatedAt: now,
+    };
     await db
-      .insert(tariffSchedules)
-      .values({
-        energySiteId: siteRowId,
-        tariffId: siteInfo.tariff_id,
-        tariffName: siteInfo.tariff_content?.name ?? null,
-        utility: siteInfo.utility ?? null,
-        currency: siteInfo.tariff_content?.currency ?? null,
-        tariffContent: siteInfo.tariff_content ?? null,
-      })
-      .onConflictDoUpdate({
-        target: tariffSchedules.energySiteId,
-        set: {
-          tariffId: siteInfo.tariff_id,
-          tariffName: siteInfo.tariff_content?.name ?? null,
-          utility: siteInfo.utility ?? null,
-          currency: siteInfo.tariff_content?.currency ?? null,
-          tariffContent: siteInfo.tariff_content ?? null,
-          updatedAt: new Date(),
-        },
-      });
+      .insert(tariffSchedule)
+      .values({ siteId: siteRowId, ...row })
+      .onConflictDoUpdate({ target: tariffSchedule.siteId, set: row });
   }
 
-  // --- Encrypt and upsert refresh token ---
+  // --- Encrypt and upsert refresh token (single row, id=1) ---
 
   const { ciphertext: encryptedRefreshToken, iv } = encrypt(tokens.refresh_token);
-
+  const cred = {
+    encryptedRefreshToken,
+    iv,
+    scope: tokens.scope,
+    accessTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+    updatedAt: now,
+  };
   await db
-    .insert(teslaTokens)
-    .values({
-      userId: user.id,
-      encryptedRefreshToken,
-      iv,
-      scope: tokens.scope,
-      accessTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-    })
-    .onConflictDoUpdate({
-      target: teslaTokens.userId,
-      set: {
-        encryptedRefreshToken,
-        iv,
-        scope: tokens.scope,
-        accessTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-        updatedAt: new Date(),
-      },
-    });
+    .insert(credentials)
+    .values({ id: 1, ...cred })
+    .onConflictDoUpdate({ target: credentials.id, set: cred });
 
-  await setSession(user.id);
+  await setSession("owner");
 
   return NextResponse.redirect(new URL("/home", request.url));
 }
