@@ -9,7 +9,8 @@
     "test:scripts": "node --test \"scripts/*.test.mjs\"",
     "check": "next lint && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "test": "vitest run",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "dev": "next dev --turbo",
@@ -31,11 +32,11 @@
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",
     "@trpc/server": "^11.0.0",
+    "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "next": "^15.2.3",
-    "postgres": "^3.4.9",
     "radix-ui": "^1.4.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -50,6 +51,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@netlify/plugin-nextjs": "^5.15.4",
     "@tailwindcss/postcss": "^4.0.15",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20.14.10",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -63,7 +65,9 @@
     "prettier-plugin-tailwindcss": "^0.6.11",
     "tailwindcss": "^4.0.15",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.27.0"
+    "typescript-eslint": "^8.27.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^5.0.3"
   },
   "ct3aMetadata": {
     "initVersion": "7.40.0"
