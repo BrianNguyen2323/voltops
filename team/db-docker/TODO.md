@@ -40,12 +40,13 @@
 - **Recommended: yes.** Netlify keeps serving only static files: the Tesla public key `.well-known/.../public-key.pem`, plus the Q5-B forwarder if needed. Do your daytime `pnpm verify:tesla` run **before** this merges, because it reads the token from Supabase.
 - Answer: **Yes** (PO, 2026-10-05).
 
-## USER INPUT REQUIRED — 2 items before the build starts
+## Follow-up — ANSWERED 2026-10-05 (see design/revisions/R002.md)
 
 **Q2b. SQLite driver (correction to my Q2 recommendation).** While writing the spec I found that the Drizzle you have installed (0.45, the current stable release) has **no** `node:sqlite` driver. It only exists in Drizzle 1.0 pre-releases (rc.5), and the Drizzle docs I cited describe 1.0. Sorry, I should have checked the installed version first.
 - **A (recommended):** `better-sqlite3` on stable Drizzle 0.45. Mature, the most-used SQLite driver for Node. Prebuilt binaries cover Windows and linux x64/arm64, so normally nothing gets compiled.
 - B: upgrade to Drizzle 1.0 rc and use `node:sqlite`. No native dependency, but a pre-release ORM plus an experimental Node module.
 - The schema code is identical either way; only the connection line and one package differ.
-- Answer:
+- Answer: **A** (PO, 2026-10-05).
 
 **Q5 result.** On developer.tesla.com → your app → Allowed Redirect URIs, add `http://localhost:3000/api/auth/callback` and save. Tell me "accepted" or paste the error. If it's rejected, I add a small brief for the Netlify forwarder page (Q5-B). Nothing in B001–B004 waits on this.
+- Result: **accepted**. The portal lists `http://localhost:3000/api/auth/callback` and `https://voltops.netlify.app/api/auth/callback` (PO, 2026-10-05).

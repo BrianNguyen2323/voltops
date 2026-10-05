@@ -1,7 +1,7 @@
 # B001 — SQLite schema, connection, migrations
 
 ## Facts
-- Replace Postgres (postgres-js) with SQLite via Drizzle `sqlite-core`. Driver: **per Q2b** (default `better-sqlite3` + `drizzle-orm/better-sqlite3`). Stay on drizzle-orm 0.45.x.
+- Replace Postgres (postgres-js) with SQLite via Drizzle `sqlite-core`. Driver: `better-sqlite3` + `drizzle-orm/better-sqlite3` (Q2b A). Stay on drizzle-orm 0.45.x.
 - File `DATABASE_PATH` (default `./data/voltops.db`; mkdir the parent). On open: `PRAGMA journal_mode=WAL; foreign_keys=ON; busy_timeout=5000`. Export `db` and an `openDb(path)` factory for tests.
 - Tables (no prefix; timestamps `integer` `timestamp_ms`; JSON `text` json):
   - `admin`: id int pk CHECK(id=1), password_hash text NOT NULL, created_at.
@@ -10,7 +10,7 @@
   - `tariff_schedule`: site_id int pk FK→sites ON DELETE CASCADE, tariff_id, name, utility, currency, content (json), updated_at.
   - Drop `users` and `tesla_token`.
 - `drizzle.config.ts`: dialect `sqlite`, `dbCredentials.url` = DATABASE_PATH, out `drizzle/`. Generate the initial migration into `drizzle/` and commit it. `scripts/migrate.mjs`: plain JS, opens the DB with the same pragmas and runs the drizzle migrator on `drizzle/`. `pnpm db:migrate` → `node scripts/migrate.mjs`.
-- Env (`src/env.js`, `.env.example`): remove DATABASE_URL. Add DATABASE_PATH (optional) and AUTH_DISABLED (optional, enum "true"). Rename ENCRYPTION_KEY → VOLTOPS_SECRET_KEY (`src/lib/crypto.ts` follows).
+- Env (`src/env.js`, `.env.example`): `.env.example` sets `TESLA_REDIRECT_URI=http://localhost:3000/api/auth/callback` (the PO confirmed Tesla accepts it, Q5). Remove DATABASE_URL. Add DATABASE_PATH (optional) and AUTH_DISABLED (optional, enum "true"). Rename ENCRYPTION_KEY → VOLTOPS_SECRET_KEY (`src/lib/crypto.ts` follows).
 - Callers become single owner, with Tesla OAuth still the login in this brief:
   - The callback upserts `credentials` id=1, `sites` by external_id (source "fleet-api"), and `tariff_schedule`, then calls `setSession("owner")`. Remove the id_token decode and every log of email/sub.
   - `src/lib/tesla.ts`: `getAccessToken()` and `getPowerwallLiveStatus()` take no args.

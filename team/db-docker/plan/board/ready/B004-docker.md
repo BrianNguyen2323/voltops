@@ -1,7 +1,7 @@
 # B004 — Dockerfile + compose; retire the Netlify app
 
 ## Facts
-- `next.config.js`: `output: "standalone"`, `serverExternalPackages: [<sqlite driver from B001>, "@node-rs/argon2"]`.
+- `next.config.js`: `output: "standalone"`, `serverExternalPackages: ["better-sqlite3", "@node-rs/argon2"]`.
 - `Dockerfile` (repo root), multi-stage `node:22-slim`:
   - pnpm via corepack, `pnpm install --frozen-lockfile`;
   - build with `SKIP_ENV_VALIDATION=1`;

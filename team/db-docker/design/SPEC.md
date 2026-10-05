@@ -1,12 +1,12 @@
 # SPEC — Database adjustments + Docker (SQLite file)
 
-Revision 1
+Revision 2
 
 ## Goal
 VoltOps runs self-hosted with `docker compose up`: one `web` container plus one SQLite file on a named volume. Single owner. Supabase/Postgres and the Netlify app deploy are gone. (CLAUDE.md D1, D2, D4, D6, D10.)
 
 ## Decisions (Decision round 1, see R001)
-Q1 Docker Compose · Q2 SQLite WAL via Drizzle (driver: **pending Q2b**, recommended `better-sqlite3`) · Q3 no `energy_hourly` table, ADR 0001 · Q4 re-login, no data migration · Q5 try a localhost redirect URI (PO test pending; the code is the same either way) · Q6 admin password now (D10) · Q7 scope as recommended · Q8 Netlify serves static files only.
+Q1 Docker Compose · Q2 SQLite WAL via Drizzle (driver `better-sqlite3`, Q2b A) · Q3 no `energy_hourly` table, ADR 0001 · Q4 re-login, no data migration · Q5 localhost redirect URI accepted by Tesla · Q6 admin password now (D10) · Q7 scope as recommended · Q8 Netlify serves static files only.
 
 ## Database
 - File: env `DATABASE_PATH`, default `./data/voltops.db` (compose: `/data/voltops.db`). Create the parent dir if missing.
@@ -45,7 +45,7 @@ Remove `DATABASE_URL`. Add `DATABASE_PATH` (optional) and `AUTH_DISABLED` (optio
 `scripts/verify-tesla-gets.mjs` `main()` reads and writes the token in `credentials` (id=1) of the SQLite file at `DATABASE_PATH`. It needs env `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `VOLTOPS_SECRET_KEY`. If there's no credentials row, it exits 1 with "connect Tesla in the app first". `run(deps)` and the helpers stay unchanged.
 
 ## Docker
-- `next.config.js`: `output: "standalone"`, `serverExternalPackages: [<sqlite driver>, "@node-rs/argon2"]`.
+- `next.config.js`: `output: "standalone"`, `serverExternalPackages: ["better-sqlite3", "@node-rs/argon2"]`.
 - `Dockerfile` (repo root), multi-stage `node:22-slim`. pnpm via corepack. Build with `SKIP_ENV_VALIDATION=1`. The runtime stage copies the standalone output, `.next/static`, `public`, `drizzle/` and `scripts/migrate.mjs`. `USER node`, `/data` owned by node, `EXPOSE 3000`, `CMD node scripts/migrate.mjs && node server.js`. Also add `.dockerignore`.
 - `compose.yaml` (repo root): service `web` (build `.`, `ports: "3000:3000"`, `env_file: .env`, `environment: DATABASE_PATH=/data/voltops.db`, volume `voltops-data:/data`, `restart: unless-stopped`). No worker yet.
 - Remove deps `postgres`, `@supabase/ssr`, `@supabase/supabase-js`, `@netlify/plugin-nextjs`. `netlify.toml` becomes static only: `[build] publish = "public"`, no command, no plugin. `.gitignore` adds `/data/`.
