@@ -98,7 +98,7 @@ Gate: vitest 34/34, test:scripts 45/45, typecheck, lint, build, docker smoke PAS
 5. If all good: merge `database-docker` into `main` (your call), then check that the Netlify public-key URL still loads.
 - Result: **Everything looks good** (PO, 2026-10-05). The PO merged `database-docker` into `main` (PR #7). Scope closed; see CLOSEOUT.md.
 
-## USER INPUT REQUIRED — Decision round 2 (2026-10-05): config + hygiene follow-ups
+## ANSWERED 2026-10-05 — Decision round 2: config + hygiene follow-ups (see design/revisions/R003.md)
 Scope reopened. Input: `CLOSEOUT.md` "Suggestions — next round". I checked each one against the code on `main` (968882e).
 
 **Q1. What's in this round?**
@@ -106,19 +106,19 @@ Scope reopened. Input: `CLOSEOUT.md` "Suggestions — next round". I checked eac
 - B: A plus item 3 (deflake vitest: cheaper argon2 params in tests, raised timeouts).
 - C: everything (1–7), including the image shrink (5) and auth hardening (7).
 - Deferred under A: item 5 fits better with the CI/GHCR scope, where image size costs push time. Item 7 is a separate small auth round.
-- Answer:
+- Answer: **A** (PO, 2026-10-05). Items 1, 2, 4, 6 → milestone M3.
 
 **Q2. How should bad config fail?** Why it 500'd: `src/env.js` already validates every variable with zod, but the standalone server only loads it on the first request, so the container looks "healthy".
 - **A (recommended):** move the zod schema into one plain file that `src/env.js` and a new `scripts/check-env.mjs` both import. The container CMD runs `check-env → migrate → server`. A bad `.env` makes `docker compose up` exit with a readable line, e.g. `VOLTOPS_SECRET_KEY missing (old name: ENCRYPTION_KEY — rename it)`. Also add a compose `healthcheck` on `/login` (using node's `fetch`, since the slim image has no curl).
 - B: a Next `instrumentation.ts` hook that imports `env` at server start. Less code, but I haven't verified that a throw there stops the process in Next 15, so it might still start "healthy".
-- Answer:
+- Answer: **A** (PO, 2026-10-05).
 
 **Q3. Tesla logging in the callback** (`src/app/api/auth/callback/route.ts` lines 125, 129, 133–134). Today a failed `site_info`/`products` call logs Tesla's full response body, and a success logs the tariff ID and timezone.
 - **A (recommended):** log the HTTP status + Tesla's `error` code only (the token-exchange path at line 71 already does this). Keep "Energy site: found/none", and drop the timezone and tariff lines.
 - B: also remove the live-reading printout in `src/lib/tesla.ts:128–133` (power values only, no IDs; it's used by `verify:tesla`).
-- Answer:
+- Answer: **A, but keep the timezone line** (PO, 2026-10-05). Drop only the tariff-ID line and the body logs.
 
 **Q4. Stale local branches.** `database-docker` (merged via PR #7) and 7 leftover `worktree-agent-*` branches, which have no worktrees.
 - **A (recommended):** I delete them locally with `git branch -d` (safe delete, so it refuses anything unmerged and I'll list those for you). You delete `origin/database-docker` on GitHub yourself.
 - B: leave them.
-- Answer:
+- Answer: **A** (PO, 2026-10-05). Done: all 8 were merged, so `git branch -d` deleted them. The PO deletes `origin/database-docker`.
