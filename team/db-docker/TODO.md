@@ -82,3 +82,9 @@ What to try:
   - `TESLA_CLIENT_SECRET` contains `$` and Compose reads `$XU` as a variable;
   - an empty `DATABASE_PATH=` overrides `/data/voltops.db`, and the app silently uses a temp DB.
   - **PO steps:** rename `ENCRYPTION_KEY` → `VOLTOPS_SECRET_KEY` (same 64-char value), delete the `DATABASE_PATH=` line, single-quote the `TESLA_CLIENT_SECRET` value, then `docker compose up -d --force-recreate`. Code hotfix: B005.
+
+## USER INPUT REQUIRED — Free port 3000 for the B005 smoke test
+The B005 code is green (31 + 45 tests, typecheck, build). Its Docker smoke test needs port 3000, and your `voltops-web-1` container is using it (up since your `.env` fix).
+- **A (recommended):** when you're done testing, run `docker compose down` (no `-v`, so your volume and DB are kept) and tell me "port free". I run the smoke test, merge B005, and you `docker compose up -d --build` again on the fixed code.
+- B: tell me "stop it", and I run `docker compose stop` for you.
+- Answer:
