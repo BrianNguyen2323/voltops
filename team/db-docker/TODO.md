@@ -67,7 +67,7 @@ You stopped the B002 reviewer mid-run, so it gave no verdict. Its last note hint
 B004's acceptance test builds the container and runs it with `docker compose`. Docker Desktop is installed (Compose v2.29.1), but the engine isn't running (`docker version` can't reach `dockerDesktopLinuxEngine`). Please start Docker Desktop and tell me "docker up". The B004 tester is already working; the implementer needs Docker running.
 - Answer: **docker up** (PO, 2026-10-05). Engine 29.8.2 linux/amd64 confirmed.
 
-## USER INPUT REQUIRED — Review: M1 + M2 on `database-docker` (all four briefs merged)
+## ANSWERED 2026-10-05 — Review: M1 + M2 on `database-docker` (all four briefs merged)
 Gate on `database-docker`: vitest 30/30, test:scripts 43/43, typecheck, lint, clean build, and `bash scripts/docker-smoke.sh` PASS.
 What to try:
 1. **`.env`:** compare it with `.env.example` (I only checked key names, not values; your `.env` has no plain `KEY=value` lines, so it may need redoing). Needed: `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `TESLA_REDIRECT_URI=http://localhost:3000/api/auth/callback`, `SESSION_SECRET` (≥32 chars), `VOLTOPS_SECRET_KEY` (≥64 chars). **Leave `DATABASE_PATH` unset**: compose's `.env` overrides the image's `/data/voltops.db`.
@@ -89,11 +89,11 @@ The B005 code is green (31 + 45 tests, typecheck, build). Its Docker smoke test 
 - B: tell me "stop it", and I run `docker compose stop` for you.
 - Answer: **port free** (PO, 2026-10-05). Smoke PASS; B005 merged.
 
-## USER INPUT REQUIRED — Re-test after B005 + B006 (both merged into `database-docker`)
+## ANSWERED 2026-10-05 — Re-test after B005 + B006 (both merged into `database-docker`)
 Gate: vitest 34/34, test:scripts 45/45, typecheck, lint, build, docker smoke PASS.
 1. `docker compose up -d --build`. It rebuilds on the fixed code and keeps your `voltops-data` volume (admin password + Tesla connection carry over).
 2. Open http://localhost:3000. You should land on `/login`; log in. `/home` should show "Tesla connected".
 3. Optional: re-run **Connect Tesla**. After Tesla's page, you should land on `http://localhost:3000/home`, not `0.0.0.0`.
 4. `docker compose restart`, then reload: still "Tesla connected".
 5. If all good: merge `database-docker` into `main` (your call), then check that the Netlify public-key URL still loads.
-- Result:
+- Result: **Everything looks good** (PO, 2026-10-05). The PO merged `database-docker` into `main` (PR #7). Scope closed; see CLOSEOUT.md.
