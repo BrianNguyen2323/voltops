@@ -1,0 +1,39 @@
+{
+  "response": [
+    {
+      "energy_site_id": "REDACTED",
+      "device_type": "energy",
+      "resource_type": "battery",
+      "site_name": "REDACTED",
+      "id": "REDACTED",
+      "gateway_id": "REDACTED",
+      "asset_site_id": "REDACTED",
+      "grid_installation_id": "REDACTED",
+      "warp_site_number": "REDACTED",
+      "battery_type": "solar_powerwall",
+      "components": {
+        "battery": true,
+        "battery_type": "solar_powerwall",
+        "solar": true,
+        "solar_type": "pv_panel",
+        "grid": true,
+        "load_meter": true,
+        "market_type": "residential",
+        "gateways": [
+          {
+            "device_id": "REDACTED",
+            "din": "REDACTED",
+            "serial_number": "REDACTED",
+            "part_number": "1707000-11-M",
+            "is_active": true
+          }
+        ]
+      },
+      "charge_on_solar_capable": true,
+      "features": {
+        "rate_plan_manager_no_pricing_constraint": true
+      }
+    }
+  ],
+  "count": 1
+}
