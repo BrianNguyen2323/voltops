@@ -1,14 +1,26 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 
-import { env } from "~/env";
 import * as schema from "./schema";
 
-const globalForDb = globalThis as unknown as {
-  conn: postgres.Sql | undefined;
-};
+export function openDb(path: string) {
+  mkdirSync(dirname(path), { recursive: true });
+  const client = new Database(path);
+  client.pragma("journal_mode = WAL");
+  client.pragma("foreign_keys = ON");
+  client.pragma("busy_timeout = 5000");
+  return drizzle(client, { schema });
+}
 
-const conn = globalForDb.conn ?? postgres(env.DATABASE_URL, { max: 1 });
-if (env.NODE_ENV !== "production") globalForDb.conn = conn;
+type Db = ReturnType<typeof openDb>;
+const g = globalThis as unknown as { __voltopsDb?: Db };
 
-export const db = drizzle(conn, { schema });
+// Lazy so importing this module never opens a file (tests, next build).
+const get = () =>
+  (g.__voltopsDb ??= openDb(process.env.DATABASE_PATH ?? "./data/voltops.db"));
+
+export const db = new Proxy({} as Db, {
+  get: (_t, prop) => Reflect.get(get(), prop) as unknown,
+});

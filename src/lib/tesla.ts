@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { env } from "~/env";
 import { decrypt, encrypt } from "~/lib/crypto";
 import { db } from "~/server/db";
-import { energySites, teslaTokens } from "~/server/db/schema";
+import { credentials, sites } from "~/server/db/schema";
 
 const TESLA_FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
@@ -22,13 +22,13 @@ export type PowerwallReading = {
  * Tesla invalidates the previous refresh token on each use, so the DB update
  * is not optional — skipping it would lock the user out on the next call.
  */
-export async function getAccessToken(userId: string): Promise<string> {
-  const record = await db.query.teslaTokens.findFirst({
-    where: eq(teslaTokens.userId, userId),
+export async function getAccessToken(): Promise<string> {
+  const record = await db.query.credentials.findFirst({
+    where: eq(credentials.id, 1),
   });
 
   if (!record) {
-    throw new Error(`No Tesla token found for user ${userId}`);
+    throw new Error("No Tesla credentials stored");
   }
 
   const refreshToken = decrypt(record.encryptedRefreshToken, record.iv);
@@ -65,14 +65,14 @@ export async function getAccessToken(userId: string): Promise<string> {
   const { ciphertext: encryptedRefreshToken, iv } = encrypt(tokens.refresh_token);
 
   await db
-    .update(teslaTokens)
+    .update(credentials)
     .set({
       encryptedRefreshToken,
       iv,
       accessTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
       updatedAt: new Date(),
     })
-    .where(eq(teslaTokens.userId, userId));
+    .where(eq(credentials.id, 1));
 
   return tokens.access_token;
 }
@@ -88,21 +88,19 @@ async function fleetGet<T>(path: string, accessToken: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function getPowerwallLiveStatus(
-  userId: string,
-): Promise<PowerwallReading> {
+export async function getPowerwallLiveStatus(): Promise<PowerwallReading> {
   // Check DB first — no token refresh wasted if the user has no Powerwall
-  const site = await db.query.energySites.findFirst({
-    where: eq(energySites.userId, userId),
-    columns: { teslaEnergySiteId: true },
+  const site = await db.query.sites.findFirst({
+    where: eq(sites.source, "fleet-api"),
+    columns: { externalId: true },
   });
 
   if (!site) {
-    throw new Error("No Powerwall energy site found for this user");
+    throw new Error("No Powerwall energy site found");
   }
 
-  const siteId = site.teslaEnergySiteId;
-  const accessToken = await getAccessToken(userId);
+  const siteId = site.externalId;
+  const accessToken = await getAccessToken();
 
   const data = await fleetGet<{
     response: {

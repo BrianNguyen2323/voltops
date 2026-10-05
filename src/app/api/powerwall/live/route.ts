@@ -3,13 +3,12 @@ import { getSession } from "~/lib/session";
 import { getPowerwallLiveStatus } from "~/lib/tesla";
 
 export async function GET() {
-  const userId = await getSession();
-  if (!userId) {
+  if (!(await getSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const reading = await getPowerwallLiveStatus(userId);
+    const reading = await getPowerwallLiveStatus();
     return NextResponse.json(reading);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
