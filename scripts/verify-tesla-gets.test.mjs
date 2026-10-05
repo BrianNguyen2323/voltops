@@ -382,3 +382,59 @@ test("missingEnv returns [] when all set", () => {
   const full = { DATABASE_URL: "a", TESLA_CLIENT_ID: "b", TESLA_CLIENT_SECRET: "c", ENCRYPTION_KEY: "d" };
   assert.deepEqual(mod.missingEnv(full), []);
 });
+
+// ---------- B003: redaction hardening ----------
+test("anonymize redacts cached_data by key, case-insensitive", () => {
+  const out = anonymize({ a: { cached_data: "QkFT", Cached_Data: "QkFT" } }, []);
+  assert.equal(out.a.cached_data, "REDACTED");
+  assert.equal(out.a.Cached_Data, "REDACTED");
+});
+
+test("run: products filter keeps device_type energy, or (no device_type and non-empty non-vehicle resource_type)", async () => {
+  const products = {
+    response: [
+      { resource_type: "battery", energy_site_id: SITE },
+      { id: "x" },
+      { device_type: "vehicle", resource_type: "battery" },
+    ],
+    count: 3,
+  };
+  const s = setup({ routes: { "/api/1/products": () => [200, products] } });
+  await run(s.deps);
+  const w = s.written.products;
+  assert.equal(w.response.length, 1);
+  assert.equal(w.response[0].resource_type, "battery");
+  assert.equal(w.count, 1);
+});
+
+test("run: products filter drops empty or vehicle resource_type when device_type absent", async () => {
+  const products = {
+    response: [
+      { resource_type: "", energy_site_id: 1 },
+      { resource_type: "vehicle" },
+      { device_type: "energy", resource_type: "battery", energy_site_id: SITE },
+    ],
+  };
+  const s = setup({ routes: { "/api/1/products": () => [200, products] } });
+  await run(s.deps);
+  const w = s.written.products;
+  assert.equal(w.response.length, 1);
+  assert.equal(w.response[0].device_type, "energy");
+  assert.ok(!("count" in w));
+});
+
+test("run: non-array products response is written as [] (count 0) and run stops cleanly", async () => {
+  const s = setup({ routes: { "/api/1/products": () => [200, { response: { resource_type: "battery", energy_site_id: SITE }, count: 1 }] } });
+  const results = await run(s.deps);
+  assert.deepEqual(s.written.products.response, []);
+  assert.equal(s.written.products.count, 0);
+  assert.equal(fleetCalls(s.calls).length, 1);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].name, "products");
+});
+
+test("run: non-array products response without count gets no count", async () => {
+  const s = setup({ routes: { "/api/1/products": () => [200, { response: { a: 1 } }] } });
+  await run(s.deps);
+  assert.deepEqual(s.written.products, { response: [] });
+});
