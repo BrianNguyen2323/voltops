@@ -43,5 +43,15 @@ Merged to main (6663f5e). Gate: 23/23 tests, typecheck, and `pnpm build` are all
 3. **Before I commit the fixtures**, look over `fixtures/fleet-api/*.json`. In particular, look for your site ID, gateway/battery serials, `warp_site_number`, address, and your name or email. Quick check (PowerShell): `Select-String -Path fixtures\fleet-api\*.json -Pattern "<your site id>"` should print nothing.
 4. Paste the printed table and invariant line here. They contain no tokens. Tell me "fixtures clean" or what you found. Then I'll commit the fixtures and write up the field names and signs as research for the `fleet-api` adapter.
 
-## (coming) Re-run after B002 merges, in DAYTIME
-The first run was at night (solar 0, battery 0), so only the grid sign was verified. After B002 merges, you'll get a USER INPUT REQUIRED item here asking for a re-run between about 11:00 and 14:00 while the battery is charging, which verifies the solar and battery signs.
+## USER INPUT REQUIRED — Daytime re-run of `pnpm verify:tesla` (M1 / B002)
+
+B002 is merged (9c69ba1). Gate: 32/32 tests, typecheck and build are green, and the reviewer returned PASS. The script now keeps only energy entries in products.json, redacts every UUID and the extra ID keys, and stops with `Missing env: …` if `.env.local` is incomplete.
+
+1. Run it **between about 11:00 and 14:00 while the sun is up and the battery is charging** (check the Tesla app: solar > 0 and the battery showing "charging"):
+   `pnpm verify:tesla`
+   Don't log in on Netlify while it runs.
+2. It overwrites the 3 old fixtures and recreates products.json.
+3. Check `fixtures/fleet-api/*.json`:
+   - `Select-String -Path fixturesleet-api\*.json -Pattern "<your site id>","<your VIN>","vehicle"` should print nothing.
+   - Look for your name, address, or serials too.
+4. Paste the table and the `live_status invariant` line. Also tell me what the Tesla app showed at the time ("battery charging at X kW, solar Y kW"), so I can match the signs against what you saw. Then say "fixtures clean".
