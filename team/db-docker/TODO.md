@@ -56,3 +56,9 @@ You checked out a new branch `database-docker` at 00:28 (pushed to origin). Sinc
 - **A (recommended):** `main`. I fast-forward `main` to `database-docker` (records only, no code), merge every brief into `main`, and you can delete `database-docker`.
 - B: `database-docker` is the integration branch for this scope. I merge briefs there, and you merge it into `main` yourself when M2 is done.
 - Answer:
+
+## USER INPUT REQUIRED — Re-run the B002 (admin password) review?
+You stopped the B002 reviewer mid-run, so it gave no verdict. Its last note hinted the build failed. I re-ran the gate command on `phase1/auth-admin-impl` (fa0d89d): 30/30 tests pass, and typecheck, lint and build are all green. The build is fine.
+- **A (recommended):** spawn a fresh reviewer on `phase1/auth-admin-impl`. If it returns PASS, B002 joins B001 and B003 for merging.
+- B: hold B002 (tell me why: a spec change, a different approach, or something else).
+- Answer:
