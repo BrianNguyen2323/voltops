@@ -11,6 +11,7 @@ Source: the PO ran `pnpm verify:tesla`. All 4 GETs returned 200 with `ok`. The f
 ## live_status
 Fields: `solar_power, percentage_charged, battery_power, load_power, grid_status ("Active"), grid_power, generator_power, wall_connectors[], island_status ("on_grid"), storm_mode_active, timestamp` (local RFC3339 with offset).
 - **Signs:** only grid is confirmed so far. The run was at night (solar 0, battery 0, grid 4440 = load 4440 → `gridW > 0` = importing). **Battery and solar signs are NOT verified.** This needs a daytime run while the battery is charging or discharging.
+- Run 2 (2026-10-04 21:14 PDT, after B002): also at night. solar 0, battery 0, grid 5711 = load 5711, invariant ok. The grid sign is confirmed again. The battery stays idle at night because SoC (19%) is below the 20% backup reserve. The PO confirmed the values match the Tesla app.
 - `percentage_charged` is a float (19.548…). Round it in the adapter.
 
 ## calendar_history?kind=energy&period=day

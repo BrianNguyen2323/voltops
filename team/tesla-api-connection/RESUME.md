@@ -2,7 +2,7 @@
 
 - **Topic:** verify that the Fleet API GET requests VoltOps needs actually work against the PO's real account.
 - **Current round:** M1, waiting on the PO's daytime re-run (TODO.md, "Daytime re-run").
-- **Last action:** B002 merged (9c69ba1). Tests 32/32, typecheck and build are green, and the reviewer returned PASS. Worktrees and branches removed. B001 and B002 are in done.
+- **Last action:** The PO re-ran at 21:14 PDT (night again). 4/4 OK, and the lead's leak scan of the fixtures is clean, but the battery sign is still unverified. The fixtures are deliberately not committed yet; the daytime run will overwrite them. Before that: B002 merged (9c69ba1). Tests 32/32, typecheck and build are green, and the reviewer returned PASS. Worktrees and branches removed. B001 and B002 are in done.
 - **Next action:** When the PO reports:
   1. Inspect the fixtures yourself (decode-check products.json: no vehicle, no UUIDs, no site id), then commit `fixtures/fleet-api/*.json`.
   2. Add the solar and battery signs to `research/fleet-api-responses/README.md`, matched against what the PO saw in the Tesla app (invariant ok plus battery charging → `battery_power < 0` = charging?).
