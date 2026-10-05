@@ -1,7 +1,7 @@
 # Resume board — Tesla API Connection
 
 - **Topic:** verify that the Fleet API GET requests VoltOps needs actually work against the PO's real account.
-- **Current round:** M1. Waiting on the PO's daytime re-run (TODO.md, "Daytime re-run"). Meanwhile B003 (redaction hardening) is in build: the tester is running, then the implementer, then the reviewer.
+- **Current round:** M1. Waiting on the PO's daytime re-run (TODO.md, "Daytime re-run"). Meanwhile B003 (redaction hardening) is in build: tests are written, the implementer is running, then the reviewer.
 - **Last action:** The PO re-ran at 21:14 PDT (night again). 4/4 OK, and the lead's leak scan of the fixtures is clean, but the battery sign is still unverified. The fixtures are deliberately not committed yet; the daytime run will overwrite them. Before that: B002 merged (9c69ba1). Tests 32/32, typecheck and build are green, and the reviewer returned PASS. Worktrees and branches removed. B001 and B002 are in done.
 - **Next action:** When the PO reports:
   1. Inspect the fixtures yourself (decode-check products.json: no vehicle, no UUIDs, no site id), then commit `fixtures/fleet-api/*.json`.
@@ -13,4 +13,4 @@
   2. Products filter: keep items with no device_type only when resource_type is set.
   3. Filter products even when `response` isn't an array.
 - **Next-topic candidates (from the PO):** weather location. Tesla gives no coordinates, so the user must provide them (ZIP/city geocoding via Open-Meteo, browser geolocation, or manual lat/lon). This is for a separate future scope.
-- **Open branches:** phase0/tesla-redaction-hardening-tests (B003 tester, in progress).
+- **Open branches:** phase0/tesla-redaction-hardening-tests (B003 tests, done: 5 failing, 32 pass), phase0/tesla-redaction-hardening-impl (B003 implementer, in progress).
