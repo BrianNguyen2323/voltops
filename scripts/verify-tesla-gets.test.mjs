@@ -374,12 +374,12 @@ test("run: nested device_id/site_id/grid_installation_id/UUIDs redacted in site_
 
 test("missingEnv lists missing required names only", () => {
   assert.equal(typeof mod.missingEnv, "function");
-  assert.deepEqual(mod.missingEnv({ DATABASE_URL: "x" }), ["TESLA_CLIENT_ID", "TESLA_CLIENT_SECRET", "ENCRYPTION_KEY"]);
+  assert.deepEqual(mod.missingEnv({ TESLA_CLIENT_ID: "x" }), ["TESLA_CLIENT_SECRET", "VOLTOPS_SECRET_KEY"]);
 });
 
 test("missingEnv returns [] when all set", () => {
   assert.equal(typeof mod.missingEnv, "function");
-  const full = { DATABASE_URL: "a", TESLA_CLIENT_ID: "b", TESLA_CLIENT_SECRET: "c", ENCRYPTION_KEY: "d" };
+  const full = { TESLA_CLIENT_ID: "b", TESLA_CLIENT_SECRET: "c", VOLTOPS_SECRET_KEY: "d" };
   assert.deepEqual(mod.missingEnv(full), []);
 });
 

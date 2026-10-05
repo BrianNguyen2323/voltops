@@ -60,21 +60,34 @@ B002 (9c69ba1) and B003 (d4bd5c8, extra redaction hardening) are merged. Gate: 3
    - Look for your name, address, or serials too.
 4. Paste the table and the `live_status invariant` line. Also tell me what the Tesla app showed at the time ("battery charging at X kW, solar Y kW"), so I can match the signs against what you saw. Then say "fixtures clean".
 
-## USER INPUT REQUIRED — Decision round 2 (storage / hosting). Research: `research/storage/README.md`
+**Result (DONE 2026-10-05 11:06):** 4/4 OK, invariant residual 0. The app showed battery charging at 1.3 kW and solar at 5.5 kW; the fixture has battery -1267 W and solar 5469 W. Signs match the canonical ones 1:1. The PO said "fixtures clean", and the lead's leak scan is clean too. Committed as b452729.
 
-**Q1. Where does VoltOps run?**
-- **A (recommended):** Self-hosted Docker Compose (web + worker + SQLite volume), per CLAUDE.md D1/D2/D5. Netlify stays only as a static host for the Tesla public key `.well-known/...pem`, if needed.
-- B: Stay on Netlify + Supabase. There's no worker, so no polling or history (this breaks pillars 1–4), and it's a SaaS shape.
-- Answer:
+_Storage/hosting moved to `team/db-docker/TODO.md` on 2026-10-05._
 
-**Q2. Database engine?**
-- **A (recommended):** SQLite (WAL) via Drizzle with the built-in `node:sqlite` driver, so there's no native dependency.
-- B: SQLite via `better-sqlite3` (mature, but a native build per arch).
-- C: Keep Postgres. Overkill for tens of MB/yr, and it adds a container.
-- Answer:
+## USER INPUT REQUIRED — Decision round 2 (fleet-api adapter)
 
-**Q3. Skip the `energy_hourly` rollup table (compute hourly from Tesla's 5-min intervals with SQL) until it's measurably slow?** Recommended: **yes** (this deviates from CLAUDE.md §6, and an ADR is needed if accepted).
-- Answer:
+Research: `research/fleet-api-adapter/README.md`. Tesla's signs match VoltOps' 1:1, and the 5-minute calendar_history data balances exactly (residual 0 Wh in all 288 intervals).
 
-**Q4. Existing Supabase data:** migrate the token row, or just re-login on the new instance? Recommended: **re-login** (nothing else in Supabase is history worth keeping).
-- Answer:
+**Q1. Where does the adapter code live?**
+- **A (recommended):** new files in the current app, `src/lib/core/` (DataSource + LiveSample/EnergyInterval types) and `src/lib/sources/fleet-api/`. They'll be pure, so they move to `packages/` unchanged later. This doesn't collide with db-docker.
+- B: Scaffold the CLAUDE.md §4 pnpm monorepo first (Phase 1-A). That's a big move while db-docker is mid-flight in `src/`.
+
+**Q2. What's in the first adapter milestone?**
+- **A (recommended):** the DataSource interface, the pure mappers (live_status → LiveSample, calendar_history → EnergyInterval[]), and a fleet client (in-memory access-token cache, refresh serialized via a SQLite write transaction, typed errors `AuthExpired`/`RateLimited`/`SourceUnavailable`, invariant warning). Everything is tested against the committed fixtures, with no network. `src/lib/tesla.ts` and the Now route switch to it after db-docker B002 merges.
+- B: A, plus the worker process, polling and a `samples` table. That's CLAUDE.md Phase 2a-C; I'd keep it a separate scope.
+
+**Q3. Default data budget (CLAUDE.md open question 4)?** At about $1 per 500 requests (unverified for energy endpoints) with a $10/month credit:
+- **A (recommended):** calendar_history once an hour as the history source (5-minute Wh, about 720 req/month ≈ $1.44), and live_status only while the Now screen is open (at most 1/min). That's well under the credit. It needs one check: does calendar_history for *today* return the partial day? I'd add that as a probe to `pnpm verify:tesla` (1 extra GET) for you to run once.
+- B: live_status every 5 min, the CLAUDE.md default: 8,640 req/month ≈ $17.28, about $7.28 over the credit.
+- C: live_status every 15 min: 2,880 req/month ≈ $5.76, inside the credit, but coarse.
+- Optional for you: developer.tesla.com → your app → billing/usage. Do your verify runs show up as charged? That settles the energy-endpoint price.
+
+**Q4. Region (the base URL is hard-coded to North America)?**
+- **A (recommended):** env `TESLA_FLEET_BASE_URL`, default NA, documented in `.env.example`. Auto-detect via `/api/1/users/region` later, when an EU user shows up.
+- B: Auto-detect at connect time now and store it. That needs a db-docker schema column.
+
+**Q5. Fix the token refresh in the current `src/lib/tesla.ts` now?** Today it rotates the refresh token on *every* live request, and two concurrent requests can lock you out.
+- **A (recommended):** no separate fix. The Q2 client replaces it once db-docker B002 merges, and B002 already owns that file.
+- B: A small hot-fix brief in db-docker now (cache the access token in memory).
+
+Answer inline (e.g. "1A 2A 3A 4A 5A") or in chat.

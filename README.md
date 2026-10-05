@@ -24,6 +24,10 @@ To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the fo
 
 You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
 
-## How do I deploy this?
+## Run with Docker
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+1. Copy `.env.example` to `.env` and fill it in.
+2. `docker compose up -d`
+3. Open http://localhost:3000 (redirects to /setup on first run).
+
+Data lives in the `voltops-data` volume (`/data/voltops.db`).
