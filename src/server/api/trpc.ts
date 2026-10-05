@@ -6,10 +6,11 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
+import { requireAdminApi } from "~/lib/auth";
 import { db } from "~/server/db";
 
 /**
@@ -104,3 +105,9 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+
+/** Admin-only: same gate as API routes (session cookie, or AUTH_DISABLED). */
+export const protectedProcedure = publicProcedure.use(async ({ next }) => {
+  if (await requireAdminApi()) throw new TRPCError({ code: "UNAUTHORIZED" });
+  return next();
+});

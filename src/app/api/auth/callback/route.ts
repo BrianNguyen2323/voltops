@@ -2,19 +2,22 @@ import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { env } from "~/env";
 import { encrypt } from "~/lib/crypto";
-import { setSession } from "~/lib/session";
+import { requireAdminApi } from "~/lib/auth";
 import { db } from "~/server/db";
 import { credentials, sites, tariffSchedule } from "~/server/db/schema";
 
 const FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
 export async function GET(request: NextRequest) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = new URL("/home", request.url);
 
   if (error) {
     loginUrl.searchParams.set("error", "access_denied");
@@ -60,8 +63,15 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    const body = await tokenRes.text();
-    console.error("[Tesla OAuth] Token exchange failed:", tokenRes.status, body);
+    // Log only status + Tesla's error code, never the raw body.
+    const { error: code } = (await tokenRes.json().catch(() => ({}))) as {
+      error?: unknown;
+    };
+    console.error(
+      "[Tesla OAuth] Token exchange failed:",
+      tokenRes.status,
+      typeof code === "string" ? code : "unknown",
+    );
     loginUrl.searchParams.set("error", "token_exchange_failed");
     return NextResponse.redirect(loginUrl);
   }
@@ -118,7 +128,7 @@ export async function GET(request: NextRequest) {
     console.warn("[Tesla OAuth] Could not fetch products:", await productsRes.text());
   }
 
-  console.log("[Tesla OAuth] Energy site:", teslaEnergySiteId ?? "none found");
+  console.log("[Tesla OAuth] Energy site:", teslaEnergySiteId ? "found" : "none found");
   console.log("[Tesla OAuth] Timezone:", siteInfo?.installation_time_zone ?? "none");
   console.log("[Tesla OAuth] Tariff:", siteInfo?.tariff_id ?? "none");
 
@@ -177,8 +187,6 @@ export async function GET(request: NextRequest) {
     .insert(credentials)
     .values({ id: 1, ...cred })
     .onConflictDoUpdate({ target: credentials.id, set: cred });
-
-  await setSession("owner");
 
   return NextResponse.redirect(new URL("/home", request.url));
 }
