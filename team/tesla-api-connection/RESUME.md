@@ -2,6 +2,6 @@
 
 - **Topic:** verify that the Fleet API GET requests VoltOps needs actually work against the PO's real account. (Context: PO confirmed the OAuth login on voltops.netlify.app returns success.)
 - **Current round:** Build M1 / B001 (SPEC Rev 1). Decision round 1 is answered (Q1 A, Q2 required four, Q3 yes, Q4 yes).
-- **Last action:** Tester done (`phase0/tesla-verify-gets-tests` @ fe41183, 23 tests, all failing for the right reason). Test command changed to `node --test "scripts/*.test.mjs"`. The `implementer` was spawned on `phase0/tesla-verify-gets-impl`.
-- **Next action:** When the implementer reports, spawn the `reviewer` on `phase0/tesla-verify-gets-impl`. On PASS, merge to main with --no-ff, run the tests and typecheck on main, and move B001 to done. Then add a Review item to TODO.md asking the PO to run `pnpm verify:tesla` and inspect `fixtures/fleet-api/`.
-- **Open branches:** `phase0/tesla-verify-gets-tests` (tester, done), `phase0/tesla-verify-gets-impl` (implementer, in progress).
+- **Last action:** Implementer green (`phase0/tesla-verify-gets-impl` @ a841a5e, 23/23). B001 moved to gate. The `reviewer` was spawned.
+- **Next action:** On reviewer PASS: `git merge --no-ff phase0/tesla-verify-gets-impl`, run the tests and typecheck on main (revert if red), move B001 to done, remove the worktrees and branches, and add a Review item to TODO.md (PO runs `pnpm verify:tesla`). On FAIL: send the findings back to the implementer.
+- **Open branches:** `phase0/tesla-verify-gets-tests`, `phase0/tesla-verify-gets-impl` (in review).
