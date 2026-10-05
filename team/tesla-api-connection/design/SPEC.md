@@ -39,4 +39,4 @@ The PO runs it locally (`pnpm verify:tesla`). Agents never run it against the re
 dotenv loads `.env.local`. `postgres` (already installed) connects with `DATABASE_URL`. The table is `voltops_tesla_token` with quoted camelCase columns: `"userId"`, `"encryptedRefreshToken"`, `iv`, `"accessTokenExpiresAt"`, `"updatedAt"`. Exactly one row is required, otherwise exit 1 with the row count. Fixtures go to `fixtures/fleet-api/<name>.json` (pretty JSON). Uses global `fetch`.
 
 ## Tests
-`node:test` (stdlib, no new dependency). Command: `node --test scripts/`. Everything is mocked: no network, no DB.
+`node:test` (stdlib, no new dependency). Command: `node --test "scripts/*.test.mjs"`. Everything is mocked: no network, no DB.

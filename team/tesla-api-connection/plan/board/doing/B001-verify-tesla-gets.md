@@ -40,7 +40,7 @@ export async function run(deps)                   // -> [{ name, path, status, o
 
 **checkInvariant(live):** `residualW = solar_power + battery_power + grid_power - load_power`; `ok = Math.abs(residualW) <= Math.max(50, 0.05 * load_power)`.
 
-**main():** `dotenv` `config({ path: ".env.local" })`. Env: `DATABASE_URL, TESLA_CLIENT_ID, TESLA_CLIENT_SECRET, ENCRYPTION_KEY`. DB through the installed `postgres` package. Table `voltops_tesla_token`, quoted camelCase columns `"userId"`, `"encryptedRefreshToken"`, `iv`, `"accessTokenExpiresAt"`, `"updatedAt"`. Exactly one row is required, otherwise print the row count and exit 1. saveToken runs an UPDATE … WHERE `"userId"` = $1 and sets `"updatedAt"` = now(). writeFixture writes `fixtures/fleet-api/<name>.json` (2-space JSON, creating the directory). Close the DB connection and exit 1 if any result is not ok. Add package.json scripts `"verify:tesla": "node scripts/verify-tesla-gets.mjs"` and `"test:scripts": "node --test scripts/"`.
+**main():** `dotenv` `config({ path: ".env.local" })`. Env: `DATABASE_URL, TESLA_CLIENT_ID, TESLA_CLIENT_SECRET, ENCRYPTION_KEY`. DB through the installed `postgres` package. Table `voltops_tesla_token`, quoted camelCase columns `"userId"`, `"encryptedRefreshToken"`, `iv`, `"accessTokenExpiresAt"`, `"updatedAt"`. Exactly one row is required, otherwise print the row count and exit 1. saveToken runs an UPDATE … WHERE `"userId"` = $1 and sets `"updatedAt"` = now(). writeFixture writes `fixtures/fleet-api/<name>.json` (2-space JSON, creating the directory). Close the DB connection and exit 1 if any result is not ok. Add package.json scripts `"verify:tesla": "node scripts/verify-tesla-gets.mjs"` and `"test:scripts": "node --test \"scripts/*.test.mjs\""`.
 
 ## Owned files
 - tester: `scripts/verify-tesla-gets.test.mjs`
@@ -51,7 +51,7 @@ export async function run(deps)                   // -> [{ name, path, status, o
 - implementer: the tester's branch
 
 ## Judged by
-`node --test scripts/` must exit 0. The tests cover:
+`node --test "scripts/*.test.mjs"` must exit 0 (Node 22 on Windows rejects a bare directory arg). The tests cover:
 - encrypt/decrypt round trip, and decrypt of a ciphertext produced inline in the test with node:crypto in the documented format.
 - anonymize: redacted keys at nested depth and inside arrays, coordinate rounding, secret substrings inside strings and numeric secrets, input not mutated.
 - yesterdayRange: the DST example above, plus UTC (`+00:00`).
