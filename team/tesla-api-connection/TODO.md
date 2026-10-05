@@ -59,3 +59,22 @@ B002 (9c69ba1) and B003 (d4bd5c8, extra redaction hardening) are merged. Gate: 3
    - `Select-String -Path fixtures\fleet-api\*.json -Pattern "<your site id>","<your VIN>","vehicle"` should print nothing.
    - Look for your name, address, or serials too.
 4. Paste the table and the `live_status invariant` line. Also tell me what the Tesla app showed at the time ("battery charging at X kW, solar Y kW"), so I can match the signs against what you saw. Then say "fixtures clean".
+
+## USER INPUT REQUIRED — Decision round 2 (storage / hosting). Research: `research/storage/README.md`
+
+**Q1. Where does VoltOps run?**
+- **A (recommended):** Self-hosted Docker Compose (web + worker + SQLite volume), per CLAUDE.md D1/D2/D5. Netlify stays only as a static host for the Tesla public key `.well-known/...pem`, if needed.
+- B: Stay on Netlify + Supabase. There's no worker, so no polling or history (this breaks pillars 1–4), and it's a SaaS shape.
+- Answer:
+
+**Q2. Database engine?**
+- **A (recommended):** SQLite (WAL) via Drizzle with the built-in `node:sqlite` driver, so there's no native dependency.
+- B: SQLite via `better-sqlite3` (mature, but a native build per arch).
+- C: Keep Postgres. Overkill for tens of MB/yr, and it adds a container.
+- Answer:
+
+**Q3. Skip the `energy_hourly` rollup table (compute hourly from Tesla's 5-min intervals with SQL) until it's measurably slow?** Recommended: **yes** (this deviates from CLAUDE.md §6, and an ADR is needed if accepted).
+- Answer:
+
+**Q4. Existing Supabase data:** migrate the token row, or just re-login on the new instance? Recommended: **re-login** (nothing else in Supabase is history worth keeping).
+- Answer:
