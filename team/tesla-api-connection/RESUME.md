@@ -1,9 +1,16 @@
 # Resume board — Tesla API Connection
 
 - **Topic:** verify that the Fleet API GET requests VoltOps needs actually work against the PO's real account.
-- **Current round:** M1, B002 in gate. The implementer is green (32/32, `phase0/tesla-redaction-fix-impl` @ 53cc709). The reviewer is running. Declared deviation: items with no `device_type` are kept, and `resource_type` "vehicle" is dropped.
-- **Last action:** The PO ran `pnpm verify:tesla` and all 4 GETs returned 200. Findings are in `research/fleet-api-responses/README.md`: Powerwall 3, 5-min calendar history, no location in the API, and only the grid sign verified. products.json leaked the vehicle VIN and name, so it was deleted (untracked). The B002 tester was spawned on branch `phase0/tesla-redaction-fix-tests`.
-- **Next action:** tester → implementer (`phase0/tesla-redaction-fix-impl`) → reviewer → merge, then run the tests, typecheck and build on main. Then add a USER INPUT REQUIRED item: PO re-runs in daytime (11–14h, battery charging), checks the fixtures, and sends the table and invariant line. After that, commit the fixtures and record the solar and battery signs in the research note.
-- **Fixtures on disk (untracked, NOT committed yet):** `fixtures/fleet-api/{site_info,live_status,calendar_history_energy}.json`. site_info has unredacted UUIDs, so it gets replaced by the re-run.
+- **Current round:** M1, waiting on the PO's daytime re-run (TODO.md, "Daytime re-run").
+- **Last action:** B002 merged (9c69ba1). Tests 32/32, typecheck and build are green, and the reviewer returned PASS. Worktrees and branches removed. B001 and B002 are in done.
+- **Next action:** When the PO reports:
+  1. Inspect the fixtures yourself (decode-check products.json: no vehicle, no UUIDs, no site id), then commit `fixtures/fleet-api/*.json`.
+  2. Add the solar and battery signs to `research/fleet-api-responses/README.md`, matched against what the PO saw in the Tesla app (invariant ok plus battery charging → `battery_power < 0` = charging?).
+  3. Mark M1 done, then open Decision round 2 (fleet-api adapter / DataSource, CLAUDE.md §5).
+- **Fixtures on disk (untracked, NOT committed):** the old site_info, live_status and calendar_history files from the night run. The re-run overwrites them.
+- **Follow-ups (non-blocking reviewer nits):**
+  1. Add `cached_data` to REDACT_KEYS (defence in depth).
+  2. Products filter: keep items with no device_type only when resource_type is set.
+  3. Filter products even when `response` isn't an array.
 - **Next-topic candidates (from the PO):** weather location. Tesla gives no coordinates, so the user must provide them (ZIP/city geocoding via Open-Meteo, browser geolocation, or manual lat/lon). This is for a separate future scope.
-- **Open branches:** `phase0/tesla-redaction-fix-tests`, `phase0/tesla-redaction-fix-impl` (in review).
+- **Open branches:** none.
