@@ -19,6 +19,13 @@
 - Add Vitest (`pnpm test` = `vitest run`, with `~/` alias support). Remove the `postgres` dep. `.gitignore` adds `/data/`.
 - Write `docs/adr/0001-no-hourly-rollup-table.md` (context: CLAUDE.md §6 lists energy_hourly. Decision: compute hourly with SQL GROUP BY over 5-min intervals. Consequence: add the table only if a query is measurably slow).
 
+## Test contract (tester and implementer both follow this)
+- `~/server/db` exports `openDb(path: string)`, which returns the Drizzle instance; `.$client` is the better-sqlite3 `Database`, with pragmas already applied. The default `db` is created lazily or from `DATABASE_PATH`, and importing the module must not open `./data/voltops.db` during tests.
+- `~/server/db/schema` exports `admin`, `credentials`, `sites`, `tariffSchedule`.
+- Migrations are applied in tests with `migrate(db, { migrationsFolder: "drizzle" })` from `drizzle-orm/better-sqlite3/migrator`.
+- `~/lib/session` additionally exports the pure `sign(value, secret)` and `verify(signed, secret)` (`verify` returns `string | null`).
+- Vitest runs with `SKIP_ENV_VALIDATION=1` set in `vitest.config.ts` (implementer). Tests must not need `next/headers`.
+
 ## Owned files
 - **Tester:** `src/**/*.test.ts`.
 - **Implementer:** `src/server/db/**`, `drizzle/**`, `drizzle.config.ts`, `scripts/migrate.mjs`, `src/env.js`, `.env.example`, `src/lib/crypto.ts`, `src/lib/session.ts`, `src/lib/tesla.ts`, `src/app/api/auth/callback/route.ts`, `src/app/api/powerwall/live/route.ts`, `src/app/home/page.tsx`, `src/server/api/trpc.ts`, `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`, `.gitignore`, `docs/adr/0001-no-hourly-rollup-table.md`.
