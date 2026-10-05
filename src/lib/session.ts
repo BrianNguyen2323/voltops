@@ -4,25 +4,28 @@ import { env } from "~/env";
 
 const COOKIE_NAME = "voltops_session";
 
-function sign(value: string): string {
-  const hmac = crypto.createHmac("sha256", env.SESSION_SECRET);
+export function sign(value: string, secret: string): string {
+  const hmac = crypto.createHmac("sha256", secret);
   hmac.update(value);
   return `${value}.${hmac.digest("hex")}`;
 }
 
-function verify(signedValue: string): string | null {
+export function verify(signedValue: string, secret: string): string | null {
   const lastDot = signedValue.lastIndexOf(".");
   if (lastDot === -1) return null;
 
   const value = signedValue.slice(0, lastDot);
-  const signature = signedValue.slice(lastDot + 1);
-  const expected = crypto
-    .createHmac("sha256", env.SESSION_SECRET)
-    .update(value)
-    .digest("hex");
+  const signature = Buffer.from(signedValue.slice(lastDot + 1));
+  const expected = Buffer.from(
+    crypto.createHmac("sha256", secret).update(value).digest("hex"),
+  );
 
-  // Constant-time comparison to prevent timing attacks
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+  // Length check first: timingSafeEqual throws on unequal lengths.
+  // Constant-time comparison to prevent timing attacks.
+  if (
+    signature.length !== expected.length ||
+    !crypto.timingSafeEqual(signature, expected)
+  ) {
     return null;
   }
   return value;
@@ -30,7 +33,7 @@ function verify(signedValue: string): string | null {
 
 export async function setSession(userId: string): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, sign(userId), {
+  cookieStore.set(COOKIE_NAME, sign(userId, env.SESSION_SECRET), {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
     sameSite: "lax",
@@ -43,7 +46,7 @@ export async function getSession(): Promise<string | null> {
   const cookieStore = await cookies();
   const cookie = cookieStore.get(COOKIE_NAME);
   if (!cookie) return null;
-  return verify(cookie.value);
+  return verify(cookie.value, env.SESSION_SECRET);
 }
 
 export async function clearSession(): Promise<void> {
