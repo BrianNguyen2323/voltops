@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const setSession = vi.fn();
+const setSession = vi.fn<(u: string) => void>();
 vi.mock("~/lib/session", () => ({
   setSession: (u: string) => setSession(u),
   getSession: async () => null,
@@ -58,11 +58,11 @@ afterEach(() => {
 it("rejects short passwords and mismatched confirmation", async () => {
   const { setupAction } = await import("~/app/setup/actions");
   expect(await setupAction(undefined, form("short", "short"))).toMatchObject({
-    error: expect.any(String),
+    error: expect.any(String) as string,
   });
   expect(
     await setupAction(undefined, form("long-enough-pw1", "different-pw-12")),
-  ).toMatchObject({ error: expect.any(String) });
+  ).toMatchObject({ error: expect.any(String) as string });
   expect(await count()).toBe(0);
   expect(setSession).not.toHaveBeenCalled();
 });
