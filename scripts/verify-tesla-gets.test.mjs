@@ -9,6 +9,8 @@ import {
   checkInvariant,
   run,
 } from "./verify-tesla-gets.mjs";
+// namespace import so a not-yet-exported missingEnv fails only its own test, not the whole file
+import * as mod from "./verify-tesla-gets.mjs";
 
 const KEY = "ab".repeat(32);
 const SITE = 1234567890123;
@@ -290,4 +292,93 @@ test("run: long error bodies are truncated in log", async () => {
   const s = setup({ routes: { "/live_status": () => [500, { error: "x".repeat(2000) }] } });
   await run(s.deps);
   assert.ok(!s.logs.join("\n").includes("x".repeat(400)));
+});
+
+// ---------- B002: redaction fixes ----------
+const UUID_A = "0a1b2c3d-1111-2222-3333-444455556666";
+const UUID_B = "9f8e7d6c-aaaa-bbbb-cccc-ddddeeeeffff";
+
+test("anonymize redacts device_id, site_id, grid_installation_id, warp_site_number, vehicle_id, display_name at depth", () => {
+  const keys = ["device_id", "site_id", "grid_installation_id", "warp_site_number", "vehicle_id", "display_name", "Device_ID"];
+  const out = anonymize({ a: [{ b: Object.fromEntries(keys.map((k) => [k, "plain"])) }] }, []);
+  for (const k of keys) assert.equal(out.a[0].b[k], "REDACTED", k);
+});
+
+test("anonymize redacts any UUID string under any key, leaves non-UUID strings", () => {
+  const out = anonymize({ foo: UUID_A, deep: { list: [UUID_B.toUpperCase()] }, bar: "not-a-uuid", mixed: `x ${UUID_A}` }, []);
+  assert.equal(out.foo, "REDACTED");
+  assert.deepEqual(out.deep.list, ["REDACTED"]);
+  assert.equal(out.bar, "not-a-uuid");
+  assert.equal(out.mixed, `x ${UUID_A}`);
+});
+
+test("anonymize passes site_info tariff and number fields through unchanged", () => {
+  const info = {
+    nameplate_power: 5000,
+    nameplate_energy: 13500,
+    tariff_content: { energy_charges: { Summer: { PEAK: 0.42, OFF_PEAK: 0.18 } }, name: "TOU" },
+  };
+  assert.deepEqual(anonymize(info, ["98765", 98765]), info);
+});
+
+test("run: products fixture keeps only energy items and fixes count", async () => {
+  const products = {
+    response: [
+      { device_type: "vehicle", vin: "5YJ-VIN-X", vehicle_id: 424242, display_name: "Car", cached_data: "QkFTRTY0LU9XTkVS" },
+      { device_type: "energy", resource_type: "battery", energy_site_id: SITE, id: "STE-DIN-001", site_name: "My House" },
+    ],
+    count: 2,
+  };
+  const s = setup({ routes: { "/api/1/products": () => [200, products] } });
+  await run(s.deps);
+  const w = s.written.products;
+  assert.equal(w.response.length, 1);
+  assert.equal(w.response[0].resource_type, "battery");
+  assert.equal(w.count, 1);
+  const blob = JSON.stringify(w);
+  for (const leak of ["5YJ-VIN-X", "424242", "Car", "QkFTRTY0LU9XTkVS", "vehicle"]) assert.ok(!blob.includes(leak), `leaked ${leak}`);
+});
+
+test("run: site selection still works when products has vehicles first (energy item w/ device_type)", async () => {
+  const products = { response: [
+    { device_type: "vehicle", vin: "V" },
+    { device_type: "energy", resource_type: "battery", energy_site_id: SITE },
+  ] };
+  const s = setup({ routes: { "/api/1/products": () => [200, products] } });
+  const results = await run(s.deps);
+  assert.equal(results.length, 4);
+});
+
+test("run: site id under an unlisted key in products is redacted (secrets collected first)", async () => {
+  const products = { response: [
+    { device_type: "energy", resource_type: "battery", energy_site_id: SITE, other: SITE, note: `s${SITE}` },
+  ] };
+  const s = setup({ routes: { "/api/1/products": () => [200, products] } });
+  await run(s.deps);
+  const blob = JSON.stringify(s.written.products);
+  assert.ok(!blob.includes(String(SITE)), "site id leaked in products");
+  assert.equal(s.written.products.response[0].other, "REDACTED");
+});
+
+test("run: nested device_id/site_id/grid_installation_id/UUIDs redacted in site_info fixture", async () => {
+  const info = { response: {
+    installation_time_zone: "America/Los_Angeles",
+    components: { device_id: "dev-plain", site_id: "site-plain", grid_installation_id: UUID_A, foo: UUID_B, nameplate_power: 5000 },
+  } };
+  const s = setup({ routes: { "/site_info": () => [200, info] } });
+  await run(s.deps);
+  const blob = JSON.stringify(s.written.site_info);
+  for (const leak of ["dev-plain", "site-plain", UUID_A, UUID_B]) assert.ok(!blob.includes(leak), `leaked ${leak}`);
+  assert.equal(s.written.site_info.response.components.nameplate_power, 5000);
+});
+
+test("missingEnv lists missing required names only", () => {
+  assert.equal(typeof mod.missingEnv, "function");
+  assert.deepEqual(mod.missingEnv({ DATABASE_URL: "x" }), ["TESLA_CLIENT_ID", "TESLA_CLIENT_SECRET", "ENCRYPTION_KEY"]);
+});
+
+test("missingEnv returns [] when all set", () => {
+  assert.equal(typeof mod.missingEnv, "function");
+  const full = { DATABASE_URL: "a", TESLA_CLIENT_ID: "b", TESLA_CLIENT_SECRET: "c", ENCRYPTION_KEY: "d" };
+  assert.deepEqual(mod.missingEnv(full), []);
 });
