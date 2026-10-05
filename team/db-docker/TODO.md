@@ -63,5 +63,6 @@ You stopped the B002 reviewer mid-run, so it gave no verdict. Its last note hint
 - B: hold B002 (tell me why: a spec change, a different approach, or something else).
 - Answer: **A** (PO, 2026-10-05).
 
-## USER INPUT REQUIRED — Start Docker Desktop
+## ANSWERED 2026-10-05 — Start Docker Desktop
 B004's acceptance test builds the container and runs it with `docker compose`. Docker Desktop is installed (Compose v2.29.1), but the engine isn't running (`docker version` can't reach `dockerDesktopLinuxEngine`). Please start Docker Desktop and tell me "docker up". The B004 tester is already working; the implementer needs Docker running.
+- Answer: **docker up** (PO, 2026-10-05). Engine 29.8.2 linux/amd64 confirmed.
