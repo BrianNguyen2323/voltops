@@ -4,5 +4,5 @@ export default {
   schema: "./src/server/db/schema.ts",
   out: "./drizzle",
   dialect: "sqlite",
-  dbCredentials: { url: process.env.DATABASE_PATH ?? "./data/voltops.db" },
+  dbCredentials: { url: process.env.DATABASE_PATH || "./data/voltops.db" },
 } satisfies Config;
