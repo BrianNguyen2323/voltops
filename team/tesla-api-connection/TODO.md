@@ -47,7 +47,7 @@ Merged to main (6663f5e). Gate: 23/23 tests, typecheck, and `pnpm build` are all
 
 **Status 2026-10-04:** a re-run at 21:14 PDT (night) passed all 4 GETs, and the lead's leak scan of the fixtures is clean (no vehicle, no UUIDs, no VIN-like or ID-like values). But solar = 0 and battery = 0 (SoC 19%, below the 20% reserve), so the battery sign is still unverified. **The re-run is still needed in daytime, 11:00–14:00, while the battery is charging.**
 
-B002 is merged (9c69ba1). Gate: 32/32 tests, typecheck and build are green, and the reviewer returned PASS. The script now keeps only energy entries in products.json, redacts every UUID and the extra ID keys, and stops with `Missing env: …` if `.env.local` is incomplete.
+B002 (9c69ba1) and B003 (d4bd5c8, extra redaction hardening) are merged. Gate: 32/32 tests, typecheck and build are green, and the reviewer returned PASS. The script now keeps only energy entries in products.json, redacts every UUID and the extra ID keys, and stops with `Missing env: …` if `.env.local` is incomplete.
 
 1. Run it **between about 11:00 and 14:00 while the sun is up and the battery is charging** (check the Tesla app: solar > 0 and the battery showing "charging"):
    `pnpm verify:tesla`
