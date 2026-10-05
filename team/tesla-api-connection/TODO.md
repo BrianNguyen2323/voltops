@@ -26,3 +26,17 @@ Research: `research/fleet-api-get-endpoints/README.md`
 ### Housekeeping (no decision needed, just your action)
 - `.env.local` has the **Supabase DB password in plain text in a comment line**. The file is gitignored, but please delete that comment. I tried to check whether any `.env*` file was ever committed, and that check was blocked, so please run this yourself and rotate the password if it prints anything:
   `git log --all --oneline -- .env .env.local`
+
+## USER INPUT REQUIRED — Review M1 / B001: run the Fleet API GET check
+
+Merged to main (6663f5e). Gate: 23/23 tests, typecheck, and `pnpm build` are all green, and the reviewer returned PASS. Agents have never run it against the real API. You are the first.
+
+1. In the repo root (where `.env.local` lives), run:
+   `pnpm verify:tesla`
+   - Don't log in on voltops.netlify.app while it runs. Both would rotate the same refresh token.
+   - It makes 1 token refresh plus 4 GETs, and the new refresh token is saved to Supabase *before* the GETs.
+2. Expected: a 4-row table (`products`, `site_info`, `live_status`, `calendar_history_energy`) with status and ok, plus an invariant line (`ok` / `residualW`) showing whether Tesla's signs match VoltOps' conventions.
+   - If the refresh fails with 400/401, the stored token is stale. Log in again on Netlify, then re-run.
+   - The exit code is 1 if any row is not ok. Send me the table either way; a failure is useful information too.
+3. **Before I commit the fixtures**, look over `fixtures/fleet-api/*.json`. In particular, look for your site ID, gateway/battery serials, `warp_site_number`, address, and your name or email. Quick check (PowerShell): `Select-String -Path fixtures\fleet-api\*.json -Pattern "<your site id>"` should print nothing.
+4. Paste the printed table and invariant line here. They contain no tokens. Tell me "fixtures clean" or what you found. Then I'll commit the fixtures and write up the field names and signs as research for the `fleet-api` adapter.
