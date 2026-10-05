@@ -18,7 +18,7 @@
 - **Implementer:** `Dockerfile`, `.dockerignore`, `compose.yaml`, `next.config.js`, `netlify.toml`, `package.json`, `pnpm-lock.yaml`, `README.md`.
 
 ## Base
-main after B002 merges. Branches `phase1/docker-tests` → `phase1/docker-impl`.
+`database-docker` (the PO's integration branch for this scope; B001–B003 are merged there). Branches `phase1/docker-tests` → `phase1/docker-impl`.
 
 ## Judged by
 `bash scripts/docker-smoke.sh` exits 0. The script:
@@ -30,3 +30,5 @@ main after B002 merges. Branches `phase1/docker-tests` → `phase1/docker-impl`.
 6. `docker compose -p voltops-smoke down -v`.
 
 Plus `pnpm test && pnpm typecheck && SKIP_ENV_VALIDATION=1 pnpm build` green. No Tesla network calls.
+- Docker Desktop must be running. If `docker version` can't reach the engine, report that; don't try to start it.
+- Windows note: run `rm -rf .next` before `pnpm build` in a reused checkout. A stale `.next` cache crashes webpack (`WasmHash … 'length'`) and leaves stale `.next/types` that break `tsc`.
