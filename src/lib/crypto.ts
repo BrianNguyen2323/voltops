@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { env } from "~/env";
 
 function getKey(): Buffer {
-  return Buffer.from(env.ENCRYPTION_KEY, "hex");
+  return Buffer.from(env.VOLTOPS_SECRET_KEY, "hex");
 }
 
 export function encrypt(plaintext: string): { ciphertext: string; iv: string } {

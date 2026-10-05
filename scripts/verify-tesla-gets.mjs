@@ -1,9 +1,11 @@
 /**
  * Read-only check that 4 Tesla Fleet API GETs work; saves anonymized fixtures.
- * Usage: pnpm verify:tesla   (needs .env.local: DATABASE_URL, TESLA_CLIENT_ID,
- * TESLA_CLIENT_SECRET, ENCRYPTION_KEY). Rotated refresh token is saved back to the DB.
+ * Usage: pnpm verify:tesla   (needs .env.local: TESLA_CLIENT_ID, TESLA_CLIENT_SECRET,
+ * VOLTOPS_SECRET_KEY; optional DATABASE_PATH, default ./data/voltops.db).
+ * Rotated refresh token is saved back to the SQLite DB.
  */
 import crypto from "node:crypto";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
 const FLEET = "https://fleet-api.prd.na.vn.cloud.tesla.com";
@@ -30,7 +32,25 @@ export function decrypt(ciphertext, iv, keyHex) {
 }
 
 export const missingEnv = (env) =>
-  ["DATABASE_URL", "TESLA_CLIENT_ID", "TESLA_CLIENT_SECRET", "ENCRYPTION_KEY"].filter((k) => !env[k]);
+  ["TESLA_CLIENT_ID", "TESLA_CLIENT_SECRET", "VOLTOPS_SECRET_KEY"].filter((k) => !env[k]);
+
+export function sqliteTokenStore(path) {
+  const Database = createRequire(import.meta.url)("better-sqlite3");
+  const db = new Database(path);
+  db.pragma("busy_timeout = 5000");
+  return {
+    async loadToken() {
+      const r = db.prepare("SELECT encrypted_refresh_token, iv FROM credentials WHERE id = 1").get();
+      if (!r) throw new Error(`No Tesla credentials in ${path}. Connect Tesla in the app first.`);
+      return { encryptedRefreshToken: r.encrypted_refresh_token, iv: r.iv };
+    },
+    async saveToken(t) {
+      db.prepare("UPDATE credentials SET encrypted_refresh_token = ?, iv = ?, access_token_expires_at = ?, updated_at = ? WHERE id = 1")
+        .run(t.encryptedRefreshToken, t.iv, t.accessTokenExpiresAt.getTime(), Date.now());
+    },
+    close: () => db.close(),
+  };
+}
 
 export function anonymize(value, secrets) {
   if (Array.isArray(value)) return value.map((v) => anonymize(v, secrets));
@@ -170,10 +190,7 @@ export async function run(deps) {
 }
 
 async function main() {
-  const { createRequire } = await import("node:module");
-  const require = createRequire(import.meta.url);
-  require("dotenv").config({ path: ".env.local" });
-  const postgres = require("postgres");
+  createRequire(import.meta.url)("dotenv").config({ path: ".env.local" });
   const fs = await import("node:fs/promises");
   const env = process.env;
   const missing = missingEnv(env);
@@ -181,34 +198,25 @@ async function main() {
     console.log(`Missing env: ${missing.join(", ")}`);
     process.exit(1);
   }
-  const sql = postgres(env.DATABASE_URL);
   let failed = false;
+  let store;
   try {
-    const rows = await sql`SELECT "userId", "encryptedRefreshToken", iv FROM voltops_tesla_token`;
-    if (rows.length !== 1) {
-      console.log(`Expected exactly 1 voltops_tesla_token row, found ${rows.length}`);
-      failed = true;
-    } else {
-      const results = await run({
-        fetch, clientId: env.TESLA_CLIENT_ID, clientSecret: env.TESLA_CLIENT_SECRET,
-        encryptionKey: env.ENCRYPTION_KEY, now: new Date(), log: (m) => console.log(m),
-        loadToken: async () => rows[0],
-        saveToken: async (t) => {
-          await sql`UPDATE voltops_tesla_token SET "encryptedRefreshToken" = ${t.encryptedRefreshToken}, iv = ${t.iv},
-            "accessTokenExpiresAt" = ${t.accessTokenExpiresAt}, "updatedAt" = now() WHERE "userId" = ${t.userId}`;
-        },
-        writeFixture: async (name, data) => {
-          await fs.mkdir("fixtures/fleet-api", { recursive: true });
-          await fs.writeFile(`fixtures/fleet-api/${name}.json`, JSON.stringify(data, null, 2) + "\n");
-        },
-      });
-      failed = results.some((r) => !r.ok);
-    }
+    store = sqliteTokenStore(env.DATABASE_PATH ?? "./data/voltops.db");
+    const results = await run({
+      fetch, clientId: env.TESLA_CLIENT_ID, clientSecret: env.TESLA_CLIENT_SECRET,
+      encryptionKey: env.VOLTOPS_SECRET_KEY, now: new Date(), log: (m) => console.log(m),
+      loadToken: store.loadToken, saveToken: store.saveToken,
+      writeFixture: async (name, data) => {
+        await fs.mkdir("fixtures/fleet-api", { recursive: true });
+        await fs.writeFile(`fixtures/fleet-api/${name}.json`, JSON.stringify(data, null, 2) + "\n");
+      },
+    });
+    failed = results.some((r) => !r.ok);
   } catch (e) {
     console.error(e.message);
     failed = true;
   } finally {
-    await sql.end();
+    store?.close();
   }
   process.exit(failed ? 1 : 0);
 }

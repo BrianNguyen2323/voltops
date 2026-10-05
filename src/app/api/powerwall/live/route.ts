@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
-import { getSession } from "~/lib/session";
+import { requireAdminApi } from "~/lib/auth";
 import { getPowerwallLiveStatus } from "~/lib/tesla";
 
 export async function GET() {
-  const userId = await getSession();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   try {
-    const reading = await getPowerwallLiveStatus(userId);
+    const reading = await getPowerwallLiveStatus();
     return NextResponse.json(reading);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
