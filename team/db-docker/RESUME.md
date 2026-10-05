@@ -1,8 +1,8 @@
 # Resume board — db-docker
 
-- **Topic (PO, 2026-10-05):** database adjustments and a Docker setup with the SQLite file. Move VoltOps off Netlify + Supabase Postgres to self-hosted Docker Compose + SQLite on a volume (CLAUDE.md D1, D2, D5, D6).
-- **Current round:** Decision round 1. Q1, Q2 and Q4 are answered. Q3 is re-asked with an explanation, and Q5–Q8 are new. Waiting on the PO.
-- **Last action:** Created the scope. Moved `research/storage` and the storage decision round over from `tesla-api-connection`. Surveyed the code: Supabase/Postgres is used by `src/server/db/*`, `src/lib/tesla.ts`, `src/app/api/auth/callback/route.ts`, and `scripts/verify-tesla-gets.mjs`. The session cookie holds `users.id`.
-- **Next action:** When Q3 and Q5–Q8 are answered, write SPEC Revision 1 + R001, milestones, and briefs. If Q3 is yes, the ADR goes in `docs/adr/` in the same PR.
-- **Dependency:** the PO's daytime `pnpm verify:tesla` run (tesla-api-connection) reads the token from Supabase. Do not merge the Supabase removal before that run is done.
+- **Topic (PO, 2026-10-05):** database adjustments and a Docker setup with the SQLite file. Move VoltOps off Netlify + Supabase Postgres to self-hosted Docker Compose + SQLite on a volume (CLAUDE.md D1, D2, D5, D6, D10).
+- **Current round:** Design Revision 1 is written (SPEC, R001, M1/M2, briefs B001–B004 in board/ready). Waiting on the PO for **Q2b** (SQLite driver; this blocks B001) and the **Q5 result** (redirect URI test; blocks nothing).
+- **Last action:** Recorded the PO's answers Q1 A, Q2 A, Q3 yes, Q4 re-login, Q5 A, Q6 B, Q7 recommended, Q8 yes. Found that stable drizzle 0.45 lacks a node:sqlite driver, so Q2b was raised.
+- **Next action:** When Q2b is answered, update the B001/B003/B004 driver line and spawn the B001 tester (`phase1/db-sqlite-tests`), then the implementer. After B001 merges: B002 and B003 in parallel. Then B004.
+- **Hold:** don't merge B003 until the PO's daytime `pnpm verify:tesla` run (tesla-api-connection) is done, because it still reads the token from Supabase. Note: B001 merging also breaks the Supabase-based app code. The PO's daytime run uses the script on main, so the safest course is to **not merge B001 until the daytime run is done either**.
 - **Open branches:** none.
