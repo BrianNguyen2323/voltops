@@ -3,6 +3,8 @@ services:
     build: .
     ports: ["3000:3000"]
     env_file: .env
+    environment:
+      DATABASE_PATH: /data/voltops.db
     volumes:
       - voltops-data:/data
     restart: unless-stopped
