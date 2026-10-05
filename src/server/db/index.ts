@@ -19,7 +19,8 @@ const g = globalThis as unknown as { __voltopsDb?: Db };
 
 // Lazy so importing this module never opens a file (tests, next build).
 const get = () =>
-  (g.__voltopsDb ??= openDb(process.env.DATABASE_PATH ?? "./data/voltops.db"));
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- "" must fall back too
+  (g.__voltopsDb ??= openDb(process.env.DATABASE_PATH || "./data/voltops.db"));
 
 export const db = new Proxy({} as Db, {
   get: (_t, prop) => Reflect.get(get(), prop) as unknown,
