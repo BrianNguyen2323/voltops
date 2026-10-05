@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { env } from "~/env";
 import { decrypt, encrypt } from "~/lib/crypto";
 import { db } from "~/server/db";
-import { teslaTokens } from "~/server/db/schema";
+import { energySites, teslaTokens } from "~/server/db/schema";
 
 const TESLA_FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
@@ -88,23 +88,21 @@ async function fleetGet<T>(path: string, accessToken: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function getEnergySiteId(accessToken: string): Promise<number> {
-  const data = await fleetGet<{
-    response: { energy_site_id?: number; resource_type?: string }[];
-  }>("/api/1/products", accessToken);
-
-  const site = data.response.find((p) => p.resource_type === "battery");
-  if (!site?.energy_site_id) {
-    throw new Error("No Powerwall energy site found on this Tesla account");
-  }
-  return site.energy_site_id;
-}
-
 export async function getPowerwallLiveStatus(
   userId: string,
 ): Promise<PowerwallReading> {
+  // Check DB first — no token refresh wasted if the user has no Powerwall
+  const site = await db.query.energySites.findFirst({
+    where: eq(energySites.userId, userId),
+    columns: { teslaEnergySiteId: true },
+  });
+
+  if (!site) {
+    throw new Error("No Powerwall energy site found for this user");
+  }
+
+  const siteId = site.teslaEnergySiteId;
   const accessToken = await getAccessToken(userId);
-  const siteId = await getEnergySiteId(accessToken);
 
   const data = await fleetGet<{
     response: {
