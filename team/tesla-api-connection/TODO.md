@@ -43,7 +43,9 @@ Merged to main (6663f5e). Gate: 23/23 tests, typecheck, and `pnpm build` are all
 3. **Before I commit the fixtures**, look over `fixtures/fleet-api/*.json`. In particular, look for your site ID, gateway/battery serials, `warp_site_number`, address, and your name or email. Quick check (PowerShell): `Select-String -Path fixtures\fleet-api\*.json -Pattern "<your site id>"` should print nothing.
 4. Paste the printed table and invariant line here. They contain no tokens. Tell me "fixtures clean" or what you found. Then I'll commit the fixtures and write up the field names and signs as research for the `fleet-api` adapter.
 
-## USER INPUT REQUIRED — Daytime re-run of `pnpm verify:tesla` (M1 / B002)
+## USER INPUT REQUIRED — Daytime re-run of `pnpm verify:tesla` (follow-up after M1; verifies the battery and solar signs)
+
+**2026-10-04: M1 closed by the PO. The night fixtures are committed as the baseline.** The PO will run this tomorrow morning. Nothing else is blocked on it except the adapter's battery and solar sign handling.
 
 **Status 2026-10-04:** a re-run at 21:14 PDT (night) passed all 4 GETs, and the lead's leak scan of the fixtures is clean (no vehicle, no UUIDs, no VIN-like or ID-like values). But solar = 0 and battery = 0 (SoC 19%, below the 20% reserve), so the battery sign is still unverified. **The re-run is still needed in daytime, 11:00–14:00, while the battery is charging.**
 

@@ -1,0 +1,526 @@
+{
+  "response": {
+    "id": "REDACTED",
+    "site_name": "REDACTED",
+    "backup_reserve_percent": 20,
+    "default_real_mode": "self_consumption",
+    "installation_date": "2025-09-15T11:07:01-07:00",
+    "user_settings": {
+      "go_off_grid_test_banner_enabled": true,
+      "storm_mode_enabled": true,
+      "powerwall_onboarding_settings_set": true,
+      "powerwall_tesla_electric_interested_in": false,
+      "vpp_tour_enabled": true,
+      "off_grid_vehicle_charging_enabled": true
+    },
+    "components": {
+      "solar": true,
+      "solar_type": "pv_panel",
+      "battery": true,
+      "grid": true,
+      "backup": true,
+      "gateway": "teg",
+      "load_meter": true,
+      "tou_capable": true,
+      "storm_mode_capable": true,
+      "off_grid_vehicle_charging_reserve_supported": false,
+      "vehicle_charging_performance_view_enabled": false,
+      "vehicle_charging_solar_offset_view_enabled": false,
+      "battery_solar_offset_view_enabled": true,
+      "solar_value_enabled": true,
+      "energy_value_header": "Energy Value",
+      "energy_value_subheader": "Estimated Value",
+      "energy_service_self_scheduling_enabled": true,
+      "show_battery_soe_graph": true,
+      "show_grid_import_battery_source_cards": true,
+      "set_islanding_mode_enabled": true,
+      "wifi_commissioning_enabled": true,
+      "backup_time_remaining_enabled": true,
+      "battery_type": "solar_powerwall",
+      "configurable": true,
+      "grid_services_enabled": false,
+      "gateways": [
+        {
+          "device_id": "REDACTED",
+          "din": "REDACTED",
+          "serial_number": "REDACTED",
+          "part_number": "1707000-11-M",
+          "part_type": 4,
+          "part_name": "Powerwall 3",
+          "is_active": true,
+          "site_id": "REDACTED",
+          "firmware_version": "26.26.11 c4db63ce",
+          "updated_datetime": "2026-09-25T04:31:19.076Z",
+          "nameplate_power_watts": 11520,
+          "nameplate_energy_watts": 27000
+        }
+      ],
+      "batteries": [
+        {
+          "device_id": "REDACTED",
+          "din": "REDACTED",
+          "serial_number": "REDACTED",
+          "part_number": "1807000-10-B",
+          "part_name": "Unknown",
+          "nameplate_max_charge_power": 0,
+          "nameplate_max_discharge_power": 0,
+          "nameplate_energy": 0,
+          "is_active": true
+        }
+      ],
+      "customer_preferred_export_rule": "pv_only",
+      "ITC_cliff": 1,
+      "net_meter_mode": "battery_ok",
+      "edit_setting_permission_to_export": true,
+      "edit_setting_grid_charging": true,
+      "edit_setting_energy_exports": true,
+      "system_alerts_enabled": true,
+      "service_mode_enabled": true,
+      "support_manual_backup": true,
+      "rate_tariff_service_options": {
+        "rate_plan_configured_by_rts": false,
+        "rate_tariff_service_enabled": false,
+        "request_export_tariff": false,
+        "request_network_fees": false
+      }
+    },
+    "version": "26.26.11 c4db63ce",
+    "battery_count": 2,
+    "tariff_content": {
+      "code": "SCE-TOU-D-4-9PM",
+      "name": "Time-of-Use Domestic 4-9PM",
+      "utility": "Southern California Edison",
+      "currency": "USD",
+      "demand_charges": {
+        "ALL": {
+          "ALL": 0
+        },
+        "Summer": {},
+        "Winter": {}
+      },
+      "energy_charges": {
+        "ALL": {
+          "ALL": 0
+        },
+        "Summer": {
+          "OFF_PEAK": 0.36829,
+          "ON_PEAK": 0.58972,
+          "PARTIAL_PEAK": 0.47816
+        },
+        "Winter": {
+          "OFF_PEAK": 0.35776,
+          "ON_PEAK": 0.52028,
+          "PARTIAL_PEAK": 0.39406
+        }
+      },
+      "seasons": {
+        "Summer": {
+          "fromDay": 1,
+          "toDay": 30,
+          "fromMonth": 6,
+          "toMonth": 9,
+          "tou_periods": {
+            "OFF_PEAK": [
+              {
+                "fromDayOfWeek": 0,
+                "toDayOfWeek": 6,
+                "fromHour": 21,
+                "fromMinute": 0,
+                "toHour": 16,
+                "toMinute": 0
+              }
+            ],
+            "ON_PEAK": [
+              {
+                "fromDayOfWeek": 0,
+                "toDayOfWeek": 4,
+                "fromHour": 16,
+                "fromMinute": 0,
+                "toHour": 21,
+                "toMinute": 0
+              }
+            ],
+            "PARTIAL_PEAK": [
+              {
+                "fromDayOfWeek": 5,
+                "toDayOfWeek": 6,
+                "fromHour": 16,
+                "fromMinute": 0,
+                "toHour": 21,
+                "toMinute": 0
+              }
+            ]
+          }
+        },
+        "Winter": {
+          "fromDay": 1,
+          "toDay": 31,
+          "fromMonth": 10,
+          "toMonth": 5,
+          "tou_periods": {
+            "OFF_PEAK": [
+              {
+                "fromDayOfWeek": 0,
+                "toDayOfWeek": 6,
+                "fromHour": 8,
+                "fromMinute": 0,
+                "toHour": 16,
+                "toMinute": 0
+              }
+            ],
+            "ON_PEAK": [
+              {
+                "fromDayOfWeek": 0,
+                "toDayOfWeek": 6,
+                "fromHour": 16,
+                "fromMinute": 0,
+                "toHour": 21,
+                "toMinute": 0
+              }
+            ],
+            "PARTIAL_PEAK": [
+              {
+                "fromDayOfWeek": 0,
+                "toDayOfWeek": 6,
+                "fromHour": 21,
+                "fromMinute": 0,
+                "toHour": 8,
+                "toMinute": 0
+              }
+            ]
+          }
+        }
+      },
+      "sell_tariff": {
+        "demand_charges": {
+          "ALL": {
+            "ALL": 0
+          },
+          "Summer": {},
+          "Winter": {}
+        },
+        "energy_charges": {
+          "ALL": {
+            "ALL": 0
+          },
+          "Summer": {
+            "OFF_PEAK": 0.36829,
+            "ON_PEAK": 0.58972,
+            "PARTIAL_PEAK": 0.47816
+          },
+          "Winter": {
+            "OFF_PEAK": 0.35776,
+            "ON_PEAK": 0.52028,
+            "PARTIAL_PEAK": 0.39406
+          }
+        },
+        "seasons": {
+          "Summer": {
+            "fromDay": 1,
+            "toDay": 30,
+            "fromMonth": 6,
+            "toMonth": 9,
+            "tou_periods": {
+              "OFF_PEAK": [
+                {
+                  "fromDayOfWeek": 0,
+                  "toDayOfWeek": 6,
+                  "fromHour": 21,
+                  "fromMinute": 0,
+                  "toHour": 16,
+                  "toMinute": 0
+                }
+              ],
+              "ON_PEAK": [
+                {
+                  "fromDayOfWeek": 0,
+                  "toDayOfWeek": 4,
+                  "fromHour": 16,
+                  "fromMinute": 0,
+                  "toHour": 21,
+                  "toMinute": 0
+                }
+              ],
+              "PARTIAL_PEAK": [
+                {
+                  "fromDayOfWeek": 5,
+                  "toDayOfWeek": 6,
+                  "fromHour": 16,
+                  "fromMinute": 0,
+                  "toHour": 21,
+                  "toMinute": 0
+                }
+              ]
+            }
+          },
+          "Winter": {
+            "fromDay": 1,
+            "toDay": 31,
+            "fromMonth": 10,
+            "toMonth": 5,
+            "tou_periods": {
+              "OFF_PEAK": [
+                {
+                  "fromDayOfWeek": 0,
+                  "toDayOfWeek": 6,
+                  "fromHour": 8,
+                  "fromMinute": 0,
+                  "toHour": 16,
+                  "toMinute": 0
+                }
+              ],
+              "ON_PEAK": [
+                {
+                  "fromDayOfWeek": 0,
+                  "toDayOfWeek": 6,
+                  "fromHour": 16,
+                  "fromMinute": 0,
+                  "toHour": 21,
+                  "toMinute": 0
+                }
+              ],
+              "PARTIAL_PEAK": [
+                {
+                  "fromDayOfWeek": 0,
+                  "toDayOfWeek": 6,
+                  "fromHour": 21,
+                  "fromMinute": 0,
+                  "toHour": 8,
+                  "toMinute": 0
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "tariff_id": "SCE-TOU-D-4-9PM",
+    "nameplate_power": 11520,
+    "installation_time_zone": "America/Los_Angeles",
+    "max_site_meter_power_ac": 1000000000,
+    "min_site_meter_power_ac": -1000000000,
+    "tariff_content_v2": {
+      "code": "SCE-TOU-D-4-9PM",
+      "name": "Time-of-Use Domestic 4-9PM",
+      "utility": "Southern California Edison",
+      "currency": "USD",
+      "demand_charges": {
+        "ALL": {
+          "rates": {
+            "ALL": 0
+          }
+        },
+        "Summer": {},
+        "Winter": {}
+      },
+      "energy_charges": {
+        "ALL": {
+          "rates": {
+            "ALL": 0
+          }
+        },
+        "Summer": {
+          "rates": {
+            "OFF_PEAK": 0.36829,
+            "ON_PEAK": 0.58972,
+            "PARTIAL_PEAK": 0.47816
+          }
+        },
+        "Winter": {
+          "rates": {
+            "OFF_PEAK": 0.35776,
+            "ON_PEAK": 0.52028,
+            "PARTIAL_PEAK": 0.39406
+          }
+        }
+      },
+      "seasons": {
+        "Summer": {
+          "fromDay": 1,
+          "toDay": 30,
+          "fromMonth": 6,
+          "toMonth": 9,
+          "tou_periods": {
+            "OFF_PEAK": {
+              "periods": [
+                {
+                  "toDayOfWeek": 6,
+                  "fromHour": 21,
+                  "toHour": 16
+                }
+              ]
+            },
+            "ON_PEAK": {
+              "periods": [
+                {
+                  "toDayOfWeek": 4,
+                  "fromHour": 16,
+                  "toHour": 21
+                }
+              ]
+            },
+            "PARTIAL_PEAK": {
+              "periods": [
+                {
+                  "fromDayOfWeek": 5,
+                  "toDayOfWeek": 6,
+                  "fromHour": 16,
+                  "toHour": 21
+                }
+              ]
+            }
+          }
+        },
+        "Winter": {
+          "fromDay": 1,
+          "toDay": 31,
+          "fromMonth": 10,
+          "toMonth": 5,
+          "tou_periods": {
+            "OFF_PEAK": {
+              "periods": [
+                {
+                  "toDayOfWeek": 6,
+                  "fromHour": 8,
+                  "toHour": 16
+                }
+              ]
+            },
+            "ON_PEAK": {
+              "periods": [
+                {
+                  "toDayOfWeek": 6,
+                  "fromHour": 16,
+                  "toHour": 21
+                }
+              ]
+            },
+            "PARTIAL_PEAK": {
+              "periods": [
+                {
+                  "toDayOfWeek": 6,
+                  "fromHour": 21,
+                  "toHour": 8
+                }
+              ]
+            }
+          }
+        }
+      },
+      "sell_tariff": {
+        "demand_charges": {
+          "ALL": {
+            "rates": {
+              "ALL": 0
+            }
+          },
+          "Summer": {},
+          "Winter": {}
+        },
+        "energy_charges": {
+          "ALL": {
+            "rates": {
+              "ALL": 0
+            }
+          },
+          "Summer": {
+            "rates": {
+              "OFF_PEAK": 0.36829,
+              "ON_PEAK": 0.58972,
+              "PARTIAL_PEAK": 0.47816
+            }
+          },
+          "Winter": {
+            "rates": {
+              "OFF_PEAK": 0.35776,
+              "ON_PEAK": 0.52028,
+              "PARTIAL_PEAK": 0.39406
+            }
+          }
+        },
+        "seasons": {
+          "Summer": {
+            "fromDay": 1,
+            "toDay": 30,
+            "fromMonth": 6,
+            "toMonth": 9,
+            "tou_periods": {
+              "OFF_PEAK": {
+                "periods": [
+                  {
+                    "toDayOfWeek": 6,
+                    "fromHour": 21,
+                    "toHour": 16
+                  }
+                ]
+              },
+              "ON_PEAK": {
+                "periods": [
+                  {
+                    "toDayOfWeek": 4,
+                    "fromHour": 16,
+                    "toHour": 21
+                  }
+                ]
+              },
+              "PARTIAL_PEAK": {
+                "periods": [
+                  {
+                    "fromDayOfWeek": 5,
+                    "toDayOfWeek": 6,
+                    "fromHour": 16,
+                    "toHour": 21
+                  }
+                ]
+              }
+            }
+          },
+          "Winter": {
+            "fromDay": 1,
+            "toDay": 31,
+            "fromMonth": 10,
+            "toMonth": 5,
+            "tou_periods": {
+              "OFF_PEAK": {
+                "periods": [
+                  {
+                    "toDayOfWeek": 6,
+                    "fromHour": 8,
+                    "toHour": 16
+                  }
+                ]
+              },
+              "ON_PEAK": {
+                "periods": [
+                  {
+                    "toDayOfWeek": 6,
+                    "fromHour": 16,
+                    "toHour": 21
+                  }
+                ]
+              },
+              "PARTIAL_PEAK": {
+                "periods": [
+                  {
+                    "toDayOfWeek": 6,
+                    "fromHour": 21,
+                    "toHour": 8
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "version": 1
+    },
+    "vpp_backup_reserve_percent": 20,
+    "utility": "Southern California Edison",
+    "island_config": {
+      "low_soe_limit": 0,
+      "jump_start_soe_threshold": 0,
+      "wait_for_solar_retry_soe": 0,
+      "max_frequency_shift_hz": 0.2
+    }
+  }
+}
