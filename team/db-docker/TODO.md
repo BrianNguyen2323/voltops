@@ -66,3 +66,15 @@ You stopped the B002 reviewer mid-run, so it gave no verdict. Its last note hint
 ## ANSWERED 2026-10-05 — Start Docker Desktop
 B004's acceptance test builds the container and runs it with `docker compose`. Docker Desktop is installed (Compose v2.29.1), but the engine isn't running (`docker version` can't reach `dockerDesktopLinuxEngine`). Please start Docker Desktop and tell me "docker up". The B004 tester is already working; the implementer needs Docker running.
 - Answer: **docker up** (PO, 2026-10-05). Engine 29.8.2 linux/amd64 confirmed.
+
+## USER INPUT REQUIRED — Review: M1 + M2 on `database-docker` (all four briefs merged)
+Gate on `database-docker`: vitest 30/30, test:scripts 43/43, typecheck, lint, clean build, and `bash scripts/docker-smoke.sh` PASS.
+What to try:
+1. **`.env`:** compare it with `.env.example` (I only checked key names, not values; your `.env` has no plain `KEY=value` lines, so it may need redoing). Needed: `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `TESLA_REDIRECT_URI=http://localhost:3000/api/auth/callback`, `SESSION_SECRET` (≥32 chars), `VOLTOPS_SECRET_KEY` (≥64 chars). **Leave `DATABASE_PATH` unset**: compose's `.env` overrides the image's `/data/voltops.db`.
+2. **Start it:** `docker compose up -d --build`, then open http://localhost:3000. You should land on `/setup`. Set a password of 12+ characters, and you go to `/home`.
+3. **Connect Tesla:** on `/home`, click **Connect Tesla**, log in at Tesla, and you're back on `/home` showing "Tesla connected". The token is now in SQLite on the `voltops-data` volume, so Tesla needs a fresh login (Q4).
+4. **Persistence:** `docker compose restart`, then reload. You still have to log in with your password (no new setup), and the page still says "Tesla connected".
+5. **Wrong password:** log out, try a wrong password, and you should see "Incorrect password".
+6. **Merge:** merge `database-docker` into `main` when you're happy. Once that lands, Netlify publishes only `public/`. Then check that https://voltops.netlify.app/.well-known/appspecific/com.tesla.3p.public-key.pem still loads.
+- Known: the image is ~900 MB (follow-up 14). On Windows, run the smoke script from a path on D:, because Docker bake refuses a Temp-folder build context.
+- Result:
