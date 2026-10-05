@@ -88,3 +88,12 @@ The B005 code is green (31 + 45 tests, typecheck, build). Its Docker smoke test 
 - **A (recommended):** when you're done testing, run `docker compose down` (no `-v`, so your volume and DB are kept) and tell me "port free". I run the smoke test, merge B005, and you `docker compose up -d --build` again on the fixed code.
 - B: tell me "stop it", and I run `docker compose stop` for you.
 - Answer: **port free** (PO, 2026-10-05). Smoke PASS; B005 merged.
+
+## USER INPUT REQUIRED — Re-test after B005 + B006 (both merged into `database-docker`)
+Gate: vitest 34/34, test:scripts 45/45, typecheck, lint, build, docker smoke PASS.
+1. `docker compose up -d --build`. It rebuilds on the fixed code and keeps your `voltops-data` volume (admin password + Tesla connection carry over).
+2. Open http://localhost:3000. You should land on `/login`; log in. `/home` should show "Tesla connected".
+3. Optional: re-run **Connect Tesla**. After Tesla's page, you should land on `http://localhost:3000/home`, not `0.0.0.0`.
+4. `docker compose restart`, then reload: still "Tesla connected".
+5. If all good: merge `database-docker` into `main` (your call), then check that the Netlify public-key URL still loads.
+- Result:
