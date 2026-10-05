@@ -1,7 +1,7 @@
 # B003 — Verify script reads the token from SQLite
 
 ## Facts
-- `scripts/verify-tesla-gets.mjs` `main()` currently uses `postgres` with `DATABASE_URL` and the table `voltops_tesla_token`. Switch it to the SQLite file at `DATABASE_PATH` (default `./data/voltops.db`), using the same driver package as `src/server/db` (B001; plain JS via `createRequire`), with `busy_timeout=5000`.
+- `scripts/verify-tesla-gets.mjs` `main()` currently uses `postgres` with `DATABASE_URL` and the table `voltops_tesla_token`. Switch it to the SQLite file at `DATABASE_PATH` (default `./data/voltops.db`), using `better-sqlite3` (installed by B001; plain JS via `createRequire`), with `busy_timeout=5000`.
 - Table `credentials` (id=1): `encrypted_refresh_token`, `iv`, `access_token_expires_at` (int ms UTC), `updated_at` (int ms).
   - `loadToken` maps the row to `{ encryptedRefreshToken, iv }`.
   - `saveToken` UPDATEs the same row.
