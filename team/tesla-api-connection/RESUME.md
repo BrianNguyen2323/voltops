@@ -7,6 +7,6 @@
   1. Leak-scan the fixtures again (same greps: vehicle/vin/cached_data/UUID/@/lat/long/address; IDs = REDACTED), then commit them over the night baseline.
   2. Record the solar and battery signs in `research/fleet-api-responses/README.md`, matched against what the PO saw in the Tesla app (battery charging → is `battery_power < 0`?).
   3. Open Decision round 2 (fleet-api adapter / DataSource, CLAUDE.md §5). Start with a research round.
-- **Follow-ups:** none.
+- **Follow-ups:** 2026-10-05 the PO asked whether a DB is needed. Lead answer: yes, SQLite on a Docker volume. See `research/storage/README.md`. Decision round 2 (storage/hosting) is open in TODO.md, and it is independent of the daytime run.
 - **Next-topic candidates (from the PO):** weather location. Tesla gives no coordinates, so the user must provide them (ZIP/city geocoding via Open-Meteo, browser geolocation, or manual lat/lon). This is for a separate future scope.
 - **Open branches:** none.
