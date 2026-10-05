@@ -27,7 +27,9 @@ Research: `research/fleet-api-get-endpoints/README.md`
 - `.env.local` has the **Supabase DB password in plain text in a comment line**. The file is gitignored, but please delete that comment. I tried to check whether any `.env*` file was ever committed, and that check was blocked, so please run this yourself and rotate the password if it prints anything:
   `git log --all --oneline -- .env .env.local`
 
-## USER INPUT REQUIRED — Review M1 / B001: run the Fleet API GET check
+## Review M1 / B001: run the Fleet API GET check (DONE 2026-10-04)
+
+**Result:** PO ran it at ~20:38 and all 4 GETs returned 200 OK. The PO found no site id. The lead found the vehicle VIN and name in `products.json` (inside the vehicle entry's base64 blob), plus unredacted hardware UUIDs. products.json was deleted, and the fix is B002. Details: `research/fleet-api-responses/README.md`.
 
 Merged to main (6663f5e). Gate: 23/23 tests, typecheck, and `pnpm build` are all green, and the reviewer returned PASS. Agents have never run it against the real API. You are the first.
 
@@ -40,3 +42,6 @@ Merged to main (6663f5e). Gate: 23/23 tests, typecheck, and `pnpm build` are all
    - The exit code is 1 if any row is not ok. Send me the table either way; a failure is useful information too.
 3. **Before I commit the fixtures**, look over `fixtures/fleet-api/*.json`. In particular, look for your site ID, gateway/battery serials, `warp_site_number`, address, and your name or email. Quick check (PowerShell): `Select-String -Path fixtures\fleet-api\*.json -Pattern "<your site id>"` should print nothing.
 4. Paste the printed table and invariant line here. They contain no tokens. Tell me "fixtures clean" or what you found. Then I'll commit the fixtures and write up the field names and signs as research for the `fleet-api` adapter.
+
+## (coming) Re-run after B002 merges, in DAYTIME
+The first run was at night (solar 0, battery 0), so only the grid sign was verified. After B002 merges, you'll get a USER INPUT REQUIRED item here asking for a re-run between about 11:00 and 14:00 while the battery is charging, which verifies the solar and battery signs.
