@@ -14,7 +14,7 @@
 - **Implementer:** `scripts/verify-tesla-gets.mjs`.
 
 ## Base
-main after B001 merges. Branches `phase1/verify-sqlite-tests` → `phase1/verify-sqlite-impl`. **The lead holds the merge until the PO's daytime verify run is done.**
+`phase1/db-sqlite-impl` (B001, PASS but not merged yet; held). Branches `phase1/verify-sqlite-tests` → `phase1/verify-sqlite-impl`. **The lead holds the merge until the PO's daytime verify run is done.**
 
 ## Judged by
 `pnpm test:scripts` green (node:test). New tests use a temp SQLite file with the B001 migration applied:
