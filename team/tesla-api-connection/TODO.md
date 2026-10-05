@@ -52,6 +52,6 @@ B002 is merged (9c69ba1). Gate: 32/32 tests, typecheck and build are green, and 
    Don't log in on Netlify while it runs.
 2. It overwrites the 3 old fixtures and recreates products.json.
 3. Check `fixtures/fleet-api/*.json`:
-   - `Select-String -Path fixturesleet-api\*.json -Pattern "<your site id>","<your VIN>","vehicle"` should print nothing.
+   - `Select-String -Path fixtures\fleet-api\*.json -Pattern "<your site id>","<your VIN>","vehicle"` should print nothing.
    - Look for your name, address, or serials too.
 4. Paste the table and the `live_status invariant` line. Also tell me what the Tesla app showed at the time ("battery charging at X kW, solar Y kW"), so I can match the signs against what you saw. Then say "fixtures clean".
