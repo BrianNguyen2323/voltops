@@ -51,14 +51,14 @@
 **Q5 result.** On developer.tesla.com → your app → Allowed Redirect URIs, add `http://localhost:3000/api/auth/callback` and save. Tell me "accepted" or paste the error. If it's rejected, I add a small brief for the Netlify forwarder page (Q5-B). Nothing in B001–B004 waits on this.
 - Result: **accepted**. The portal lists `http://localhost:3000/api/auth/callback` and `https://voltops.netlify.app/api/auth/callback` (PO, 2026-10-05).
 
-## USER INPUT REQUIRED — Which branch do db-docker merges go to?
+## ANSWERED 2026-10-05 — Which branch do db-docker merges go to?
 You checked out a new branch `database-docker` at 00:28 (pushed to origin). Since then all db-docker records (e0d5d90..b78ef6b) are on it, and `main` is still at 32a8288. The team process assumes the lead merges finished work into `main`.
 - **A (recommended):** `main`. I fast-forward `main` to `database-docker` (records only, no code), merge every brief into `main`, and you can delete `database-docker`.
 - B: `database-docker` is the integration branch for this scope. I merge briefs there, and you merge it into `main` yourself when M2 is done.
-- Answer:
+- Answer: **B** (PO, 2026-10-05). Merge briefs into `database-docker`. The PO merges it into `main` after checking it.
 
-## USER INPUT REQUIRED — Re-run the B002 (admin password) review?
+## ANSWERED 2026-10-05 — Re-run the B002 (admin password) review?
 You stopped the B002 reviewer mid-run, so it gave no verdict. Its last note hinted the build failed. I re-ran the gate command on `phase1/auth-admin-impl` (fa0d89d): 30/30 tests pass, and typecheck, lint and build are all green. The build is fine.
 - **A (recommended):** spawn a fresh reviewer on `phase1/auth-admin-impl`. If it returns PASS, B002 joins B001 and B003 for merging.
 - B: hold B002 (tell me why: a spec change, a different approach, or something else).
-- Answer:
+- Answer: **A** (PO, 2026-10-05).
