@@ -1,12 +1,9 @@
 # Resume board — Tesla API Connection
 
-- **Topic:** verify that the Fleet API GET requests VoltOps needs actually work against the PO's real account.
-- **Current round:** M1 DONE (2026-10-04, PO call). Resumed 2026-10-05 11:04: fixtures are still the night baseline (not re-run yet). We are inside the 11:00–14:00 window, waiting on the PO to run `pnpm verify:tesla`. The script on `database-docker` is identical to main, so it can run from the current checkout.
-- **Last action:** The night fixtures (run 2, 21:14 PDT) were leak-scanned by the lead (clean: IDs, serials and names REDACTED, no vehicle items, no UUIDs, no coordinates) and committed as the M1 baseline. B003 merged (d4bd5c8). Tests 37/37, typecheck and build are green.
-- **Next action:** When the PO reports the daytime run:
-  1. Leak-scan the fixtures again (same greps: vehicle/vin/cached_data/UUID/@/lat/long/address; IDs = REDACTED), then commit them over the night baseline.
-  2. Record the solar and battery signs in `research/fleet-api-responses/README.md`, matched against what the PO saw in the Tesla app (battery charging → is `battery_power < 0`?).
-  3. Open Decision round 2 (fleet-api adapter / DataSource, CLAUDE.md §5). Start with a research round.
-- **Follow-ups:** 2026-10-05: storage/hosting moved to the new scope `team/db-docker` (research + decision round). The daytime verify run must happen before db-docker removes Supabase.
+- **Topic:** verify that the Fleet API GET requests VoltOps needs actually work against the PO's real account. Next up: the `fleet-api` adapter (CLAUDE.md §5).
+- **Current round:** Decision round 2 (fleet-api adapter), waiting on the PO. M1 and the daytime verify run are DONE.
+- **Last action:** 2026-10-05 11:06: PO daytime run, 4/4 OK. Signs verified 1:1 (battery -1267 W in the fixture = charging at 1.3 kW in the app). Fixtures leak-scanned and committed (b452729). The db-docker hold for the daytime run was cleared in `team/db-docker/RESUME.md`. Adapter research written (`research/fleet-api-adapter/README.md`), and Decision round 2 opened in TODO.md (Q1–Q5).
+- **Next action:** Record the PO's answers next to Q1–Q5 → SPEC Revision 2 + `design/revisions/R002.md` → milestone M2 + briefs in board/ready (tester first). If Q3=A, the first brief adds a "calendar_history for today" probe to `scripts/verify-tesla-gets.mjs` for the PO to run once. Adapter files must not overlap db-docker B002's owned files (`src/lib/tesla.ts`, `src/server/db/schema.ts`).
+- **Follow-ups:** storage/hosting lives in `team/db-docker`. The swap from `src/lib/tesla.ts` to the adapter waits on db-docker B002 merging.
 - **Next-topic candidates (from the PO):** weather location. Tesla gives no coordinates, so the user must provide them (ZIP/city geocoding via Open-Meteo, browser geolocation, or manual lat/lon). This is for a separate future scope.
 - **Open branches:** none.
