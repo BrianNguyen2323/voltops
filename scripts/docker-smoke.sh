@@ -23,12 +23,11 @@ docker version --format '{{.Server.Version}}' >/dev/null 2>&1 \
 if [ ! -f .env ]; then
   MADE_ENV=1
   cat > .env <<'ENV'
-SKIP_ENV_VALIDATION=1
-AUTH_SECRET=smoke-test-secret-smoke-test-secret-0000
 SESSION_SECRET=smoke-test-secret-smoke-test-secret-0000
 TESLA_CLIENT_ID=dummy
 TESLA_CLIENT_SECRET=dummy
 TESLA_REDIRECT_URI=http://localhost:3000/api/auth/callback
+VOLTOPS_SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ENV
 fi
 
