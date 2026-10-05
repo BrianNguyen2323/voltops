@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { env } from "~/env";
+import { requireAdminApi } from "~/lib/auth";
 
 function base64URLEncode(buffer: Buffer): string {
   return buffer
@@ -12,6 +13,9 @@ function base64URLEncode(buffer: Buffer): string {
 }
 
 export async function GET() {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   const codeVerifier = base64URLEncode(crypto.randomBytes(32));
   const codeChallenge = base64URLEncode(
     Buffer.from(crypto.createHash("sha256").update(codeVerifier).digest()),

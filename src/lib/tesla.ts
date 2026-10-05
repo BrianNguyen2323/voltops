@@ -126,7 +126,6 @@ export async function getPowerwallLiveStatus(): Promise<PowerwallReading> {
 
   // --- DEBUG: remove before production ---
   console.log("[Powerwall Live Status]");
-  console.log(`  Energy Site ID : ${siteId}`);
   console.log(`  Solar          : ${reading.solar_kw} kW`);
   console.log(`  Battery        : ${reading.battery_pct}% (${reading.battery_kw > 0 ? "+" : ""}${reading.battery_kw} kW)`);
   console.log(`  Home Load      : ${reading.home_kw} kW`);
