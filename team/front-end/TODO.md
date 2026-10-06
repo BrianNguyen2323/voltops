@@ -82,7 +82,7 @@ Answer in chat or here, e.g. "all recommended" or "Q3 B, rest recommended".
 - B: the middleware team owns the type, and we wait for theirs. That blocks this scope.
 - Answer: **A** (PO, 2026-10-06).
 
-## USER INPUT REQUIRED — Review: M1 home dashboard on sample data (2026-10-06)
+## Review: M1 home dashboard on sample data — ANSWERED 2026-10-06 (b; see design/revisions/R002.md)
 Everything is merged into `front-end-development` at ff33d4e. The gate is green: 165 tests, typecheck, lint and build. The Docker smoke test passed at B001 (303 MB). Nothing is merged into `main` yet; you merge `front-end-development` into `main` after this review.
 
 **How to run it**
@@ -116,4 +116,11 @@ Everything is merged into `front-end-development` at ff33d4e. The gate is green:
 - **a.** "approved": you merge `front-end-development` into `main`.
 - **b.** a list of changes. I'll make them round 2 (SPEC Rev 2) and fix them before or after your merge.
 - **c.** the next topic, e.g. the learning/loading/error states, the light theme, the chart table/CSV views, navigation plus the Plan/Trends screens, or a hand-off doc for the middleware team on `DashboardData`.
-- Answer:
+- Answer: **b**, with these changes (PO, 2026-10-06):
+  1. **Right now:** the flow lines look odd at different angles. Organize the diagram's structure. Also fix the Powerwall ring (agreed nit).
+  2. **Tonight:** looks good. Add a "tomorrow's expected forecast" tile inside the card, using sample weather data (the middleware team will connect a weather API later). It must stay within the theme and be visually appealing.
+  3. **48 h chart:**
+     - "p10 to p90" is confusing; it must be readable by anyone seeing the chart for the first time;
+     - "Home use range" and "Home use" colours are too similar to tell apart.
+  4. **Net cost:** the "credit earned" wording is better.
+

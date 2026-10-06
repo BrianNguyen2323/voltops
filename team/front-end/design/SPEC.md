@@ -1,6 +1,6 @@
 # SPEC — Front end: home dashboard (`/home`)
 
-Revision 1
+Revision 2
 
 ## Goal
 `/home` becomes an overview dashboard of the MVP's key features (CLAUDE.md §9: Now, Plan, Trends, Accuracy, Health), fed by **sample data** through one typed contract. Another team will swap the sample data for real queries. It is dark only, built with shadcn (style `radix-nova`), and works at 390 px and 1440 px. Research and design plan: `research/home-dashboard/README.md`.
@@ -17,6 +17,7 @@ Revision 1
 - Q9 the light theme and the chart table/CSV views are deferred.
 - Q10 solar is #ffb547 and grid export is #8b93ff.
 - Q11 this team owns `DashboardData`.
+- M1 review (R002): the flow diagram becomes an orthogonal cross; Tonight gets a weather tile; the 48 h chart is plain-language with a hatched range band; a negative net cost reads as a credit.
 
 ## Theme (`src/styles/globals.css`)
 shadcn Tailwind v4 layout: raw vars on `:root` (the app is always `.dark`, so one set is enough), mapped in `@theme inline` as `--color-<name>: var(--<name>)`.
@@ -64,7 +65,7 @@ Exports `type DashboardData` and `const sampleDashboard: DashboardData`. All uni
 ```ts
 type TouPeriod = "off-peak" | "mid-peak" | "peak";
 type DashboardData = {
-  site: { name: string; timezone: string };            // IANA tz
+  site: { name: string; timezone: string; temperatureUnit: "F" | "C" };  // IANA tz; display unit only
   source: "fleet-api" | "local-gateway" | "replay";
   updatedAt: string;
   currency: string;                                     // ISO 4217, e.g. "USD"
@@ -94,6 +95,13 @@ type DashboardData = {
   accuracy: Array<{ target: "load" | "solar"; model: string; baseline: string;
                     maePct: number; baselineMaePct: number; days: number }>;
   health: { lastPollAt: string; estRequestsPerMonth: number; warnings: string[] };
+  weatherTomorrow: null | {                             // Rev 2; filled by the middleware team's weather API later
+    date: string;                                       // YYYY-MM-DD, site-local
+    condition: "clear" | "partly-cloudy" | "cloudy" | "rain";
+    highC: number; lowC: number;                        // canonical °C (Open-Meteo default), converted only in the UI
+    cloudCoverPct: number;                              // daytime mean, 0–100
+    precipitationChancePct: number;                     // 0–100
+  };
 };
 ```
 
@@ -103,6 +111,7 @@ The sample is one plausible summer day for a 13.5 kWh Powerwall home in `America
 - `formatKw(w)`: absolute value, 1 decimal, e.g. `4180` → `"4.2 kW"`, `-2100` → `"2.1 kW"`, `0` → `"0.0 kW"`.
 - `formatKwh(wh)`: 1 decimal, e.g. `11040` → `"11.0 kWh"`.
 - `formatMoney(cents, currency)`: `Intl.NumberFormat("en-US", { style: "currency" })`, e.g. `310, "USD"` → `"$3.10"`.
+- `formatTemp(c, unit)` (Rev 2): rounds to an integer, e.g. `(21.7, "C")` → `"22°C"`, `(21.7, "F")` → `"71°F"` (°F = c × 9/5 + 32, rounded).
 - Direction is a word chosen by the component ("Exporting", "Charging"), never a minus sign.
 
 ## Page: `/home`
@@ -117,11 +126,11 @@ Sections, in DOM order. On mobile they stack in this order; desktop follows the 
 
 | h2 text | content |
 |---|---|
-| Right now | **Hero, no card frame.** SVG power-flow diagram: Solar, Home, Powerwall (SoC ring + %), Grid. Each node has its kW value; the grid shows "Importing"/"Exporting", the battery "Charging"/"Discharging"/"Idle". The SVG has `role="img"` and an `aria-label` that reads all four flows in words. Below it is a chip with the current TOU period and its import price per kWh. |
-| Tonight | The only raised panel: action, valid window, effect (kWh) and savings, the `why` list, confidence and what would change it. If `recommendation` is null: "No changes needed tonight." |
-| Today and tomorrow | shadcn chart: 48 h of load (forecast hours show a p10–p90 band) vs solar, shaded TOU peak bands, and a "now" marker at the first forecast hour. Fixed height. Legend in kWh. |
+| Right now | **Hero, no card frame.** SVG power-flow diagram laid out as an **orthogonal cross** (Rev 2): Solar top, Grid left, Home right, Powerwall bottom, and a hub in the centre. Every flow line is strictly horizontal or vertical; the four arms have equal length and are symmetric about the hub. Each line runs from its node's edge to the hub, with no gap. Each node is one unit: an icon/ring, then its name, kW and state word directly beneath. The **Powerwall node *is* its SoC ring** (the % sits inside the ring). Each node has its kW value; the grid shows "Importing"/"Exporting", the battery "Charging"/"Discharging"/"Idle". The SVG has `role="img"` and an `aria-label` that reads all four flows in words. Below it is a chip with the current TOU period and its import price per kWh. |
+| Tonight | The only raised panel: action, valid window, effect (kWh) and savings, the `why` list, confidence and what would change it. If `recommendation` is null: "No changes needed tonight." **Rev 2: a "Tomorrow" weather tile inside the card**, below the why list, as an inset (`bg-muted`/`secondary` surface, smaller radius, no shadow). It shows: a hugeicons weather icon in solar amber, the condition in words ("Mostly cloudy"), high/low via `formatTemp`, cloud cover %, chance of rain %, and expected solar = `formatKwh` of the day-2 timeline `solarWh` sum, compared with today's full-day solar (day-1 sum) in words, e.g. "45% less sun than today". It is the evidence for the advice. If `weatherTomorrow` is null, the tile is omitted. |
+| Today and tomorrow | shadcn chart: 48 h of home use vs solar, shaded peak hours, and a "Now" marker at the first forecast hour. Fixed height. **Rev 2, readable by a first-time viewer:** home use is a **line** (solid before Now, dashed after); solar is an amber filled area; the forecast range is a **diagonal-hatched band** (home colour at low opacity, no outline), so it can't be confused with the line. **No "p10"/"p90" anywhere.** A **custom HTML legend** below the chart (not the Recharts legend): "Home use", "Expected range for home use", "Solar", "Peak price hours", each with a swatch matching its mark (line, hatch, fill, shaded block). Plus one caption: "Hours after Now are a forecast. The hatched band shows where home use will most likely land." Y-axis title "kWh". The tooltip names the range "Expected range". |
 | Today so far | solar, home, grid import/export, battery charge/discharge in kWh, self-powered % |
-| Cost today | cost per TOU period, export credit, net |
+| Cost today | cost per TOU period, export credit, net. **Rev 2:** if `netCents < 0`, show "Credit earned" with `formatMoney(-netCents)` (no minus sign); otherwise "Net cost" with `formatMoney(netCents)`. |
 | Last 7 days | small bar chart, solar vs home per day (kWh) |
 | Forecast accuracy | per target: model vs baseline error %, days measured |
 
