@@ -75,11 +75,15 @@ const products = () =>
     response: [{ resource_type: "battery", energy_site_id: SITE_ID }],
   });
 
-function stubFetch(handlers: { products: () => Response; siteInfo?: () => Response }) {
+function stubFetch(handlers: {
+  products: () => Response;
+  siteInfo?: () => Response;
+  token?: () => Response;
+}) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
-      if (url.includes("/oauth2/v3/token")) return token();
+      if (url.includes("/oauth2/v3/token")) return (handlers.token ?? token)();
       if (url.endsWith("/products")) return handlers.products();
       return handlers.siteInfo!();
     }),
@@ -161,6 +165,30 @@ it("non-string error field logs \"unknown\"", async () => {
     "unknown",
   ]);
   expectNoMarkers();
+});
+
+it("token exchange non-OK logs status + error code only", async () => {
+  stubFetch({
+    token: () => Response.json({ ...leakyBody, error: "invalid_grant" }, { status: 400 }),
+    products,
+  });
+  await run();
+  expect(spies[2]!.mock.calls).toContainEqual([
+    "[Tesla OAuth] Token exchange failed:",
+    400,
+    "invalid_grant",
+  ]);
+  expectNoMarkers();
+});
+
+it("JSON null error body logs \"unknown\" and does not throw", async () => {
+  stubFetch({ products: () => new Response("null", { status: 502 }) });
+  await run();
+  expect(warns()).toContainEqual([
+    "[Tesla OAuth] Could not fetch products:",
+    502,
+    "unknown",
+  ]);
 });
 
 it("success path logs timezone and site status but no tariff ID", async () => {

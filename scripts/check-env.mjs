@@ -16,7 +16,7 @@ export function checkEnv(env) {
   });
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href && !process.env.SKIP_ENV_VALIDATION) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && !process.env.SKIP_ENV_VALIDATION) {
   const lines = checkEnv(process.env);
   if (lines.length) {
     console.error(lines.join("\n"));
