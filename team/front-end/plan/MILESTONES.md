@@ -16,7 +16,7 @@
 - B007 Name the cost lines (Spending/Saving/Earning) + clamp saving at 0 (B006 review nits). Tester → implementer → reviewer.
 - Then: a PO Review item. **The optimization round is due after M3** (3 milestones).
 
-## M4 — M3 asks + optimization round 1 — SPEC Rev 4
+## M4 — M3 asks + optimization round 1 — SPEC Rev 4 — DONE 2026-10-06 (d27022d on `front-end-development`; PO steps open)
 - B008 "Spending" label pink + `predev` migrate. Tester → implementer → reviewer.
 - B009 Cleaner pass over the front-end code (`src/components/dashboard/**`, `src/app/(protected)/home/**`, `src/lib/format.ts`, `src/components/ui/**`, `src/styles/globals.css`). Starts after B008 merges.
 - Perf/size pass (lead): `/home` First Load JS from `pnpm build`, and the docker image size (smoke). Recorded in `research/optimization/README.md`.
