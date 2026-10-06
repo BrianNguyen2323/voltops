@@ -10,3 +10,7 @@
 ## M2 — M1 review fixes (cross flow diagram, weather tile, readable chart, credit wording) — SPEC Rev 2 — DONE 2026-10-06 (b891873 on `front-end-development`)
 - B005 Contract (`weatherTomorrow`, `temperatureUnit`, `formatTemp`) + dashboard changes. Tester → implementer → reviewer with screenshots.
 - Then: a PO Review item in TODO.md.
+
+## M3 — M2 review fixes (mobile kW size, labelled grid price + home cost now, tooltip swatches) — SPEC Rev 3
+- B006 Flow-node mobile sizing/padding, the "Grid price now" / "Your home now" strip with `costNow`, shared legend/tooltip swatches. Tester → implementer → reviewer with screenshots.
+- Then: a PO Review item. **The optimization round is due after M3** (3 milestones).

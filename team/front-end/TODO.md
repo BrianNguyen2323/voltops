@@ -125,7 +125,7 @@ Everything is merged into `front-end-development` at ff33d4e. The gate is green:
   4. **Net cost:** the "credit earned" wording is better.
 
 
-## USER INPUT REQUIRED — Review: M2 (your M1 changes) (2026-10-06)
+## Review: M2 (your M1 changes) — ANSWERED 2026-10-06 (b; see design/revisions/R003.md)
 Merged into `front-end-development` at b891873. Gate: 180 tests, typecheck, lint and build all green. No new dependencies.
 
 **How to run it** (corrected 2026-10-06 after the PO hit `no such table`):
@@ -172,4 +172,12 @@ Merged into `front-end-development` at b891873. Gate: 180 tests, typecheck, lint
   - a hand-off doc for the middleware team describing `DashboardData` and `weatherTomorrow`.
 
   Note: an **optimization round** (cleaner pass + perf/size + `/improve-codebase-architecture`) is due after the next milestone (M3).
-- Answer:
+- Answer: **b** (PO, 2026-10-06):
+  1. **Mobile, Right now:** the 100% in the ring looks fine. Scale down the kW text on mobile in **all** node tiles so they match and the content fits the tiles better.
+  2. **The "Peak" badge under Right now is confusing.**
+     - Label it so an outside viewer knows it's the current grid rate, and say clearly that $0.48/kWh until 9:00 PM is the grid's price, not a total.
+     - Also show the home's current cost: e.g. the 2.1 kW the home is using, which it is currently saving on or spending on, depending on whether it draws from the grid.
+  3. **Chart tooltip:** the "Expected range" marker should match the legend's marker.
+  - Asked: is Tailwind used? (Answered in chat: yes, Tailwind v4 throughout.)
+  - Not picked: "add predev" (still open), the Tomorrow-tile indent nit.
+
