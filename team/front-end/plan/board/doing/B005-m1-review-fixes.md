@@ -107,3 +107,4 @@ Implementer:
 - **Keep every command bounded:** agents have stalled on long waits here.
 
 ## Gate log
+- Tests on `phase2a/ui-m2-test`: 12 new FAIL on base for the right reason (168 pass). Null-weather check skips "Tomorrow" (the why text already says it); the old net-cost assertion was replaced by the Credit earned / Net cost tests. Implementer spawned.
