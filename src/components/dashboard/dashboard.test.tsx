@@ -234,7 +234,7 @@ describe("Flow diagram cross layout", () => {
   const h = hero(render());
   const lines = [...h.matchAll(/<line\b[^>]*>/g)]
     .map((m) => m[0])
-    .filter((l) => /data-flow="/.test(l))
+    .filter((l) => l.includes('data-flow="'))
     .map((l) => {
       const attr = (n: string) => Number(new RegExp(`\\s${n}="([^"]*)"`).exec(l)?.[1]);
       return {
