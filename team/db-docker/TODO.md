@@ -122,3 +122,25 @@ Scope reopened. Input: `CLOSEOUT.md` "Suggestions — next round". I checked eac
 - **A (recommended):** I delete them locally with `git branch -d` (safe delete, so it refuses anything unmerged and I'll list those for you). You delete `origin/database-docker` on GitHub yourself.
 - B: leave them.
 - Answer: **A** (PO, 2026-10-05). Done: all 8 were merged, so `git branch -d` deleted them. The PO deletes `origin/database-docker`.
+
+## USER INPUT REQUIRED — Review: M3 on `main` (84b059c)
+Gate on main: vitest 39/39, test:scripts 55/55, typecheck, lint 0 errors, build, and `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` PASS. The smoke test ran with **your** `.env` and came up healthy, so your config already passes the new check.
+
+What to try:
+1. **Rebuild:** `docker compose up -d --build`. Your `voltops-data` volume is kept. Then `docker compose ps`: after ~20 s, `web` should show `(healthy)`.
+2. **Fail-fast:** temporarily rename `VOLTOPS_SECRET_KEY` in `.env` to `ENCRYPTION_KEY`, then run `docker compose up -d --force-recreate`.
+   - `docker compose ps` shows `web` **restarting** (because of `restart: unless-stopped`).
+   - `docker compose logs web` shows `VOLTOPS_SECRET_KEY missing (old name: ENCRYPTION_KEY — rename it)`. No secret value is printed.
+   - Rename it back and recreate.
+3. **Logs:** log in, click **Connect Tesla**, finish the Tesla login, then `docker compose logs web | findstr "Tesla OAuth"`. You should see "Energy site: found" + "Timezone: …". There should be no tariff line and no JSON bodies.
+4. **Optional port:** put `VOLTOPS_PORT=3001` in `.env` and recreate. The app moves to http://localhost:3001. Only do this if you also change `TESLA_REDIRECT_URI` and the Tesla portal entry, so normally leave it unset.
+5. Also gone: `src/app/page_extras.tsx` and the Supabase registry. `pnpm verify:tesla` now errors on a wrong `DATABASE_PATH` instead of creating an empty DB.
+- Result:
+
+**Next (my recommendation, answer with your review):** M1–M3 are 3 milestones, so the team process calls for an **optimization round**:
+- a `cleaner` pass;
+- a perf/size pass: the 898 MB image shrink, CLOSEOUT item 5;
+- the small nits logged in `done/B007` / `B008` / `B009`;
+- you run `/improve-codebase-architecture` in this session.
+- Reply "optimize", "skip", or name what you want next (e.g. CI, monorepo split, `replay` source).
+- Answer:
