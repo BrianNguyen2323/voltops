@@ -344,6 +344,17 @@ describe("Price and cost strip", () => {
     expect(b).not.toContain("Selling");
   });
 
+  it("names each line before its amount", () => {
+    expect(q).toMatch(/Saving\$0\.99/);
+    expect(q).toMatch(/Earning\$0\.13/);
+    expect(q).not.toContain("Spending");
+  });
+
+  it("names the spending line before its amount when importing", () => {
+    const b = squash(text(hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) }))));
+    expect(b).toMatch(/Spending\$0\.72/);
+  });
+
   it("drops the old import text", () => {
     expect(t).not.toContain("to import, until");
   });
