@@ -14,7 +14,7 @@
   - M3 6442b61: the PO's M2 changes (B006, B007): mobile kW size, Grid price now + Your home now (`costNow`), tooltip swatches, cost-line labels. Rev 3 / R003;
   - M4 d27022d: the PO's M3 asks (B008): pink Spending label, `predev`; plus optimization round 1 (B009 cleaner, perf/size). Rev 4 / R004.
 - **Gate on `front-end-development`:** vitest 195/195, test:scripts 58/58, typecheck, lint clean, build OK; `/home` 217 kB route / 320 kB First Load; docker image 304 MB.
-- **Last action:** the PO answered M4: chart option A; run `/improve-codebase-architecture` now; the PO merges to main after. Architecture researcher spawned (→ `research/architecture/README.md`), then an HTML report and the PO picks a candidate.
+- **Last action:** architecture review written (research/architecture/README.md + HTML report in %TEMP%), 5 candidates; the PO picks one (TODO).
 - **Next action:**
   - record the PO's `/improve-codebase-architecture` pick and chart option → SPEC Rev 5 → briefs;
   - the next optimization round is due after M7;
