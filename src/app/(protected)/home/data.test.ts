@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+﻿import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { sampleDashboard as d } from "./data";
 
@@ -274,5 +274,27 @@ describe("sampleDashboard", () => {
     for (const f of ["./data.ts", "../../../lib/format.ts"]) {
       expect(readFileSync(new URL(f, import.meta.url))[0]).not.toBe(0xef);
     }
+  });
+});
+
+describe("weather contract", () => {
+  it("uses Fahrenheit in the sample", () => {
+    expect(d.site.temperatureUnit).toBe("F");
+  });
+  it("has the documented weatherTomorrow sample", () => {
+    expect(d.weatherTomorrow).toMatchObject({
+      date: "2026-07-16",
+      condition: "cloudy",
+      highC: 24,
+      lowC: 16,
+      cloudCoverPct: 80,
+      precipitationChancePct: 20,
+    });
+  });
+  it("dates weatherTomorrow as the site-local date of timeline row 24", () => {
+    const row = d.timeline[24];
+    if (!row) throw new Error("row 24 missing");
+    const local = new Intl.DateTimeFormat("en-CA", { timeZone: d.site.timezone }).format(new Date(row.hour));
+    expect(d.weatherTomorrow?.date).toBe(local);
   });
 });
