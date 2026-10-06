@@ -117,7 +117,14 @@ export function Dashboard({
               <ul className="mt-1 flex flex-col gap-2">
                 {homeCost.map(([label, amount, text, tone]) => (
                   <li key={text}>
-                    <span className="text-muted-foreground mr-1.5 text-sm font-medium">{label}</span>
+                    <span
+                      className={cn(
+                        "mr-1.5 text-sm font-medium",
+                        label === "Spending" ? "text-grid-import" : "text-muted-foreground",
+                      )}
+                    >
+                      {label}
+                    </span>
                     <span className={cn("reading text-lg", tone)}>{money(amount)}</span>
                     <span className="text-muted-foreground">/hour</span>
                     <p className="text-muted-foreground text-sm">{text}</p>
