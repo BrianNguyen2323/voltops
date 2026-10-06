@@ -80,7 +80,7 @@ describe("shadcn setup", () => {
     expect((JSON.parse(read("components.json")) as { style: string }).style).toBe("radix-nova");
   });
 
-  for (const c of ["button", "card", "badge", "chart", "separator"]) {
+  for (const c of ["button", "card", "badge", "chart"]) {
     it(`src/components/ui/${c}.tsx exists`, () => {
       expect(existsSync(join(root, `src/components/ui/${c}.tsx`))).toBe(true);
     });

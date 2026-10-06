@@ -7,5 +7,12 @@ import { sampleDashboard } from "./data";
 
 export default function HomePage() {
   const connected = !!db.select({ id: credentials.id }).from(credentials).get();
-  return <Dashboard data={sampleDashboard} connected={connected} isSample showLogout={!isAuthDisabled()} />;
+  return (
+    <Dashboard
+      data={sampleDashboard}
+      connected={connected}
+      isSample
+      showLogout={!isAuthDisabled()}
+    />
+  );
 }
