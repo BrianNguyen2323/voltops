@@ -22,7 +22,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -103,6 +103,14 @@ test("loadToken with no row throws the exact error", async () => {
   } finally {
     store.close();
   }
+});
+
+test("sqliteTokenStore with non-existent path throws and no file is created", () => {
+  const path = join(tmpdir(), `voltops-nonexistent-${Date.now()}.db`);
+  assert.throws(() => {
+    mod.sqliteTokenStore(path);
+  });
+  assert.equal(existsSync(path), false, "file should not be created");
 });
 
 test("missingEnv lists VOLTOPS_SECRET_KEY, not ENCRYPTION_KEY/DATABASE_URL", () => {

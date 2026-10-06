@@ -36,7 +36,7 @@ export const missingEnv = (env) =>
 
 export function sqliteTokenStore(path) {
   const Database = createRequire(import.meta.url)("better-sqlite3");
-  const db = new Database(path);
+  const db = new Database(path, { fileMustExist: true });
   db.pragma("busy_timeout = 5000");
   return {
     async loadToken() {
@@ -124,7 +124,6 @@ export async function run(deps) {
   const tok = await res.json();
   const enc = encrypt(tok.refresh_token, encryptionKey);
   await deps.saveToken({
-    userId: row.userId,
     encryptedRefreshToken: enc.ciphertext,
     iv: enc.iv,
     accessTokenExpiresAt: new Date(now.getTime() + tok.expires_in * 1000),
@@ -201,7 +200,7 @@ async function main() {
   let failed = false;
   let store;
   try {
-    store = sqliteTokenStore(env.DATABASE_PATH ?? "./data/voltops.db");
+    store = sqliteTokenStore(env.DATABASE_PATH || "./data/voltops.db");
     const results = await run({
       fetch, clientId: env.TESLA_CLIENT_ID, clientSecret: env.TESLA_CLIENT_SECRET,
       encryptionKey: env.VOLTOPS_SECRET_KEY, now: new Date(), log: (m) => console.log(m),
