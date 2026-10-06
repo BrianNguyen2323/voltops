@@ -26,21 +26,41 @@ const timelineConfig = {
 type Row = { t: number; load: number; solar: number; band?: [number, number] };
 const kwh = (v: number) => `${v.toFixed(1)} kWh`;
 
-function TimelineTooltip({ active, payload, timezone }: { active?: boolean; payload?: Array<{ payload: Row }>; timezone: string }) {
+type SwatchKind = "home" | "range" | "solar" | "peak";
+const HATCH_CSS = "repeating-linear-gradient(135deg, var(--chart-3) 0 1px, transparent 1px 4px)";
+const SWATCH: Record<SwatchKind, string> = {
+  home: "bg-home h-0.5 w-5",
+  range: "size-3.5 rounded-xs",
+  solar: "bg-solar size-3.5 rounded-xs",
+  peak: "bg-muted size-3.5 rounded-xs",
+};
+// One mark per series, shared by the legend and the tooltip.
+export function Swatch({ kind }: { kind: SwatchKind }) {
+  return (
+    <span
+      aria-hidden
+      data-swatch={kind}
+      className={`inline-block shrink-0 ${SWATCH[kind]}`}
+      style={kind === "range" ? { backgroundImage: HATCH_CSS } : undefined}
+    />
+  );
+}
+
+export function TimelineTooltip({ active, payload, timezone }: { active?: boolean; payload?: Array<{ payload: Row }>; timezone: string }) {
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
-  const lines: Array<[string, string, string]> = [
-    ["Home use", kwh(row.load), "var(--chart-3)"],
-    ...(row.band ? [["Expected range", `${row.band[0].toFixed(1)} to ${row.band[1].toFixed(1)} kWh`, "var(--chart-3)"] as [string, string, string]] : []),
-    ["Solar", kwh(row.solar), "var(--chart-1)"],
+  const lines: Array<[SwatchKind, string, string]> = [
+    ["home", "Home use", kwh(row.load)],
+    ...(row.band ? [["range", "Expected range", `${row.band[0].toFixed(1)} to ${row.band[1].toFixed(1)} kWh`] as [SwatchKind, string, string]] : []),
+    ["solar", "Solar", kwh(row.solar)],
   ];
   return (
     <div className="bg-popover text-popover-foreground grid gap-1 rounded-lg px-3 py-2 text-sm shadow-md ring-1 ring-foreground/10">
       <p className="font-medium">{hourLabel(row.t, timezone)}</p>
-      {lines.map(([k, v, c]) => (
-        <p key={k} className="flex items-center justify-between gap-6">
+      {lines.map(([kind, k, v]) => (
+        <p key={kind} className="flex items-center justify-between gap-6">
           <span className="text-muted-foreground flex items-center gap-2">
-            <span aria-hidden className="size-2 rounded-full" style={{ background: c }} />
+            <Swatch kind={kind} />
             {k}
           </span>
           <span className="reading">{v}</span>
@@ -50,27 +70,21 @@ function TimelineTooltip({ active, payload, timezone }: { active?: boolean; payl
   );
 }
 
-const SWATCH = "inline-block shrink-0";
-const HATCH_CSS = "repeating-linear-gradient(135deg, var(--chart-3) 0 1px, transparent 1px 4px)";
 function Legend() {
+  const items: Array<[SwatchKind, string]> = [
+    ["home", "Home use"],
+    ["range", "Expected range for home use"],
+    ["solar", "Solar"],
+    ["peak", "Peak price hours"],
+  ];
   return (
     <ul className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-sm">
-      <li className="flex items-center gap-2">
-        <span aria-hidden className={`${SWATCH} bg-home h-0.5 w-5`} />
-        Home use
-      </li>
-      <li className="flex items-center gap-2">
-        <span aria-hidden className={`${SWATCH} size-3.5 rounded-xs`} style={{ backgroundImage: HATCH_CSS }} />
-        Expected range for home use
-      </li>
-      <li className="flex items-center gap-2">
-        <span aria-hidden className={`${SWATCH} bg-solar size-3.5 rounded-xs`} />
-        Solar
-      </li>
-      <li className="flex items-center gap-2">
-        <span aria-hidden className={`${SWATCH} bg-muted size-3.5 rounded-xs`} />
-        Peak price hours
-      </li>
+      {items.map(([kind, label]) => (
+        <li key={kind} className="flex items-center gap-2">
+          <Swatch kind={kind} />
+          {label}
+        </li>
+      ))}
     </ul>
   );
 }
