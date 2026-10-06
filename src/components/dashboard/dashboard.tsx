@@ -6,10 +6,11 @@ import { logoutAction } from "~/app/login/actions";
 import { Badge } from "~/components/ui/badge";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
-import { formatKwh, formatMoney, formatTemp } from "~/lib/format";
+import { formatKw, formatKwh, formatMoney, formatTemp } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { TimelineChart, WeekChart } from "./charts";
+import { costNow } from "./cost-now";
 import { FlowDiagram } from "./flow-diagram";
 
 const PERIOD: Record<TouPeriod, string> = { "off-peak": "Off-peak", "mid-peak": "Mid-peak", peak: "Peak" };
@@ -57,6 +58,21 @@ export function Dashboard({
   const day2 = solarSum(24, 48);
   const pct = Math.round((1 - day2 / solarSum(0, 24)) * 100); // negative = more sun tomorrow
   const money = (c: number) => formatMoney(c, currency);
+  const imp = tariffNow.importCentsPerKwh;
+  const cost = costNow(live, tariffNow);
+  const bought = Math.max(live.gridW, 0);
+  // Only non-zero items: [cents per hour, plain explanation, colour].
+  const homeCost: Array<[number, string, string]> = [
+    ...(cost.spendingCentsPerHour
+      ? [[cost.spendingCentsPerHour, `Buying ${formatKw(live.gridW)} from the grid at ${money(imp)}/kWh`, "text-grid-import"] as [number, string, string]]
+      : []),
+    ...(cost.savingCentsPerHour
+      ? [[cost.savingCentsPerHour, `Solar and battery cover ${formatKw(live.loadW - bought)} of home use, so you're not buying it at ${money(imp)}/kWh`, ""] as [number, string, string]]
+      : []),
+    ...(cost.earningCentsPerHour
+      ? [[cost.earningCentsPerHour, `Selling ${formatKw(live.gridW)} to the grid at ${money(tariffNow.exportCentsPerKwh)}/kWh`, ""] as [number, string, string]]
+      : []),
+  ];
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -85,13 +101,30 @@ export function Dashboard({
         <section className="flex flex-col gap-4 lg:col-span-2">
           <H2>Right now</H2>
           <FlowDiagram live={live} />
-          <p className="flex flex-wrap items-center justify-center gap-x-2 text-sm">
-            <Badge variant="outline">{PERIOD[tariffNow.period]}</Badge>
-            <span>
-              <span className="reading">{money(tariffNow.importCentsPerKwh)}</span>/kWh to import, until{" "}
-              {clock(tariffNow.endsAt, tz)}
-            </span>
-          </p>
+          <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+            <div>
+              <h3 className="text-muted-foreground text-sm font-medium">Grid price now</h3>
+              <p className="mt-1">
+                <span className="reading text-2xl">{money(imp)}</span>
+                <span className="text-muted-foreground">/kWh</span>
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {PERIOD[tariffNow.period]} rate until {clock(tariffNow.endsAt, tz)}
+              </p>
+            </div>
+            <div>
+              <h3 className="text-muted-foreground text-sm font-medium">Your home now</h3>
+              <ul className="mt-1 flex flex-col gap-2">
+                {homeCost.map(([amount, text, tone]) => (
+                  <li key={text}>
+                    <span className={cn("reading text-lg", tone)}>{money(amount)}</span>
+                    <span className="text-muted-foreground">/hour</span>
+                    <p className="text-muted-foreground text-sm">{text}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </section>
 
         <section className="flex flex-col gap-4">
