@@ -8,7 +8,7 @@
 - **M1 results:**
   - merged into `front-end-development`: B002 474e892, B004 6971648, B001 475337a, B003 ff33d4e;
   - gate: vitest 165/165, typecheck, lint clean (raw), build OK; docker smoke PASS 303 MB at B001.
-- **Last action:** recorded the M2 review, wrote SPEC Rev 3, R003, M3 and the B006 brief; B006 tester spawned.
+- **Last action:** B006 tests in (c9477f0); implementer running.
 - **Next action:**
   1. B006 tester → implementer → reviewer (screenshots + tooltip hover; `agent-browser close` after);
   2. merge, gate, clean up;

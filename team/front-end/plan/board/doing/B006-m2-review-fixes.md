@@ -86,3 +86,4 @@ Implementer:
 - **Worktree:** link main's node_modules (`cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`). Run `cmd //c rmdir node_modules` before finishing, and never use `--force`. Keep every command bounded.
 
 ## Gate log
+- Tests c9477f0 on `phase2a/ui-m3-test`: cost-now suite FAIL (module missing) + 7/41 dashboard FAIL for the right reason. Money strings compared whitespace-stripped; the range swatch must be an identical empty span in the legend and the tooltip. Implementer spawned.
