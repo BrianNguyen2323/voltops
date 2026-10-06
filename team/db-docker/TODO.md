@@ -138,6 +138,8 @@ What to try:
 - Result (partial, PO 2026-10-05): step 3 printed nothing.
   - Lead diagnosis: not a bug. The container was created 19:03 PDT and is healthy, and its log has only startup lines. The last Tesla connect in the DB was 14:44 PDT, so Connect Tesla hasn't run on this container. `docker compose logs` shows only the current container, so step 2's `--force-recreate` started a fresh log.
   - PO to redo step 3: Connect Tesla first, then `docker compose logs web | findstr /C:"Tesla OAuth"`.
+  - Second try, still nothing. **Root cause: my step was wrong.** `/home` hides the Connect Tesla button once credentials exist (`src/app/(protected)/home/page.tsx:9-19`), so the PO had nothing to click. The DB still showed the last connect at 14:44 PDT. Workaround: open http://localhost:3000/api/auth/tesla directly.
+  - **Follow-up (UI gap):** add a "Reconnect Tesla" link on `/home` when connected, plus show `?error=`. Goes with CLOSEOUT item 7.
 
 **Next (my recommendation, answer with your review):** M1–M3 are 3 milestones, so the team process calls for an **optimization round**:
 - a `cleaner` pass;
