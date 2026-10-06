@@ -8,7 +8,7 @@
 - **M1 progress:**
   - B001, B002 and B004 are done and merged into `front-end-development` (475337a; gate green, docker smoke PASS 303 MB);
   - B003 (dashboard UI) is in **gate**: impl cea2eb6 on `phase2a/ui-home-impl` (tests f176485), green per the implementer.
-- **Last action:** a B003 reviewer was spawned before the pause. Its job: full gate, then full-page screenshots at 390/1440 with agent-browser, the scroll-width check and the design rules. The lead can't stop a running agent; its handoff may arrive while paused.
+- **Last action:** the B003 reviewer stalled (watchdog) with no verdict during the pause. No agents are running.
 - **Next action on "continue":**
   1. If the B003 reviewer's verdict arrived, record it in `plan/board/gate/B003-home-dashboard-ui.md`. If not, check the worktree `.claude/worktrees/agent-ab69824e2037de5aa` first:
      - a leftover `node_modules` junction → `cmd //c rmdir node_modules`;
