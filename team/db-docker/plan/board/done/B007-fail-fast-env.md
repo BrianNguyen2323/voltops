@@ -51,3 +51,9 @@ From a worktree on D: (Docker bake refuses a Temp-folder context):
 - `ENCRYPTION_KEY` set without `VOLTOPS_SECRET_KEY` → the rename hint;
 - no output line contains a value from the input env;
 - the CLI exits 1 on bad env and 0 on good env (spawn `node scripts/check-env.mjs` with a crafted env).
+
+## Gate log
+
+- Tests a29aeba → impl b07ceb8. Reviewer: **PASS**. Merged 84b059c. Main gate: vitest 39/39, test:scripts 55/55, typecheck, lint 0 errors, build OK, `SMOKE_PORT=3100` docker smoke PASS (with the PO's real `.env`).
+
+- Follow-up nits: (1) zod enum messages echo the received value for `AUTH_DISABLED`/`NODE_ENV` (not secrets; fix with a custom `message`). (2) Smoke (c) would hang, not fail, if check-env were dropped from CMD; wrap it in `timeout 60`. (3) `check-env.mjs:19` needs a `process.argv[1] &&` guard.
