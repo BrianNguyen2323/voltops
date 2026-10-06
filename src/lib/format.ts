@@ -1,4 +1,4 @@
-﻿export function formatKw(w: number): string {
+export function formatKw(w: number): string {
   return `${(Math.abs(w) / 1000).toFixed(1)} kW`;
 }
 

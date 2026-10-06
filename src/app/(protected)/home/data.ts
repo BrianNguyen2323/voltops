@@ -1,4 +1,4 @@
-﻿// Contract for the /home dashboard. Canonical units (CLAUDE.md section 5): W, Wh, integer cents, ISO-8601 UTC.
+// Contract for the /home dashboard. Canonical units (CLAUDE.md section 5): W, Wh, integer cents, ISO-8601 UTC.
 export type TouPeriod = "off-peak" | "mid-peak" | "peak";
 export type DashboardData = {
   site: { name: string; timezone: string };
@@ -98,10 +98,27 @@ const timeline: DashboardData["timeline"] = Array.from({ length: 48 }, (_, i) =>
   return row;
 });
 
+// today and live derive from the actual timeline rows; the last actual row is the current hour.
+const actual = timeline.filter((r) => r.kind === "actual");
+const nowRow = actual[actual.length - 1];
+if (!nowRow) throw new Error("sample timeline has no actual rows");
+const sum = (k: "solarWh" | "loadWh") => actual.reduce((a, r) => a + r[k], 0);
+const cap = 13500;
+let batteryChargeWh = 0;
+let batteryDischargeWh = 0;
+actual.slice(1).forEach((r, i) => {
+  const d = ((r.socPct - (actual[i]?.socPct ?? r.socPct)) * cap) / 100;
+  if (d > 0) batteryChargeWh += d;
+  else batteryDischargeWh -= d;
+});
+const gridImportWh = 3600;
+const solarWh = sum("solarWh");
+const loadWh = sum("loadWh");
+const gridExportWh = Math.max(0, gridImportWh - (loadWh - solarWh + batteryChargeWh - batteryDischargeWh));
 const periods: DashboardData["costToday"]["periods"] = [
   { period: "off-peak", importWh: 3200, costCents: 51 },
-  { period: "mid-peak", importWh: 400, costCents: 10 },
-  { period: "peak", importWh: 0, costCents: 0 },
+  { period: "mid-peak", importWh: 300, costCents: 8 },
+  { period: "peak", importWh: 100, costCents: 3 },
 ];
 const exportCreditCents = 38;
 
@@ -111,15 +128,15 @@ export const sampleDashboard: DashboardData = {
   updatedAt: UPDATED_AT,
   currency: "USD",
   live: {
-    solarW: 4800,
-    loadW: 1900,
-    batteryW: -2600,
-    gridW: -300,
-    socPct: 62,
-    usableCapacityWh: 13500,
+    solarW: nowRow.solarWh,
+    loadW: nowRow.loadWh,
+    batteryW: -Math.round((nowRow.solarWh - nowRow.loadWh) * 0.6), // surplus: 60% charges, 40% exports
+    gridW: -((nowRow.solarWh - nowRow.loadWh) - Math.round((nowRow.solarWh - nowRow.loadWh) * 0.6)),
+    socPct: nowRow.socPct,
+    usableCapacityWh: cap,
     gridStatus: "connected",
   },
-  tariffNow: { period: "mid-peak", importCentsPerKwh: 32, exportCentsPerKwh: 8, endsAt: "2026-07-16T00:00:00Z" },
+  tariffNow: { period: nowRow.period, importCentsPerKwh: 32, exportCentsPerKwh: 8, endsAt: "2026-07-16T04:00:00Z" },
   recommendation: {
     action: "Raise backup reserve to 65%",
     validFrom: "2026-07-16T04:00:00Z", // 21:00 local
@@ -136,13 +153,13 @@ export const sampleDashboard: DashboardData = {
   },
   timeline,
   today: {
-    solarWh: 31000,
-    loadWh: 17500,
-    gridImportWh: 3600,
-    gridExportWh: 4800,
-    batteryChargeWh: 9000,
-    batteryDischargeWh: 5200,
-    selfPoweredPct: 79,
+    solarWh,
+    loadWh,
+    gridImportWh,
+    gridExportWh,
+    batteryChargeWh,
+    batteryDischargeWh,
+    selfPoweredPct: Math.round(100 * (1 - gridImportWh / loadWh)),
   },
   costToday: { periods, exportCreditCents, netCents: periods.reduce((a, p) => a + p.costCents, 0) - exportCreditCents },
   last7Days: [9, 10, 11, 12, 13, 14, 15].map((d, i) => ({
