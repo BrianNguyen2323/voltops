@@ -1,22 +1,26 @@
 # Resume board — db-docker
 
-- **Status: M3 DONE (2026-10-05), waiting on the PO's review** (TODO.md "Review: M3", plus the "optimize / skip / next" question).
-- **Round 1 (closed):** B001–B006 merged into `main` via PR #7. See `CLOSEOUT.md`.
-- **Round 2:** config + hygiene. Decision round 2 answers: 1A 2A 3A-keep-timezone 4A. SPEC Revision 3, R003.
-  - B007 merged 84b059c (fail-fast env, healthcheck, `VOLTOPS_PORT`, smoke a/b/c);
-  - B008 merged d4f40ae (no Tesla bodies or tariff ID in logs);
-  - B009 merged 6879b52 (cleanup).
-  - Main gate: vitest 39/39, test:scripts 55/55, typecheck, lint, build, docker smoke PASS.
-- **Integration branch:** `main`. Not pushed: the PO pushes/releases.
-- **Last action:** PO review step 3 empty twice. Root cause: `/home` hides Connect Tesla when connected, so the callback never ran. Told the PO to open `/api/auth/tesla` directly. Logged a "Reconnect Tesla" UI follow-up in TODO.
-- **Next action:** record the PO's review result. M1–M3 = 3 milestones, so an optimization round is due unless the PO says skip:
-  - cleaner;
-  - image shrink (CLOSEOUT item 5);
-  - the nits in `done/B007`–`B009` gate logs;
-  - the PO runs `/improve-codebase-architecture`.
-- **Open branches / worktrees:** none.
+- **Status: M4 (optimization round 1) DONE 2026-10-06, waiting on the PO.** TODO.md has "Review: M4" (with the next-round pick) and "run `/improve-codebase-architecture`".
+- **Integration branch: `optimization-round`** at 4d263ca (the PO created it at aadb968 = main). The PO merges it into `main`.
+- **M4 results:**
+  - B011 merged 1294ef0: check-env no echo + argv guard, `errorCode` null-safe, 4 tests;
+  - B010 merged 15358c2: image 856 → 303 MB, smoke `MAX_IMAGE_MB` (400) + `timeout 60`;
+  - B012 merged 4d263ca: dropped the T3 `post` router, unused tRPC server helpers, deps `shadcn`/`radix-ui`/`tw-animate-css`;
+  - gate: vitest 41/41 (flake once under load), test:scripts 56/56, typecheck, lint 0 warnings, build, smoke PASS 303 MB.
+- **Earlier rounds:** round 1 B001–B006 (PR #7, CLOSEOUT.md). Round 2 B007–B009 (M3, on main 84b059c).
+- **Last action:** wrote the M4 Review item in TODO.
+- **Next action:**
+  - record the PO's M4 review and their `/improve-codebase-architecture` pick;
+  - the pick (or next-round choice a–d in TODO) becomes SPEC Rev 5 → decision round if needed → briefs;
+  - the next optimization round is due after 3 more milestones (M5–M7).
+- **Open branches / worktrees:** none from this round. The old `worktree-agent-a85ac516cb7dc60dd` branch predates this round; leave it to the PO.
 - **Env lessons:**
   - agent worktrees have no node_modules, and parallel `pnpm install`s stall. When the branch changes no deps, link main's: `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`. Run `cmd //c rmdir node_modules` (removes only the link) BEFORE `git worktree remove`;
+  - **never `git worktree remove --force` while a node_modules junction exists:** git follows it and deletes main's node_modules (it happened in B011's review). Recovery: `rm -rf node_modules && pnpm install --offline --frozen-lockfile` (about 7 min; the store is on D:);
+  - a worktree with a *real* node_modules: delete it from PowerShell with `cmd /c rmdir /s /q "\\?\<full path>\node_modules"` (the `\\?\` prefix is needed for long pnpm paths; rmdir doesn't follow junctions). Then a plain `git worktree remove`;
   - lint in a worktree without `.env` needs `SKIP_ENV_VALIDATION=1`. Never copy the PO's `.env` into a worktree;
-  - don't use bash heredocs in the Bash tool here (the wrapper breaks them); use Write/Edit.
+  - the Bash tool breaks on heredocs or commands with unbalanced quotes; use Write/Edit. `cmd //c` with quoted paths fails in Git Bash; use PowerShell;
+  - the PO's `voltops-web-1` holds port 3000: run the smoke test with `SMOKE_PORT=3100` from bash (PowerShell `$env:` doesn't reach it);
+  - Docker Desktop's disk image is on G: now (the PO moved it after C: filled and Docker crashed). If you see `ENOSPC`/`SQLITE_FULL`, check C: and point TEMP at D:;
+  - vitest flakes under disk/CPU load (argon2/SQLite timeouts). Re-run once before calling a failure real.
 - **Housekeeping:** the PO deletes `origin/database-docker`.

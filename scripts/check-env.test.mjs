@@ -93,3 +93,14 @@ test("CLI exits 0 with SKIP_ENV_VALIDATION even if env is bad", () => {
   const r = run({ SKIP_ENV_VALIDATION: "1" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });
+
+test("enum errors (AUTH_DISABLED, NODE_ENV) never echo the received value", () => {
+  const lines = checkEnv({
+    ...good,
+    AUTH_DISABLED: "s3cret-marker",
+    NODE_ENV: "s3cret-marker2",
+  });
+  assert.ok(lines.some((l) => l.startsWith("AUTH_DISABLED: ")), lines.join("\n"));
+  assert.ok(lines.some((l) => l.startsWith("NODE_ENV: ")), lines.join("\n"));
+  assert.ok(!lines.join("\n").includes("s3cret-marker"), lines.join("\n"));
+});

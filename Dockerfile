@@ -1,15 +1,20 @@
 FROM node:22-slim AS build
+# python3/make/g++: pnpm 9 runs node-gyp for better-sqlite3 even when a prebuilt binary exists.
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /app
 COPY package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-RUN STANDALONE=1 SKIP_ENV_VALIDATION=1 pnpm build && pnpm prune --prod && rm -rf .next/standalone/node_modules
+# Keep the traced standalone node_modules (~95 MB). webpack bundles zod/drizzle-orm, so migrate.mjs and
+# check-env.mjs need them added back from the full install. Drop musl natives (runtime is glibc).
+RUN STANDALONE=1 SKIP_ENV_VALIDATION=1 pnpm build \
+ && cd .next/standalone/node_modules \
+ && for p in zod drizzle-orm; do cp -a /app/node_modules/.pnpm/$p@* .pnpm/ && cp -a /app/node_modules/$p . ; done \
+ && rm -rf .pnpm/*musl*
 
 FROM node:22-slim
 WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
