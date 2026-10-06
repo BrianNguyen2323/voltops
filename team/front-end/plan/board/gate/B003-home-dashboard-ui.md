@@ -88,3 +88,7 @@
 
 ## Gate log
 - Tests f176485 on `phase2a/ui-home-test`: the file FAILS on base (module missing), ~20 tests. Contract: named `Dashboard({data, connected, isSample, showLogout})`; hero = markup between "Right now" and "Tonight"; Idle < 50 W; "~8,640 requests/month". Implementer spawned (skills frontend-design, dataviz, agent-browser).
+- Impl cea2eb6 on `phase2a/ui-home-impl`: 165/165, typecheck, lint clean, build OK. New: `dashboard.tsx`, `flow-diagram.tsx`, `charts.tsx`; Log out moved into the header; type scale + `reading` utility + `flow` keyframes in globals.css.
+  - After its screenshot critique: fixed the invisible solar series (self-referencing colour var), the ring/text overlap, spacing, and the y-axis label.
+  - Deviations: hub-based flow diagram (not the corner wireframe); `Dashboard` imports `logoutAction`. The 390 px shot covered only the viewport and scroll width wasn't measured, so the reviewer checks both.
+  - Reviewer spawned.
