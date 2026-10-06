@@ -108,3 +108,7 @@ Implementer:
 
 ## Gate log
 - Tests on `phase2a/ui-m2-test`: 12 new FAIL on base for the right reason (168 pass). Null-weather check skips "Tomorrow" (the why text already says it); the old net-cost assertion was replaced by the Credit earned / Net cost tests. Implementer spawned.
+- Impl 10922b1 on `phase2a/ui-m2-impl`: 180/180, typecheck clean. Lint/build red only on the tester's `dashboard.test.tsx:237` (`prefer-includes`).
+  - After its screenshot critique: SoC % fits inside a larger ring; node text 16 px at 390 px; hatch opacity raised.
+  - The final 1440 shot wasn't opened and the tooltip wasn't checked. The Tomorrow tile heading is an h3.
+  - Tester lint fix-up spawned → `phase2a/ui-m2-test2`.
