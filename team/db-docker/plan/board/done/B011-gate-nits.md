@@ -32,3 +32,7 @@ SPEC Rev 4, "Optimization round 1". Small fixes logged at the B007–B009 gates.
   - link main's node_modules: `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`;
   - never copy the PO's `.env`;
   - vitest can time out under load, so re-run once before calling a failure real.
+
+## Gate log
+- Tests 047b1ab (2 new FAIL on base: null body, enum echo; the token-exchange test + SqliteError matcher already pass) → impl 30abf3f. Reviewer: **PASS**. Merged 1294ef0 into `optimization-round`. Gate there: vitest 41/41, test:scripts 56/56, typecheck, lint 0 warnings. The build first failed `Cannot find module picocolors`: the reviewer had damaged main node_modules (`git worktree remove --force` followed the junction). Full reinstall from the store; gate re-run: vitest 41/41, test:scripts 56/56, typecheck, lint 0 warnings, build OK.
+- Nits (non-blocking): `src/env.schema.js:5-6` long lines; the check-env echo test doesn't pin the exact messages.

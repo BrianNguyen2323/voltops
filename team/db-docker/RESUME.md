@@ -8,12 +8,14 @@
   - B012 cleaner over `src/` + `scripts/`. In backlog until B010 + B011 merge.
   - PO: `/improve-codebase-architecture` (TODO, non-blocking). The pick becomes Rev 5.
 - **Earlier rounds:** round 1 B001–B006 (PR #7, CLOSEOUT.md). Round 2 B007–B009 (M3, merged to main 84b059c).
-- **Last action:** B011 tester 047b1ab + impl 30abf3f green; reviewer running. B010 tester 742127a committed, but Docker Desktop crashed before the size FAIL was shown. Asked the PO to restart Docker (TODO).
-- **Next action:** B011: on reviewer PASS, merge `phase1/gate-nits-impl` into `optimization-round` + full gate. B010: after "docker up", run `docker compose -p voltops-smoke down -v`, confirm the size FAIL on `phase1/image-shrink-test`, spawn the implementer. Then B012 cleaner, then the Review item.
-- **Open branches / worktrees:** `phase1/gate-nits-test`, `phase1/gate-nits-impl`, `phase1/image-shrink-test` (worktree `.claude/worktrees/agent-ac27fcd1579ef7f91`, still locked by the tester process; remove it later).
+- **Last action:** B011 merged 1294ef0 into `optimization-round` (reviewer PASS; gate green after a full node_modules reinstall). B010 tester 742127a committed; blocked on the PO restarting Docker Desktop (crashed, likely C: full).
+- **Next action:** after "docker up": `docker compose -p voltops-smoke down -v`, confirm the size FAIL on `phase1/image-shrink-test` (run it from a fresh worktree or checkout, `SMOKE_PORT=3100`), spawn the B010 implementer → reviewer → merge. Then B012 cleaner, then the Review item.
+- **Open branches / worktrees:** `phase1/image-shrink-test` (worktree `.claude/worktrees/agent-ac27fcd1579ef7f91`, locked by the tester process. Remove its node_modules junction with `cmd //c rmdir` first, then `git worktree unlock` + `remove`).
 - **Env lessons:**
   - agent worktrees have no node_modules, and parallel `pnpm install`s stall. When the branch changes no deps, link main's: `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`. Run `cmd //c rmdir node_modules` (removes only the link) BEFORE `git worktree remove`;
   - lint in a worktree without `.env` needs `SKIP_ENV_VALIDATION=1`. Never copy the PO's `.env` into a worktree;
   - the Bash tool breaks on heredocs or commands with unbalanced quotes; use Write/Edit;
-  - the PO's `voltops-web-1` holds port 3000: run the smoke test with `SMOKE_PORT=3100`.
+  - the PO's `voltops-web-1` holds port 3000: run the smoke test with `SMOKE_PORT=3100`. PowerShell `$env:` doesn't reach bash; use `SMOKE_PORT=3100 bash ...`;
+  - **never `git worktree remove --force` while a node_modules junction exists:** git follows it and deletes main's node_modules (it happened in B011's review). Recovery: `rm -rf node_modules && pnpm install --offline --frozen-lockfile` (about 7 min; the store is on D:). Put this in every brief that links node_modules;
+  - C: can fill up (Docker image + build cache + TEMP). If you see `ENOSPC`/`SQLITE_FULL`, point TEMP at D:.
 - **Housekeeping:** the PO deletes `origin/database-docker`.
