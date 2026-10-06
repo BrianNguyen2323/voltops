@@ -51,12 +51,20 @@
   - visible focus ring; h1 → h2 order; text contrast ≥ 4.5:1;
   - plain sentence-case copy.
 
+- **Merged state of the sample** (B004, `front-end-development` 475337a):
+  - `updatedAt` 2026-07-16T00:00:00Z = 5:00 PM PDT, peak period until 9 PM, 48 c/kWh;
+  - live: solar 3713 W, home 2066 W, battery 0 W at 100% (Idle), grid −1647 W (Exporting);
+  - tomorrow's solar is 55% of today's (cloudy);
+  - so the hero must handle Idle.
+- **Typography left from B001 (do it here):** add the 1.25 type scale, a 15 px body below `md`, and the readings style (semi-expanded, 700–800, `tabular-nums`). It can be utilities in markup or a few `@theme` vars in `src/styles/globals.css` (owned for that only).
+- **Lint:** this machine's RTK filter can print false lint errors. Judge lint by `SKIP_ENV_VALIDATION=1 rtk proxy pnpm lint` ("No ESLint warnings or errors").
+
 ## Owned files
 - Tester: `src/components/dashboard/dashboard.test.tsx`.
-- Implementer: `src/components/dashboard/**` (not the test), `src/app/(protected)/home/page.tsx`, `src/app/(protected)/layout.tsx`.
+- Implementer: `src/components/dashboard/**` (not the test), `src/app/(protected)/home/page.tsx`, `src/app/(protected)/layout.tsx`, `src/styles/globals.css` (type-scale additions only).
 
 ## Base
-- Tester: `front-end-development` (after B001 + B002 merge) → branch `phase2a/ui-home-test`. The tests must FAIL on the base.
+- Tester: `front-end-development` (at or after 475337a, which has B001 + B002 + B004) → branch `phase2a/ui-home-test`. The tests must FAIL on the base.
 - Implementer: `phase2a/ui-home-test` → branch `phase2a/ui-home-impl`.
 
 ## Judged by
@@ -65,7 +73,7 @@
   - "Sample data" appears when `isSample`, and not without it;
   - `connected={false}` → "Connect Tesla" plus `href="/api/auth/tesla"`; `connected={true}` → neither;
   - `showLogout` toggles "Log out";
-  - the hero markup contains `formatKw(live.solarW)`, `formatKw(live.loadW)` and `` `${socPct}%` ``, plus "Exporting" or "Importing" matching the sign of `gridW`, and "Charging"/"Discharging" matching `batteryW`;
+  - the hero markup contains `formatKw(live.solarW)`, `formatKw(live.loadW)` and `` `${socPct}%` ``, plus "Exporting" or "Importing" matching the sign of `gridW`, and "Charging"/"Discharging"/"Idle" matching `batteryW` (|W| < 50 → Idle; the sample is Idle);
   - an `svg` with `role="img"` and a non-empty `aria-label` exists;
   - the recommendation `action` text is present; with `recommendation: null`, "No changes needed tonight." is present;
   - `formatKwh(today.solarWh)` and `formatMoney(costToday.netCents, currency)` are present;
@@ -76,6 +84,6 @@
   - then `SKIP_ENV_VALIDATION=1 AUTH_DISABLED=true pnpm dev -p 3100` (or with a throwaway `.env` from `.env.example`; never the PO's);
   - screenshots `/home` at 390 px and 1440 px;
   - fixes anything that breaks the design rules, and lists the screenshots' paths in the handoff.
-- **Worktree:** no dep changes, so link main's node_modules (`cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`). Run `cmd //c rmdir node_modules` before any `git worktree remove`, and never use `--force`.
+- **Worktree:** no dep changes, so link main's node_modules (it now has radix-ui/recharts) (`cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`). Run `cmd //c rmdir node_modules` before any `git worktree remove`, and never use `--force`.
 
 ## Gate log
