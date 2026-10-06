@@ -37,6 +37,14 @@ fi
 # 2. build + start
 "${P[@]}" up -d --build
 
+# 2b. image size gate (docker image inspect .Size, bytes -> MB)
+MAX_IMAGE_MB="${MAX_IMAGE_MB:-400}"
+img=voltops-smoke-web
+bytes=$(docker image inspect "$img" --format '{{.Size}}') || fail "cannot inspect image $img"
+mb=$((bytes / 1048576))
+echo "web image $img: ${mb} MB (max ${MAX_IMAGE_MB} MB)"
+[ "$mb" -le "$MAX_IMAGE_MB" ] || fail "web image is ${mb} MB, exceeds MAX_IMAGE_MB=${MAX_IMAGE_MB}"
+
 # 3. wait for /login or /setup to return 200 (<= 90 s)
 ok=0
 for _ in $(seq 1 45); do
@@ -91,8 +99,9 @@ done
 ' || fail "/api/auth/tesla did not redirect with the configured redirect_uri"
 
 # 8. (c) missing VOLTOPS_SECRET_KEY must fail fast and name the key
-if out=$("${P[@]}" run --rm --no-deps -e VOLTOPS_SECRET_KEY= web 2>&1); then
-  fail "container started with empty VOLTOPS_SECRET_KEY"
-fi
+rc=0
+out=$(timeout 60 "${P[@]}" run --rm --no-deps -e VOLTOPS_SECRET_KEY= web 2>&1) || rc=$?
+[ "$rc" != 124 ] || fail "fail-fast check timed out after 60s (check-env missing or hanging)"
+[ "$rc" != 0 ] || fail "container started with empty VOLTOPS_SECRET_KEY"
 echo "$out" | grep -q VOLTOPS_SECRET_KEY || fail "fail-fast output did not mention VOLTOPS_SECRET_KEY"
 # down -v runs in the EXIT trap
