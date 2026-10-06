@@ -112,3 +112,4 @@ Implementer:
   - After its screenshot critique: SoC % fits inside a larger ring; node text 16 px at 390 px; hatch opacity raised.
   - The final 1440 shot wasn't opened and the tooltip wasn't checked. The Tomorrow tile heading is an h3.
   - Tester lint fix-up spawned → `phase2a/ui-m2-test2`.
+- Test lint fix f456e77 on `phase2a/ui-m2-test2`: 180/180, lint clean. Reviewer spawned (full gate, full-page shots, tooltip hover).
