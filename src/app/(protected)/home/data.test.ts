@@ -165,6 +165,59 @@ describe("sampleDashboard", () => {
     });
   });
 
+  describe("totals derived per actual row (round 2)", () => {
+    const actuals = d.timeline.filter((r) => r.kind === "actual");
+    const cap = d.live.usableCapacityWh;
+    const RATE = { "off-peak": 30, "mid-peak": 38, peak: 48 } as const;
+    const rows = actuals.map((r, i) => {
+      const next = i + 1 < actuals.length ? actuals[i + 1]!.socPct : d.live.socPct;
+      const batteryWh = Math.round(((r.socPct - next) / 100) * cap); // > 0 discharge
+      return { period: r.period, batteryWh, gridWh: r.loadWh - r.solarWh - batteryWh };
+    });
+    const total = (f: (x: (typeof rows)[number]) => number) => rows.reduce((a, r) => a + f(r), 0);
+    const near = (actual: number, expected: number) =>
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(Math.max(100, 0.03 * Math.abs(expected)));
+    const imp = total((r) => Math.max(r.gridWh, 0));
+    const exp = total((r) => Math.max(-r.gridWh, 0));
+    const loadSum = actuals.reduce((a, r) => a + r.loadWh, 0);
+
+    it("grid import/export and battery charge/discharge match the per-row model", () => {
+      near(d.today.gridImportWh, imp);
+      near(d.today.gridExportWh, exp);
+      near(d.today.batteryChargeWh, total((r) => Math.max(-r.batteryWh, 0)));
+      near(d.today.batteryDischargeWh, total((r) => Math.max(r.batteryWh, 0)));
+    });
+    it("battery discharged overnight", () => {
+      expect(d.today.batteryDischargeWh).toBeGreaterThan(0);
+    });
+    it("selfPoweredPct follows the formula", () => {
+      expect(Math.abs(d.today.selfPoweredPct - Math.round(100 * (1 - imp / loadSum)))).toBeLessThanOrEqual(1);
+    });
+    it("period import sums to today.gridImportWh and matches per-period derivation", () => {
+      expect(d.costToday.periods.reduce((a, p) => a + p.importWh, 0)).toBe(d.today.gridImportWh);
+      for (const period of new Set(actuals.map((r) => r.period))) {
+        const p = d.costToday.periods.find((x) => x.period === period);
+        expect(p, `period ${period} listed`).toBeDefined();
+        const expected = rows.filter((r) => r.period === period).reduce((a, r) => a + Math.max(r.gridWh, 0), 0);
+        expect(Math.abs(p!.importWh - expected)).toBeLessThanOrEqual(100);
+      }
+    });
+    it("costs use the constant rates and the export credit follows gridExportWh", () => {
+      expect(d.tariffNow.importCentsPerKwh).toBe(RATE.peak);
+      for (const p of d.costToday.periods) {
+        expect(Math.abs(p.costCents - Math.round((p.importWh * RATE[p.period]) / 1000))).toBeLessThanOrEqual(1);
+      }
+      const credit = (d.today.gridExportWh * d.tariffNow.exportCentsPerKwh) / 1000;
+      expect(Math.abs(d.costToday.exportCreditCents - credit)).toBeLessThanOrEqual(1);
+    });
+    it("last7Days ends at 2026-07-15 and equals today", () => {
+      const lastDay = d.last7Days[d.last7Days.length - 1]!;
+      expect(lastDay.date).toBe("2026-07-15");
+      expect(lastDay.solarWh).toBe(d.today.solarWh);
+      expect(lastDay.loadWh).toBe(d.today.loadWh);
+    });
+  });
+
   it("source files have no UTF-8 BOM", () => {
     for (const f of ["./data.ts", "../../../lib/format.ts"]) {
       expect(readFileSync(new URL(f, import.meta.url))[0]).not.toBe(0xef);
