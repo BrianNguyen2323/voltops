@@ -5,14 +5,14 @@
   - Use skill `frontend-design` in planning **and** in implementation (put `Use skill: frontend-design` in every UI brief; add `dataviz` for chart briefs).
   - Another team builds the middleware that feeds real data.
 - **Status:** Decision round 1 answered (all recommended; Q3 = Nova). SPEC Rev 1 + R001 written. M1 in progress.
-- **Last action:** B002 impl done (scope green, full suite red under load, unattributed) → gate, reviewer running. B001 implementer still running.
+- **Last action:** B002 merged 474e892 (gate green). B004 (sample consistency) written → doing; tester spawned. B001 implementer still running.
 - **Next action:**
   1. tester handoffs → spawn the implementers on the tester branches;
   2. reviewer → gate → merge `--no-ff` into `front-end-development`;
   3. after B001 + B002 merge: B003 (backlog) → doing;
   4. after B003: the M1 Review item in TODO.md.
 - **Integration branch:** `front-end-development` (Q1 A; the PO merges it into main). Records are committed there.
-- **Open branches / worktrees:** phase2a/ui-theme-test, phase2a/ui-data-test (tester worktrees under .claude/worktrees); implementers running on B001 + B002.
+- **Open branches / worktrees:** phase2a/ui-theme-test + phase2a/ui-theme-impl (B001), plus B004 when spawned.
 - **Env lessons:** see `team/db-docker/RESUME.md` "Env lessons":
   - node_modules junctions in worktrees: never `git worktree remove --force` while one exists;
   - `SKIP_ENV_VALIDATION=1` for lint/build;
