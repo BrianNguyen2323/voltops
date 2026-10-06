@@ -220,7 +220,7 @@ Merged into `front-end-development` at 6442b61. Gate: 195 tests, typecheck, lint
 - Answer: **a, approved** (PO, 2026-10-06). The PO merges `front-end-development` into `main`. Also requested: **add predev** and make the **"Spending" label pink**. → M4 = these two + the optimization round.
 
 
-## USER INPUT REQUIRED — Review: M4 (your M3 asks + optimization round 1) (2026-10-06)
+## Review: M4 (your M3 asks + optimization round 1) — ANSWERED 2026-10-06
 Merged into `front-end-development` at d27022d. Gate: 195 app tests + 58 script tests, typecheck, lint and build all green. Nothing is in `main` yet; you merge it.
 
 **Done**
@@ -248,4 +248,8 @@ Merged into `front-end-development` at d27022d. Gate: 195 app tests + 58 script 
 3. **Merge** `front-end-development` into `main` when you're happy.
 
 - Still open from before: the Tomorrow-tile indent nit.
-- Answer:
+- Answer: (PO, 2026-10-06):
+  1. **Run `/improve-codebase-architecture`**: running now. The pick → SPEC Rev 5.
+  2. **Chart size: A** (keep as is).
+  3. The PO merges into `main` **after** the architecture run.
+
