@@ -137,3 +137,5 @@ Same command.
 - Round 3 tests 0a84739 on `phase2a/ui-sample-test3`: 7 FAIL for the right reason (28 pass); lint clean. Live sign rule: passes if both derived battery and grid are < 150 Wh, else both signs must match. Round-3 implementer spawned.
 - Round 3 impl aa1a038 on `phase2a/ui-sample-impl3`: 80/81. The one red is the stale B002 pin `batteryW<0 && gridW<0` that round-3 tests didn't remove (the sim has the battery full at 16:00, so live is idle and exporting). Tester fix-up spawned → `phase2a/ui-sample-test3b`.
 - Test fix-up f007414 on `phase2a/ui-sample-test3b`: the stale pins are removed; full suite 80/80, lint clean. Reviewer (round 3) spawned.
+- Reviewer (round 3): **PASS**. One dispatch loop drives live, today, cost and last7Days. Merged 6971648 into `front-end-development`. Gate there: vitest 80/80, typecheck, lint clean, build OK.
+- Nits (for the Plan screen, not visible on /home): the sim's SoC at 21:00 is 62%, below the 65% reserve target; day-2 refills to 100% and covers peak, which undercuts the card's savings claim. Live power = the 16:00 hour's average while SoC = 17:00 (by design).
