@@ -128,7 +128,10 @@ Everything is merged into `front-end-development` at ff33d4e. The gate is green:
 ## USER INPUT REQUIRED — Review: M2 (your M1 changes) (2026-10-06)
 Merged into `front-end-development` at b891873. Gate: 180 tests, typecheck, lint and build all green. No new dependencies.
 
-**How to run it:** `pnpm dev`, then open http://localhost:3000/home. Check phone width at 390 px in devtools. The reviewer's screenshots are in `data/shots/review-m2-390.png` and `data/shots/review-m2-1440.png`.
+**How to run it** (corrected 2026-10-06 after the PO hit `no such table`):
+- **Docker (your real instance: your admin password + Tesla link live in its volume):** `docker compose up --build`, then open `/home`. The rebuild takes a few minutes.
+- **Local dev (hot reload, its own empty DB at `./data/voltops.db`):** run `pnpm db:migrate` once, then `pnpm dev`. The first visit asks you to create an admin password (`/setup`). The "Connect Tesla" banner shows because this DB has no Tesla link; the dashboard shows sample data either way.
+- Check phone width at 390 px in devtools. The reviewer's screenshots are in `data/shots/review-m2-390.png` and `data/shots/review-m2-1440.png`.
 
 **What changed (your four asks)**
 1. **Right now:**
@@ -155,6 +158,8 @@ Merged into `front-end-development` at b891873. Gate: 180 tests, typecheck, lint
 - on a phone, the "100%" inside the ring is small and nearly touches it;
 - the Powerwall ring and the state words sit tight to their box edges;
 - the last two lines of the Tomorrow tile aren't indented like the first two.
+
+**Dev-setup gap (not front-end code):** `pnpm dev` doesn't run migrations and the README doesn't say to. Option: add `"predev": "node scripts/migrate.mjs"` to `package.json` so `pnpm dev` always migrates first (that's the db-docker scope's file). Say "add predev" if you want it.
 
 **Your call:**
 - **a.** "approved": you merge `front-end-development` into `main`;
