@@ -8,9 +8,9 @@
   - B012 cleaner over `src/` + `scripts/`. In backlog until B010 + B011 merge.
   - PO: `/improve-codebase-architecture` (TODO, non-blocking). The pick becomes Rev 5.
 - **Earlier rounds:** round 1 B001–B006 (PR #7, CLOSEOUT.md). Round 2 B007–B009 (M3, merged to main 84b059c).
-- **Last action:** B011 merged 1294ef0 into `optimization-round` (reviewer PASS; gate green after a full node_modules reinstall). B010 tester 742127a committed; blocked on the PO restarting Docker Desktop (crashed, likely C: full).
-- **Next action:** after "docker up": `docker compose -p voltops-smoke down -v`, confirm the size FAIL on `phase1/image-shrink-test` (run it from a fresh worktree or checkout, `SMOKE_PORT=3100`), spawn the B010 implementer → reviewer → merge. Then B012 cleaner, then the Review item.
-- **Open branches / worktrees:** `phase1/image-shrink-test` (its worktree is removed). Docker disk image now on G:.
+- **Last action:** B011 merged 1294ef0, B010 merged 15358c2 (image 856 → 303 MB). Gate green incl. smoke. B012 cleaner spawned.
+- **Next action:** gate B012 (cleaner) → reviewer → merge → full gate + smoke → M4 Review item in TODO (plus the still-open `/improve-codebase-architecture` item).
+- **Open branches / worktrees:** B012 `phase1/cleaner-pass` (cleaner worktree).
 - **Env lessons:**
   - agent worktrees have no node_modules, and parallel `pnpm install`s stall. When the branch changes no deps, link main's: `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`. Run `cmd //c rmdir node_modules` (removes only the link) BEFORE `git worktree remove`;
   - lint in a worktree without `.env` needs `SKIP_ENV_VALIDATION=1`. Never copy the PO's `.env` into a worktree;
