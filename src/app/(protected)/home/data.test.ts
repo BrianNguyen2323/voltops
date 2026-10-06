@@ -15,10 +15,18 @@ describe("sampleDashboard", () => {
   describe("live", () => {
     const l = d.live;
     it("satisfies the power balance within 50 W", () => {
-      expect(Math.abs(l.solarW + l.batteryW + l.gridW - l.loadW)).toBeLessThanOrEqual(50);
+      expect(
+        Math.abs(l.solarW + l.batteryW + l.gridW - l.loadW),
+      ).toBeLessThanOrEqual(50);
     });
     it("uses integer watts and the sign rules", () => {
-      for (const v of [l.solarW, l.loadW, l.batteryW, l.gridW, l.usableCapacityWh]) {
+      for (const v of [
+        l.solarW,
+        l.loadW,
+        l.batteryW,
+        l.gridW,
+        l.usableCapacityWh,
+      ]) {
         expect(Number.isInteger(v)).toBe(true);
       }
       expect(l.solarW).toBeGreaterThan(0); // solar producing
@@ -47,14 +55,18 @@ describe("sampleDashboard", () => {
     it("has 48 rows exactly 1 h apart", () => {
       expect(t).toHaveLength(48);
       for (let i = 1; i < t.length; i++) {
-        expect(Date.parse(t[i]!.hour) - Date.parse(t[i - 1]!.hour)).toBe(3_600_000);
+        expect(Date.parse(t[i]!.hour) - Date.parse(t[i - 1]!.hour)).toBe(
+          3_600_000,
+        );
       }
     });
     it("has all actuals before all forecasts, at least one of each", () => {
       const kinds = t.map((r) => r.kind);
       expect(kinds).toContain("actual");
       expect(kinds).toContain("forecast");
-      expect(kinds.lastIndexOf("actual")).toBeLessThan(kinds.indexOf("forecast"));
+      expect(kinds.lastIndexOf("actual")).toBeLessThan(
+        kinds.indexOf("forecast"),
+      );
     });
     it("has p10 <= value <= p90 on forecast rows and no bands on actuals", () => {
       for (const r of t) {
@@ -109,8 +121,12 @@ describe("sampleDashboard", () => {
       expect(rows.length).toBeGreaterThan(0);
       for (const a of rows) expect(a.maePct).toBeLessThan(a.baselineMaePct);
     }
-    expect(d.accuracy.find((a) => a.model === "load-v1")?.baseline).toBe("seasonal-naive");
-    expect(d.accuracy.find((a) => a.model === "solar-v1")?.baseline).toBe("yesterday");
+    expect(d.accuracy.find((a) => a.model === "load-v1")?.baseline).toBe(
+      "seasonal-naive",
+    );
+    expect(d.accuracy.find((a) => a.model === "solar-v1")?.baseline).toBe(
+      "yesterday",
+    );
   });
 
   it("has a recommendation with 1-3 why items", () => {
@@ -125,7 +141,14 @@ describe("sampleDashboard", () => {
   it("has selfPoweredPct in 0..100 and integer Wh totals", () => {
     expect(d.today.selfPoweredPct).toBeGreaterThanOrEqual(0);
     expect(d.today.selfPoweredPct).toBeLessThanOrEqual(100);
-    for (const k of ["solarWh", "loadWh", "gridImportWh", "gridExportWh", "batteryChargeWh", "batteryDischargeWh"] as const) {
+    for (const k of [
+      "solarWh",
+      "loadWh",
+      "gridImportWh",
+      "gridExportWh",
+      "batteryChargeWh",
+      "batteryDischargeWh",
+    ] as const) {
       expect(Number.isInteger(d.today[k])).toBe(true);
     }
   });
@@ -136,7 +159,9 @@ describe("sampleDashboard", () => {
       d.tariffNow.endsAt,
       d.health.lastPollAt,
       ...d.timeline.map((r) => r.hour),
-      ...(d.recommendation ? [d.recommendation.validFrom, d.recommendation.validTo] : []),
+      ...(d.recommendation
+        ? [d.recommendation.validFrom, d.recommendation.validTo]
+        : []),
     ];
     for (const x of times) expect(isIso(x)).toBe(true);
   });
@@ -145,18 +170,25 @@ describe("sampleDashboard", () => {
     const actuals = d.timeline.filter((r) => r.kind === "actual");
     const last = actuals[actuals.length - 1]!;
     const first = d.timeline[0]!;
-    const sum = (k: "solarWh" | "loadWh") => actuals.reduce((a, r) => a + r[k], 0);
+    const sum = (k: "solarWh" | "loadWh") =>
+      actuals.reduce((a, r) => a + r[k], 0);
     const cap = d.live.usableCapacityWh;
 
     it("tariffNow.period matches the last actual row", () => {
       expect(d.tariffNow.period).toBe(last.period);
     });
     it("today.solarWh and loadWh are within 10% of the actual rows", () => {
-      expect(Math.abs(d.today.solarWh - sum("solarWh"))).toBeLessThanOrEqual(0.1 * sum("solarWh"));
-      expect(Math.abs(d.today.loadWh - sum("loadWh"))).toBeLessThanOrEqual(0.1 * sum("loadWh"));
+      expect(Math.abs(d.today.solarWh - sum("solarWh"))).toBeLessThanOrEqual(
+        0.1 * sum("solarWh"),
+      );
+      expect(Math.abs(d.today.loadWh - sum("loadWh"))).toBeLessThanOrEqual(
+        0.1 * sum("loadWh"),
+      );
     });
     it("live solarW is within 30% of the last actual row's solarWh", () => {
-      expect(Math.abs(d.live.solarW - last.solarWh)).toBeLessThanOrEqual(0.3 * last.solarWh);
+      expect(Math.abs(d.live.solarW - last.solarWh)).toBeLessThanOrEqual(
+        0.3 * last.solarWh,
+      );
     });
     it("battery charge - discharge matches the SoC change since midnight", () => {
       const expected = ((d.live.socPct - first.socPct) / 100) * cap;
@@ -172,11 +204,18 @@ describe("sampleDashboard", () => {
     const rows = actuals.map((r, i) => {
       const next = d.timeline[i + 1]!.socPct;
       const batteryWh = Math.round(((r.socPct - next) / 100) * cap); // > 0 discharge
-      return { period: r.period, batteryWh, gridWh: r.loadWh - r.solarWh - batteryWh };
+      return {
+        period: r.period,
+        batteryWh,
+        gridWh: r.loadWh - r.solarWh - batteryWh,
+      };
     });
-    const total = (f: (x: (typeof rows)[number]) => number) => rows.reduce((a, r) => a + f(r), 0);
+    const total = (f: (x: (typeof rows)[number]) => number) =>
+      rows.reduce((a, r) => a + f(r), 0);
     const near = (actual: number, expected: number) =>
-      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(Math.max(100, 0.03 * Math.abs(expected)));
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(
+        Math.max(100, 0.03 * Math.abs(expected)),
+      );
     const imp = total((r) => Math.max(r.gridWh, 0));
     const exp = total((r) => Math.max(-r.gridWh, 0));
     const loadSum = actuals.reduce((a, r) => a + r.loadWh, 0);
@@ -184,31 +223,52 @@ describe("sampleDashboard", () => {
     it("grid import/export and battery charge/discharge match the per-row model", () => {
       near(d.today.gridImportWh, imp);
       near(d.today.gridExportWh, exp);
-      near(d.today.batteryChargeWh, total((r) => Math.max(-r.batteryWh, 0)));
-      near(d.today.batteryDischargeWh, total((r) => Math.max(r.batteryWh, 0)));
+      near(
+        d.today.batteryChargeWh,
+        total((r) => Math.max(-r.batteryWh, 0)),
+      );
+      near(
+        d.today.batteryDischargeWh,
+        total((r) => Math.max(r.batteryWh, 0)),
+      );
     });
     it("battery discharged overnight", () => {
       expect(d.today.batteryDischargeWh).toBeGreaterThan(0);
     });
     it("selfPoweredPct follows the formula", () => {
-      expect(Math.abs(d.today.selfPoweredPct - Math.round(100 * (1 - imp / loadSum)))).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(
+          d.today.selfPoweredPct - Math.round(100 * (1 - imp / loadSum)),
+        ),
+      ).toBeLessThanOrEqual(1);
     });
     it("period import sums to today.gridImportWh and matches per-period derivation", () => {
-      expect(d.costToday.periods.reduce((a, p) => a + p.importWh, 0)).toBe(d.today.gridImportWh);
+      expect(d.costToday.periods.reduce((a, p) => a + p.importWh, 0)).toBe(
+        d.today.gridImportWh,
+      );
       for (const period of new Set(actuals.map((r) => r.period))) {
         const p = d.costToday.periods.find((x) => x.period === period);
         expect(p, `period ${period} listed`).toBeDefined();
-        const expected = rows.filter((r) => r.period === period).reduce((a, r) => a + Math.max(r.gridWh, 0), 0);
+        const expected = rows
+          .filter((r) => r.period === period)
+          .reduce((a, r) => a + Math.max(r.gridWh, 0), 0);
         expect(Math.abs(p!.importWh - expected)).toBeLessThanOrEqual(100);
       }
     });
     it("costs use the constant rates and the export credit follows gridExportWh", () => {
       expect(d.tariffNow.importCentsPerKwh).toBe(RATE.peak);
       for (const p of d.costToday.periods) {
-        expect(Math.abs(p.costCents - Math.round((p.importWh * RATE[p.period]) / 1000))).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs(
+            p.costCents - Math.round((p.importWh * RATE[p.period]) / 1000),
+          ),
+        ).toBeLessThanOrEqual(1);
       }
-      const credit = (d.today.gridExportWh * d.tariffNow.exportCentsPerKwh) / 1000;
-      expect(Math.abs(d.costToday.exportCreditCents - credit)).toBeLessThanOrEqual(1);
+      const credit =
+        (d.today.gridExportWh * d.tariffNow.exportCentsPerKwh) / 1000;
+      expect(
+        Math.abs(d.costToday.exportCreditCents - credit),
+      ).toBeLessThanOrEqual(1);
     });
     it("last7Days ends at 2026-07-15 and equals today", () => {
       const lastDay = d.last7Days[d.last7Days.length - 1]!;
@@ -223,7 +283,12 @@ describe("sampleDashboard", () => {
     const cap = d.live.usableCapacityWh;
     const derived = t.slice(0, 47).map((r, i) => {
       const battery = Math.round(((r.socPct - t[i + 1]!.socPct) / 100) * cap); // > 0 discharge
-      return { r, next: t[i + 1]!.socPct, battery, grid: r.loadWh - r.solarWh - battery };
+      return {
+        r,
+        next: t[i + 1]!.socPct,
+        battery,
+        grid: r.loadWh - r.solarWh - battery,
+      };
     });
     it("every socPct is within 20..100", () => {
       for (const r of t) {
@@ -238,7 +303,9 @@ describe("sampleDashboard", () => {
       }
     });
     it("deficit rows with battery above reserve do not import", () => {
-      for (const x of derived.filter((x) => x.r.solarWh <= x.r.loadWh && x.next >= 22)) {
+      for (const x of derived.filter(
+        (x) => x.r.solarWh <= x.r.loadWh && x.next >= 22,
+      )) {
         expect(x.grid, x.r.hour).toBeLessThanOrEqual(150);
       }
     });
@@ -267,7 +334,9 @@ describe("sampleDashboard", () => {
         expect(p.loadWh).toBeGreaterThanOrEqual(24000);
         expect(p.loadWh).toBeLessThanOrEqual(27000);
       }
-      expect(d.today.solarWh).toBeLessThanOrEqual(Math.max(...prior.map((p) => p.solarWh)));
+      expect(d.today.solarWh).toBeLessThanOrEqual(
+        Math.max(...prior.map((p) => p.solarWh)),
+      );
     });
   });
   it("source files have no UTF-8 BOM", () => {
@@ -294,7 +363,9 @@ describe("weather contract", () => {
   it("dates weatherTomorrow as the site-local date of timeline row 24", () => {
     const row = d.timeline[24];
     if (!row) throw new Error("row 24 missing");
-    const local = new Intl.DateTimeFormat("en-CA", { timeZone: d.site.timezone }).format(new Date(row.hour));
+    const local = new Intl.DateTimeFormat("en-CA", {
+      timeZone: d.site.timezone,
+    }).format(new Date(row.hour));
     expect(d.weatherTomorrow?.date).toBe(local);
   });
 });

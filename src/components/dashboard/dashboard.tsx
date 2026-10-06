@@ -1,4 +1,9 @@
-import { CloudAngledRainIcon, CloudIcon, Sun03Icon, SunCloud01Icon } from "@hugeicons/core-free-icons";
+import {
+  CloudAngledRainIcon,
+  CloudIcon,
+  Sun03Icon,
+  SunCloud01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import type { DashboardData, TouPeriod } from "~/app/(protected)/home/data";
@@ -13,24 +18,44 @@ import { TimelineChart, WeekChart } from "./charts";
 import { costNow } from "./cost-now";
 import { FlowDiagram } from "./flow-diagram";
 
-const PERIOD: Record<TouPeriod, string> = { "off-peak": "Off-peak", "mid-peak": "Mid-peak", peak: "Peak" };
+const PERIOD: Record<TouPeriod, string> = {
+  "off-peak": "Off-peak",
+  "mid-peak": "Mid-peak",
+  peak: "Peak",
+};
 const WEATHER = {
   clear: { label: "Sunny", icon: Sun03Icon },
   "partly-cloudy": { label: "Partly cloudy", icon: SunCloud01Icon },
   cloudy: { label: "Cloudy", icon: CloudIcon },
   rain: { label: "Rain", icon: CloudAngledRainIcon },
 };
-const SOURCE ={ "fleet-api": "Tesla Fleet API", "local-gateway": "Local gateway", replay: "Replay data" };
+const SOURCE = {
+  "fleet-api": "Tesla Fleet API",
+  "local-gateway": "Local gateway",
+  replay: "Replay data",
+};
 
 const clock = (iso: string, tz: string) =>
-  new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz }).format(Date.parse(iso));
+  new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: tz,
+  }).format(Date.parse(iso));
 
 const H2 = ({ children }: { children: React.ReactNode }) => (
   <h2 className="text-xl font-semibold">{children}</h2>
 );
 
 // A label with its value, used by the strip panels.
-const Row = ({ label, value, dot }: { label: string; value: string; dot?: string }) => (
+const Row = ({
+  label,
+  value,
+  dot,
+}: {
+  label: string;
+  value: string;
+  dot?: string;
+}) => (
   <div className="flex items-baseline justify-between gap-4 py-1">
     <dt className="text-muted-foreground flex items-center gap-2">
       {dot && <span aria-hidden className={cn("size-2 rounded-full", dot)} />}
@@ -51,10 +76,20 @@ export function Dashboard({
   isSample: boolean;
   showLogout: boolean;
 }) {
-  const { site, live, tariffNow, recommendation: rec, today, costToday, currency, health } = data;
+  const {
+    site,
+    live,
+    tariffNow,
+    recommendation: rec,
+    today,
+    costToday,
+    currency,
+    health,
+  } = data;
   const tz = site.timezone;
   const weather = data.weatherTomorrow;
-  const solarSum = (a: number, b: number) => data.timeline.slice(a, b).reduce((s, r) => s + r.solarWh, 0);
+  const solarSum = (a: number, b: number) =>
+    data.timeline.slice(a, b).reduce((s, r) => s + r.solarWh, 0);
   const day2 = solarSum(24, 48);
   const pct = Math.round((1 - day2 / solarSum(0, 24)) * 100); // negative = more sun tomorrow
   const money = (c: number) => formatMoney(c, currency);
@@ -64,13 +99,34 @@ export function Dashboard({
   // Only non-zero items: [label, cents per hour, plain explanation, colour].
   const homeCost: Array<[string, number, string, string]> = [
     ...(cost.spendingCentsPerHour
-      ? [["Spending", cost.spendingCentsPerHour, `Buying ${formatKw(live.gridW)} from the grid at ${money(imp)}/kWh`, "text-grid-import"] as [string, number, string, string]]
+      ? [
+          [
+            "Spending",
+            cost.spendingCentsPerHour,
+            `Buying ${formatKw(live.gridW)} from the grid at ${money(imp)}/kWh`,
+            "text-grid-import",
+          ] as [string, number, string, string],
+        ]
       : []),
     ...(cost.savingCentsPerHour
-      ? [["Saving", cost.savingCentsPerHour, `Solar and battery cover ${formatKw(live.loadW - bought)} of home use, so you're not buying it at ${money(imp)}/kWh`, ""] as [string, number, string, string]]
+      ? [
+          [
+            "Saving",
+            cost.savingCentsPerHour,
+            `Solar and battery cover ${formatKw(live.loadW - bought)} of home use, so you're not buying it at ${money(imp)}/kWh`,
+            "",
+          ] as [string, number, string, string],
+        ]
       : []),
     ...(cost.earningCentsPerHour
-      ? [["Earning", cost.earningCentsPerHour, `Selling ${formatKw(live.gridW)} to the grid at ${money(tariffNow.exportCentsPerKwh)}/kWh`, ""] as [string, number, string, string]]
+      ? [
+          [
+            "Earning",
+            cost.earningCentsPerHour,
+            `Selling ${formatKw(live.gridW)} to the grid at ${money(tariffNow.exportCentsPerKwh)}/kWh`,
+            "",
+          ] as [string, number, string, string],
+        ]
       : []),
   ];
   return (
@@ -78,7 +134,9 @@ export function Dashboard({
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="text-3xl font-bold">{site.name}</h1>
         {isSample && <Badge variant="secondary">Sample data</Badge>}
-        <p className="text-muted-foreground text-sm">Updated {clock(data.updatedAt, tz)}</p>
+        <p className="text-muted-foreground text-sm">
+          Updated {clock(data.updatedAt, tz)}
+        </p>
         {showLogout && (
           <form action={logoutAction} className="ml-auto">
             <Button type="submit" variant="ghost" size="sm">
@@ -103,29 +161,38 @@ export function Dashboard({
           <FlowDiagram live={live} />
           <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
             <div>
-              <h3 className="text-muted-foreground text-sm font-medium">Grid price now</h3>
+              <h3 className="text-muted-foreground text-sm font-medium">
+                Grid price now
+              </h3>
               <p className="mt-1">
                 <span className="reading text-2xl">{money(imp)}</span>
                 <span className="text-muted-foreground">/kWh</span>
               </p>
               <p className="text-muted-foreground text-sm">
-                {PERIOD[tariffNow.period]} rate until {clock(tariffNow.endsAt, tz)}
+                {PERIOD[tariffNow.period]} rate until{" "}
+                {clock(tariffNow.endsAt, tz)}
               </p>
             </div>
             <div>
-              <h3 className="text-muted-foreground text-sm font-medium">Your home now</h3>
+              <h3 className="text-muted-foreground text-sm font-medium">
+                Your home now
+              </h3>
               <ul className="mt-1 flex flex-col gap-2">
                 {homeCost.map(([label, amount, text, tone]) => (
                   <li key={text}>
                     <span
                       className={cn(
                         "mr-1.5 text-sm font-medium",
-                        label === "Spending" ? "text-grid-import" : "text-muted-foreground",
+                        label === "Spending"
+                          ? "text-grid-import"
+                          : "text-muted-foreground",
                       )}
                     >
                       {label}
                     </span>
-                    <span className={cn("reading text-lg", tone)}>{money(amount)}</span>
+                    <span className={cn("reading text-lg", tone)}>
+                      {money(amount)}
+                    </span>
                     <span className="text-muted-foreground">/hour</span>
                     <p className="text-muted-foreground text-sm">{text}</p>
                   </li>
@@ -141,10 +208,17 @@ export function Dashboard({
             <CardContent className="flex flex-col gap-4">
               {rec ? (
                 <>
-                  <p className="text-2xl leading-tight font-bold">{rec.action}</p>
+                  <p className="text-2xl leading-tight font-bold">
+                    {rec.action}
+                  </p>
                   <p className="text-muted-foreground">
-                    From {clock(rec.validFrom, tz)} until {clock(rec.validTo, tz)}. Stores {formatKwh(rec.effectWh)}{" "}
-                    more and saves about <span className="reading text-foreground">{money(rec.savingsCents)}</span>.
+                    From {clock(rec.validFrom, tz)} until{" "}
+                    {clock(rec.validTo, tz)}. Stores {formatKwh(rec.effectWh)}{" "}
+                    more and saves about{" "}
+                    <span className="reading text-foreground">
+                      {money(rec.savingsCents)}
+                    </span>
+                    .
                   </p>
                   <ul className="flex list-disc flex-col gap-1 pl-5">
                     {rec.why.map((w) => (
@@ -152,7 +226,8 @@ export function Dashboard({
                     ))}
                   </ul>
                   <p className="text-sm">
-                    <span className="capitalize">{rec.confidence}</span> confidence. {rec.wouldChange}
+                    <span className="capitalize">{rec.confidence}</span>{" "}
+                    confidence. {rec.wouldChange}
                   </p>
                 </>
               ) : (
@@ -161,21 +236,31 @@ export function Dashboard({
               {weather && (
                 <div className="bg-muted flex flex-col gap-3 rounded-md p-4">
                   <div className="flex items-center gap-3">
-                    <HugeiconsIcon icon={WEATHER[weather.condition].icon} size={32} className="text-solar shrink-0" />
+                    <HugeiconsIcon
+                      icon={WEATHER[weather.condition].icon}
+                      size={32}
+                      className="text-solar shrink-0"
+                    />
                     <div>
                       <h3 className="font-semibold">Tomorrow</h3>
                       <p className="text-muted-foreground text-sm">
-                        {WEATHER[weather.condition].label}, {formatTemp(weather.highC, site.temperatureUnit)} high,{" "}
+                        {WEATHER[weather.condition].label},{" "}
+                        {formatTemp(weather.highC, site.temperatureUnit)} high,{" "}
                         {formatTemp(weather.lowC, site.temperatureUnit)} low
                       </p>
                     </div>
                   </div>
                   <p className="text-muted-foreground text-sm">
-                    {weather.cloudCoverPct}% cloud cover, {weather.precipitationChancePct}% chance of rain
+                    {weather.cloudCoverPct}% cloud cover,{" "}
+                    {weather.precipitationChancePct}% chance of rain
                   </p>
                   <p>
-                    Expect <span className="reading text-solar">{formatKwh(day2)}</span> of solar,{" "}
-                    {Math.abs(pct)}% {pct >= 0 ? "less" : "more"} sun than today.
+                    Expect{" "}
+                    <span className="reading text-solar">
+                      {formatKwh(day2)}
+                    </span>{" "}
+                    of solar, {Math.abs(pct)}% {pct >= 0 ? "less" : "more"} sun
+                    than today.
                   </p>
                 </div>
               )}
@@ -189,30 +274,61 @@ export function Dashboard({
         <TimelineChart timeline={data.timeline} timezone={tz} />
       </section>
 
-      <div className="bg-border grid gap-px overflow-hidden rounded-lg md:grid-cols-2 lg:grid-cols-4 [&>section]:bg-background [&>section]:p-4">
+      <div className="bg-border [&>section]:bg-background grid gap-px overflow-hidden rounded-lg md:grid-cols-2 lg:grid-cols-4 [&>section]:p-4">
         <section>
           <H2>Today so far</H2>
           <dl className="mt-2">
-            <Row label="Solar" value={formatKwh(today.solarWh)} dot="bg-solar" />
+            <Row
+              label="Solar"
+              value={formatKwh(today.solarWh)}
+              dot="bg-solar"
+            />
             <Row label="Home" value={formatKwh(today.loadWh)} dot="bg-home" />
-            <Row label="Grid import" value={formatKwh(today.gridImportWh)} dot="bg-grid-import" />
-            <Row label="Grid export" value={formatKwh(today.gridExportWh)} dot="bg-grid-export" />
-            <Row label="Battery charged" value={formatKwh(today.batteryChargeWh)} dot="bg-battery" />
-            <Row label="Battery discharged" value={formatKwh(today.batteryDischargeWh)} dot="bg-battery" />
+            <Row
+              label="Grid import"
+              value={formatKwh(today.gridImportWh)}
+              dot="bg-grid-import"
+            />
+            <Row
+              label="Grid export"
+              value={formatKwh(today.gridExportWh)}
+              dot="bg-grid-export"
+            />
+            <Row
+              label="Battery charged"
+              value={formatKwh(today.batteryChargeWh)}
+              dot="bg-battery"
+            />
+            <Row
+              label="Battery discharged"
+              value={formatKwh(today.batteryDischargeWh)}
+              dot="bg-battery"
+            />
           </dl>
           <p className="reading mt-3 text-4xl">{today.selfPoweredPct}%</p>
-          <p className="text-muted-foreground text-sm">of your home use was self-powered</p>
+          <p className="text-muted-foreground text-sm">
+            of your home use was self-powered
+          </p>
         </section>
 
         <section>
           <H2>Cost today</H2>
           <dl className="mt-2">
             {costToday.periods.map((p) => (
-              <Row key={p.period} label={`${PERIOD[p.period]} imports`} value={money(p.costCents)} />
+              <Row
+                key={p.period}
+                label={`${PERIOD[p.period]} imports`}
+                value={money(p.costCents)}
+              />
             ))}
-            <Row label="Export credit" value={money(costToday.exportCreditCents)} />
+            <Row
+              label="Export credit"
+              value={money(costToday.exportCreditCents)}
+            />
           </dl>
-          <p className="reading mt-3 text-4xl">{money(Math.abs(costToday.netCents))}</p>
+          <p className="reading mt-3 text-4xl">
+            {money(Math.abs(costToday.netCents))}
+          </p>
           <p className="text-muted-foreground text-sm">
             {costToday.netCents < 0 ? "Credit earned" : "Net cost"} so far today
           </p>
@@ -232,10 +348,13 @@ export function Dashboard({
               <li key={a.target}>
                 <p className="font-medium capitalize">{a.target}</p>
                 <p>
-                  <span className="reading text-2xl">{a.maePct}%</span> error, against{" "}
-                  <span className="reading">{a.baselineMaePct}%</span> for {a.baseline}
+                  <span className="reading text-2xl">{a.maePct}%</span> error,
+                  against <span className="reading">{a.baselineMaePct}%</span>{" "}
+                  for {a.baseline}
                 </p>
-                <p className="text-muted-foreground text-sm">Measured over {a.days} days</p>
+                <p className="text-muted-foreground text-sm">
+                  Measured over {a.days} days
+                </p>
               </li>
             ))}
           </ul>
@@ -244,7 +363,8 @@ export function Dashboard({
 
       <footer className="text-muted-foreground flex flex-col gap-1 text-sm">
         <p>
-          Source: {SOURCE[data.source]}. Last poll {clock(health.lastPollAt, tz)}. ~
+          Source: {SOURCE[data.source]}. Last poll{" "}
+          {clock(health.lastPollAt, tz)}. ~
           {health.estRequestsPerMonth.toLocaleString("en-US")} requests/month.
         </p>
         {health.warnings.map((w) => (

@@ -1,4 +1,8 @@
-import { ElectricTower01Icon, Home01Icon, Sun03Icon } from "@hugeicons/core-free-icons";
+import {
+  ElectricTower01Icon,
+  Home01Icon,
+  Sun03Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 
 import type { DashboardData } from "~/app/(protected)/home/data";
@@ -31,7 +35,19 @@ export function batteryState(w: number) {
 export const gridState = (w: number) => (w < 0 ? "Exporting" : "Importing");
 
 // Drawn source to destination so the dashes move the way energy flows.
-function Flow({ id, from, to, w, color }: { id: string; from: Pt; to: Pt; w: number; color: string }) {
+function Flow({
+  id,
+  from,
+  to,
+  w,
+  color,
+}: {
+  id: string;
+  from: Pt;
+  to: Pt;
+  w: number;
+  color: string;
+}) {
   const live = Math.abs(w) >= IDLE_W;
   const secs = Math.max(0.5, 2.6 - (Math.abs(w) / 1000) * 0.35); // faster with more kW
   const mx = (from[0] + to[0]) / 2;
@@ -48,16 +64,34 @@ function Flow({ id, from, to, w, color }: { id: string; from: Pt; to: Pt; w: num
         stroke="currentColor"
         strokeWidth={3}
         strokeDasharray="6 8"
-        className={live ? "motion-safe:[animation:flow_var(--d)_linear_infinite]" : undefined}
+        className={
+          live
+            ? "motion-safe:[animation:flow_var(--d)_linear_infinite]"
+            : undefined
+        }
         style={{ "--d": `${secs}s` } as React.CSSProperties}
       />
-      {live && <polygon points="-6,-6 7,0 -6,6" fill="currentColor" transform={`translate(${mx} ${my}) rotate(${deg})`} />}
+      {live && (
+        <polygon
+          points="-6,-6 7,0 -6,6"
+          fill="currentColor"
+          transform={`translate(${mx} ${my}) rotate(${deg})`}
+        />
+      )}
     </g>
   );
 }
 
 // One unit: symbol, then name, kW and state directly beneath.
-function Node({ id, c, name, w, state, symbol, color }: {
+function Node({
+  id,
+  c,
+  name,
+  w,
+  state,
+  symbol,
+  color,
+}: {
   id: string;
   c: Pt;
   name: string;
@@ -69,13 +103,33 @@ function Node({ id, c, name, w, state, symbol, color }: {
   const [x, y] = c;
   return (
     <g data-node={id} textAnchor="middle">
-      <rect x={x - BOX.w / 2} y={y - BOX.h / 2} width={BOX.w} height={BOX.h} rx={12} className="fill-card" />
+      <rect
+        x={x - BOX.w / 2}
+        y={y - BOX.h / 2}
+        width={BOX.w}
+        height={BOX.h}
+        rx={12}
+        className="fill-card"
+      />
       <g transform={`translate(${x} ${y - 30})`} className={color}>
         {symbol}
       </g>
-      <text x={x} y={y + 6} className="fill-muted-foreground text-base">{name}</text>
-      <text x={x} y={y + 30} data-reading="kw" className="reading fill-foreground text-lg sm:text-xl">{formatKw(w)}</text>
-      {state && <text x={x} y={y + 49} className="fill-muted-foreground text-base">{state}</text>}
+      <text x={x} y={y + 6} className="fill-muted-foreground text-base">
+        {name}
+      </text>
+      <text
+        x={x}
+        y={y + 30}
+        data-reading="kw"
+        className="reading fill-foreground text-lg sm:text-xl"
+      >
+        {formatKw(w)}
+      </text>
+      {state && (
+        <text x={x} y={y + 49} className="fill-muted-foreground text-base">
+          {state}
+        </text>
+      )}
     </g>
   );
 }
@@ -93,19 +147,65 @@ export function FlowDiagram({ live }: { live: DashboardData["live"] }) {
   const label = `Power flow now. Solar ${formatKw(solarW)} generating. Home ${formatKw(loadW)} using. Powerwall ${bState.toLowerCase()}, ${formatKw(batteryW)}, charge ${socPct}%. Grid ${gState.toLowerCase()} ${formatKw(gridW)}.`;
   const r = 18;
   const circ = 2 * Math.PI * r;
-  const out = (w: number, edge: Pt) => (w > 0 ? [edge, HUB] : [HUB, edge]) as [Pt, Pt];
+  const out = (w: number, edge: Pt) =>
+    (w > 0 ? [edge, HUB] : [HUB, edge]) as [Pt, Pt];
   const [bFrom, bTo] = out(batteryW, EDGE.battery); // discharging flows into the hub
   const [gFrom, gTo] = out(gridW, EDGE.grid); // importing flows into the hub
   return (
-    <svg role="img" aria-label={label} viewBox="0 0 460 440" className="mx-auto w-full max-w-xl">
-      <Flow id="solar" from={EDGE.solar} to={HUB} w={solarW} color="text-solar" />
+    <svg
+      role="img"
+      aria-label={label}
+      viewBox="0 0 460 440"
+      className="mx-auto w-full max-w-xl"
+    >
+      <Flow
+        id="solar"
+        from={EDGE.solar}
+        to={HUB}
+        w={solarW}
+        color="text-solar"
+      />
       <Flow id="home" from={HUB} to={EDGE.home} w={loadW} color="text-home" />
-      <Flow id="battery" from={bFrom} to={bTo} w={batteryW} color="text-battery" />
-      <Flow id="grid" from={gFrom} to={gTo} w={gridW} color={gridW > 0 ? "text-grid-import" : "text-grid-export"} />
+      <Flow
+        id="battery"
+        from={bFrom}
+        to={bTo}
+        w={batteryW}
+        color="text-battery"
+      />
+      <Flow
+        id="grid"
+        from={gFrom}
+        to={gTo}
+        w={gridW}
+        color={gridW > 0 ? "text-grid-import" : "text-grid-export"}
+      />
       <circle cx={HUB[0]} cy={HUB[1]} r={5} className="fill-foreground" />
-      <Node id="solar" c={CENTRE.solar} name="Solar" w={solarW} color="text-solar" symbol={<Symbol icon={Sun03Icon} />} />
-      <Node id="grid" c={CENTRE.grid} name="Grid" w={gridW} state={gState} color={gridW > 0 ? "text-grid-import" : "text-grid-export"} symbol={<Symbol icon={ElectricTower01Icon} />} />
-      <Node id="home" c={CENTRE.home} name="Home" w={loadW} color="text-home" symbol={<Symbol icon={Home01Icon} />} />
+      <Node
+        id="solar"
+        c={CENTRE.solar}
+        name="Solar"
+        w={solarW}
+        color="text-solar"
+        symbol={<Symbol icon={Sun03Icon} />}
+      />
+      <Node
+        id="grid"
+        c={CENTRE.grid}
+        name="Grid"
+        w={gridW}
+        state={gState}
+        color={gridW > 0 ? "text-grid-import" : "text-grid-export"}
+        symbol={<Symbol icon={ElectricTower01Icon} />}
+      />
+      <Node
+        id="home"
+        c={CENTRE.home}
+        name="Home"
+        w={loadW}
+        color="text-home"
+        symbol={<Symbol icon={Home01Icon} />}
+      />
       <Node
         id="battery"
         c={CENTRE.battery}
@@ -115,7 +215,12 @@ export function FlowDiagram({ live }: { live: DashboardData["live"] }) {
         color="text-battery"
         symbol={
           <>
-            <circle r={r} fill="none" strokeWidth={4} className="stroke-muted-foreground/30" />
+            <circle
+              r={r}
+              fill="none"
+              strokeWidth={4}
+              className="stroke-muted-foreground/30"
+            />
             <circle
               r={r}
               fill="none"
@@ -125,7 +230,11 @@ export function FlowDiagram({ live }: { live: DashboardData["live"] }) {
               strokeDasharray={`${(circ * Math.min(100, socPct)) / 100} ${circ}`}
               transform="rotate(-90)"
             />
-            <text textAnchor="middle" dy="4" className="fill-foreground text-[11px] font-bold tabular-nums">{`${socPct}%`}</text>
+            <text
+              textAnchor="middle"
+              dy="4"
+              className="fill-foreground text-[11px] font-bold tabular-nums"
+            >{`${socPct}%`}</text>
           </>
         }
       />

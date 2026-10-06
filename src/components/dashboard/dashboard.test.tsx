@@ -1,7 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { sampleDashboard, type DashboardData } from "~/app/(protected)/home/data";
+import {
+  sampleDashboard,
+  type DashboardData,
+} from "~/app/(protected)/home/data";
 import { TimelineTooltip } from "~/components/dashboard/charts";
 import { Dashboard } from "~/components/dashboard/dashboard";
 import { formatKw, formatKwh, formatMoney, formatTemp } from "~/lib/format";
@@ -13,8 +16,20 @@ type Props = {
   showLogout?: boolean;
 };
 
-const render = ({ data = sampleDashboard, connected = true, isSample = true, showLogout = true }: Props = {}) =>
-  renderToStaticMarkup(<Dashboard data={data} connected={connected} isSample={isSample} showLogout={showLogout} />);
+const render = ({
+  data = sampleDashboard,
+  connected = true,
+  isSample = true,
+  showLogout = true,
+}: Props = {}) =>
+  renderToStaticMarkup(
+    <Dashboard
+      data={data}
+      connected={connected}
+      isSample={isSample}
+      showLogout={showLogout}
+    />,
+  );
 
 const withLive = (live: Partial<DashboardData["live"]>): DashboardData => ({
   ...sampleDashboard,
@@ -31,7 +46,9 @@ const text = (html: string) =>
     .replace(/\s+/g, " ");
 
 const h2s = (html: string) =>
-  [...html.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)].map((m) => text(m[1] ?? "").trim());
+  [...html.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)].map((m) =>
+    text(m[1] ?? "").trim(),
+  );
 
 const hero = (html: string) => {
   const start = html.indexOf("Right now");
@@ -45,7 +62,9 @@ describe("Dashboard structure", () => {
   const html = render();
 
   it("has the site name as the only h1", () => {
-    const h1 = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map((m) => text(m[1] ?? "").trim());
+    const h1 = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map((m) =>
+      text(m[1] ?? "").trim(),
+    );
     expect(h1).toEqual([sampleDashboard.site.name]);
   });
 
@@ -75,7 +94,9 @@ describe("Dashboard header flags", () => {
 
   it("shows the Connect Tesla banner only when not connected", () => {
     const off = render({ connected: false });
-    expect(text(off)).toContain("Connect your Tesla account to see your own system");
+    expect(text(off)).toContain(
+      "Connect your Tesla account to see your own system",
+    );
     expect(text(off)).toContain("Connect Tesla");
     expect(off).toContain('href="/api/auth/tesla"');
     // sections still render
@@ -116,13 +137,17 @@ describe("Right now hero", () => {
   });
 
   it("shows Charging, Discharging and Importing for the matching signs", () => {
-    const charging = text(hero(render({ data: withLive({ batteryW: -1500 }) })));
+    const charging = text(
+      hero(render({ data: withLive({ batteryW: -1500 }) })),
+    );
     expect(charging).toMatch(/\bCharging\b/);
     expect(charging).not.toMatch(/\bIdle\b/);
     expect(charging).toContain(formatKw(1500));
     expect(charging).not.toMatch(/[-−]\s?\d/);
 
-    const discharging = text(hero(render({ data: withLive({ batteryW: 1500 }) })));
+    const discharging = text(
+      hero(render({ data: withLive({ batteryW: 1500 }) })),
+    );
     expect(discharging).toMatch(/\bDischarging\b/);
     expect(discharging).not.toMatch(/\bIdle\b/);
 
@@ -132,8 +157,12 @@ describe("Right now hero", () => {
   });
 
   it("treats 50 W as discharging and 49 W as idle", () => {
-    expect(text(hero(render({ data: withLive({ batteryW: 50 }) })))).toMatch(/\bDischarging\b/);
-    expect(text(hero(render({ data: withLive({ batteryW: -49 }) })))).toMatch(/\bIdle\b/);
+    expect(text(hero(render({ data: withLive({ batteryW: 50 }) })))).toMatch(
+      /\bDischarging\b/,
+    );
+    expect(text(hero(render({ data: withLive({ batteryW: -49 }) })))).toMatch(
+      /\bIdle\b/,
+    );
   });
 
   it("has an svg role=img with a non-empty aria-label naming the flows", () => {
@@ -141,12 +170,15 @@ describe("Right now hero", () => {
     expect(m).not.toBeNull();
     const label = /aria-label="([^"]*)"/.exec(m?.[0] ?? "")?.[1] ?? "";
     expect(label.trim().length).toBeGreaterThan(0);
-    for (const word of ["Solar", "Home", "Powerwall", "Grid"]) expect(label).toContain(word);
+    for (const word of ["Solar", "Home", "Powerwall", "Grid"])
+      expect(label).toContain(word);
   });
 
   it("shows the tariff chip with period and import price", () => {
     expect(t).toContain("Peak");
-    expect(t).toContain(formatMoney(sampleDashboard.tariffNow.importCentsPerKwh, currency));
+    expect(t).toContain(
+      formatMoney(sampleDashboard.tariffNow.importCentsPerKwh, currency),
+    );
     expect(t).toContain("/kWh");
   });
 
@@ -168,7 +200,9 @@ describe("Tonight panel", () => {
   });
 
   it("shows the empty state when recommendation is null", () => {
-    const t = text(render({ data: { ...sampleDashboard, recommendation: null } }));
+    const t = text(
+      render({ data: { ...sampleDashboard, recommendation: null } }),
+    );
     expect(t).toContain("No changes needed tonight.");
     expect(t).not.toContain("Raise backup reserve");
   });
@@ -195,7 +229,8 @@ describe("Totals, cost, accuracy and status", () => {
   });
 
   it("shows cost per period, export credit and net", () => {
-    for (const p of costToday.periods) expect(t).toContain(formatMoney(p.costCents, currency));
+    for (const p of costToday.periods)
+      expect(t).toContain(formatMoney(p.costCents, currency));
     expect(t).toContain(formatMoney(costToday.exportCreditCents, currency));
     expect(costToday.netCents).toBeLessThan(0);
   });
@@ -215,7 +250,15 @@ describe("Totals, cost, accuracy and status", () => {
 
   it("shows warnings when present", () => {
     const warned = text(
-      render({ data: { ...sampleDashboard, health: { ...sampleDashboard.health, warnings: ["Poll failed twice"] } } }),
+      render({
+        data: {
+          ...sampleDashboard,
+          health: {
+            ...sampleDashboard.health,
+            warnings: ["Poll failed twice"],
+          },
+        },
+      }),
     );
     expect(warned).toContain("Poll failed twice");
     expect(t).not.toContain("Poll failed twice");
@@ -226,7 +269,8 @@ const tonight = (html: string) => {
   const start = html.indexOf("Tonight");
   return html.slice(start, html.indexOf("Today and tomorrow", start));
 };
-const sum = (rows: DashboardData["timeline"]) => rows.reduce((a, r) => a + r.solarWh, 0);
+const sum = (rows: DashboardData["timeline"]) =>
+  rows.reduce((a, r) => a + r.solarWh, 0);
 const day1 = sum(sampleDashboard.timeline.slice(0, 24));
 const day2 = sum(sampleDashboard.timeline.slice(24, 48));
 const pctLess = Math.round((1 - day2 / day1) * 100);
@@ -237,7 +281,8 @@ describe("Flow diagram cross layout", () => {
     .map((m) => m[0])
     .filter((l) => l.includes('data-flow="'))
     .map((l) => {
-      const attr = (n: string) => Number(new RegExp(`\\s${n}="([^"]*)"`).exec(l)?.[1]);
+      const attr = (n: string) =>
+        Number(new RegExp(`\\s${n}="([^"]*)"`).exec(l)?.[1]);
       return {
         flow: /data-flow="([^"]*)"/.exec(l)?.[1],
         x1: attr("x1"),
@@ -253,7 +298,12 @@ describe("Flow diagram cross layout", () => {
   };
 
   it("has exactly four flow lines", () => {
-    expect(lines.map((l) => l.flow).sort()).toEqual(["battery", "grid", "home", "solar"]);
+    expect(lines.map((l) => l.flow).sort()).toEqual([
+      "battery",
+      "grid",
+      "home",
+      "solar",
+    ]);
   });
 
   it("makes every line strictly horizontal or vertical", () => {
@@ -267,11 +317,13 @@ describe("Flow diagram cross layout", () => {
         [l.x2, l.y2],
       ].map((p) => p.join(",")),
     );
-    const common = hubs[0]?.filter((p) => hubs.every((e) => e.includes(p))) ?? [];
+    const common =
+      hubs[0]?.filter((p) => hubs.every((e) => e.includes(p))) ?? [];
     expect(common).toHaveLength(1);
     const hub = (common[0] ?? "").split(",").map(Number) as [number, number];
     const len = lines.map((l) => Math.hypot(l.x2 - l.x1, l.y2 - l.y1));
-    for (const v of len) expect(Math.abs(v - (len[0] ?? 0))).toBeLessThanOrEqual(0.5);
+    for (const v of len)
+      expect(Math.abs(v - (len[0] ?? 0))).toBeLessThanOrEqual(0.5);
     expect(len[0]).toBeGreaterThan(0);
 
     // far end of each line, relative to the hub
@@ -286,9 +338,14 @@ describe("Flow diagram cross layout", () => {
   });
 
   it("puts the SoC ring text inside the battery node", () => {
-    const m = /<g[^>]*data-node="battery"[^>]*>([\s\S]*?)<\/g>\s*<\/g>|<g[^>]*data-node="battery"[^>]*>([\s\S]*)/.exec(h);
+    const m =
+      /<g[^>]*data-node="battery"[^>]*>([\s\S]*?)<\/g>\s*<\/g>|<g[^>]*data-node="battery"[^>]*>([\s\S]*)/.exec(
+        h,
+      );
     expect(m).not.toBeNull();
-    expect(h.slice(h.indexOf('data-node="battery"'))).toContain(`${live.socPct}%`);
+    expect(h.slice(h.indexOf('data-node="battery"'))).toContain(
+      `${live.socPct}%`,
+    );
     const inside = text(m?.[1] ?? m?.[2] ?? "");
     expect(inside).toContain(`${live.socPct}%`);
   });
@@ -298,7 +355,9 @@ const squash = (s: string) => s.replace(/\s+/g, "");
 
 describe("Flow kW readings", () => {
   const h = hero(render());
-  const kw = [...h.matchAll(/<text\b[^>]*data-reading="kw"[^>]*>/g)].map((m) => m[0]);
+  const kw = [...h.matchAll(/<text\b[^>]*data-reading="kw"[^>]*>/g)].map(
+    (m) => m[0],
+  );
 
   it("has four kW texts with an identical class", () => {
     expect(kw).toHaveLength(4);
@@ -337,7 +396,9 @@ describe("Price and cost strip", () => {
   });
 
   it("shows Buying and the spending amount when importing", () => {
-    const b = text(hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) })));
+    const b = text(
+      hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) })),
+    );
     expect(b).toContain("Buying");
     expect(squash(b)).toContain(`${formatMoney(72, currency)}/hour`);
     expect(squash(b)).toContain(squash(formatKw(1500)));
@@ -351,14 +412,18 @@ describe("Price and cost strip", () => {
   });
 
   it("names the spending line before its amount when importing", () => {
-    const b = squash(text(hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) }))));
+    const b = squash(
+      text(hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) }))),
+    );
     expect(b).toMatch(/Spending\$0\.72/);
   });
 
   it("colours the Spending label like the amount; Saving and Earning stay muted", () => {
     const labelClass = (html: string, word: string) =>
       new RegExp(`<span class="([^"]*)">${word}</span>`).exec(html)?.[1];
-    const buying = hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) }));
+    const buying = hero(
+      render({ data: withLive({ gridW: 1500, loadW: 2000 }) }),
+    );
     expect(labelClass(buying, "Spending")).toContain("text-grid-import");
     const sample = hero(render());
     expect(labelClass(sample, "Saving")).toBeDefined();
@@ -367,19 +432,33 @@ describe("Price and cost strip", () => {
     expect(labelClass(sample, "Earning")).not.toContain("text-grid-import");
   });
 
-  it("drops the old import text", () => {    expect(t).not.toContain("to import, until");
+  it("drops the old import text", () => {
+    expect(t).not.toContain("to import, until");
   });
 });
 
 describe("Tooltip swatches", () => {
-  const row = { t: Date.parse("2026-07-16T20:00:00Z"), load: 2.1, solar: 3.7, band: [1.8, 2.6] as [number, number] };
+  const row = {
+    t: Date.parse("2026-07-16T20:00:00Z"),
+    load: 2.1,
+    solar: 3.7,
+    band: [1.8, 2.6] as [number, number],
+  };
   const tipHtml = () =>
-    renderToStaticMarkup(<TimelineTooltip active payload={[{ payload: row }]} timezone="America/Los_Angeles" />);
-  const range = (html: string) => /<span\b[^>]*data-swatch="range"[^>]*><\/span>/.exec(html)?.[0];
+    renderToStaticMarkup(
+      <TimelineTooltip
+        active
+        payload={[{ payload: row }]}
+        timezone="America/Los_Angeles"
+      />,
+    );
+  const range = (html: string) =>
+    /<span\b[^>]*data-swatch="range"[^>]*><\/span>/.exec(html)?.[0];
 
   it("uses home, range and solar swatches", () => {
     const tip = tipHtml();
-    for (const k of ["home", "range", "solar"]) expect(tip).toContain(`data-swatch="${k}"`);
+    for (const k of ["home", "range", "solar"])
+      expect(tip).toContain(`data-swatch="${k}"`);
   });
 
   it("matches the legend range swatch markup", () => {
@@ -406,15 +485,26 @@ describe("Tomorrow weather tile", () => {
   });
 
   it("says more when tomorrow has more sun", () => {
-    const rows = sampleDashboard.timeline.map((r, i) => (i >= 24 ? { ...r, solarWh: r.solarWh * 3 } : r));
-    const more = text(tonight(render({ data: { ...sampleDashboard, timeline: rows } })));
+    const rows = sampleDashboard.timeline.map((r, i) =>
+      i >= 24 ? { ...r, solarWh: r.solarWh * 3 } : r,
+    );
+    const more = text(
+      tonight(render({ data: { ...sampleDashboard, timeline: rows } })),
+    );
     expect(more).toContain("more sun than today");
     expect(more).not.toContain("less sun than today");
   });
 
   it("omits the tile when weatherTomorrow is null", () => {
-    const n = text(tonight(render({ data: { ...sampleDashboard, weatherTomorrow: null } })));
-    for (const s of ["Cloudy", "80% cloud cover", "20% chance of rain", "less sun than today"])
+    const n = text(
+      tonight(render({ data: { ...sampleDashboard, weatherTomorrow: null } })),
+    );
+    for (const s of [
+      "Cloudy",
+      "80% cloud cover",
+      "20% chance of rain",
+      "less sun than today",
+    ])
       expect(n).not.toContain(s);
   });
 });
@@ -428,7 +518,13 @@ describe("48 h chart", () => {
   });
 
   it("has the custom legend and caption", () => {
-    for (const s of ["Home use", "Expected range for home use", "Solar", "Peak price hours"]) expect(t).toContain(s);
+    for (const s of [
+      "Home use",
+      "Expected range for home use",
+      "Solar",
+      "Peak price hours",
+    ])
+      expect(t).toContain(s);
     expect(t).toContain(
       "Hours after Now are a forecast. The hatched band shows where home use will most likely land.",
     );
@@ -446,11 +542,13 @@ describe("Cost today credit wording", () => {
   });
 
   it("shows Net cost for a positive net", () => {
-    const data = { ...sampleDashboard, costToday: { ...costToday, netCents: 250 } };
+    const data = {
+      ...sampleDashboard,
+      costToday: { ...costToday, netCents: 250 },
+    };
     const t = text(render({ data }));
     expect(t).toContain("Net cost");
     expect(t).toContain(formatMoney(250, currency));
     expect(t).not.toContain("Credit earned");
   });
 });
-
