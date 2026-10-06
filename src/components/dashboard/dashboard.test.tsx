@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 
 import { sampleDashboard, type DashboardData } from "~/app/(protected)/home/data";
+import { TimelineTooltip } from "~/components/dashboard/charts";
 import { Dashboard } from "~/components/dashboard/dashboard";
 import { formatKw, formatKwh, formatMoney, formatTemp } from "~/lib/format";
 
@@ -290,6 +291,79 @@ describe("Flow diagram cross layout", () => {
     expect(h.slice(h.indexOf('data-node="battery"'))).toContain(`${live.socPct}%`);
     const inside = text(m?.[1] ?? m?.[2] ?? "");
     expect(inside).toContain(`${live.socPct}%`);
+  });
+});
+
+const squash = (s: string) => s.replace(/\s+/g, "");
+
+describe("Flow kW readings", () => {
+  const h = hero(render());
+  const kw = [...h.matchAll(/<text\b[^>]*data-reading="kw"[^>]*>/g)].map((m) => m[0]);
+
+  it("has four kW texts with an identical class", () => {
+    expect(kw).toHaveLength(4);
+    const classes = kw.map((k) => /\sclass="([^"]*)"/.exec(k)?.[1]);
+    expect(classes[0]).toBeTruthy();
+    expect(new Set(classes).size).toBe(1);
+  });
+});
+
+describe("Price and cost strip", () => {
+  const imp = sampleDashboard.tariffNow.importCentsPerKwh;
+  const exp = sampleDashboard.tariffNow.exportCentsPerKwh;
+  const t = text(hero(render()));
+  const q = squash(t);
+
+  it("shows the labelled grid price", () => {
+    expect(t).toContain("Grid price now");
+    expect(q).toContain(squash(`${formatMoney(imp, currency)}/kWh`));
+    expect(t).toMatch(/Peak rate until 9:00\sPM/);
+  });
+
+  it("shows the home cost lines for the sample", () => {
+    expect(t).toContain("Your home now");
+    expect(q).toContain("$0.99/hour");
+    expect(t).toContain("Solar and battery cover");
+    expect(q).toContain(squash(formatKw(live.loadW)));
+    expect(q).toContain("$0.13/hour");
+    expect(t).toContain("Selling");
+    expect(q).toContain(squash(formatKw(live.gridW)));
+    expect(q).toContain(squash(`${formatMoney(exp, currency)}/kWh`));
+  });
+
+  it("hides the spending line when not buying", () => {
+    expect(t).not.toContain("Spending");
+    expect(t).not.toContain("Buying");
+  });
+
+  it("shows Buying and the spending amount when importing", () => {
+    const b = text(hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) })));
+    expect(b).toContain("Buying");
+    expect(squash(b)).toContain(`${formatMoney(72, currency)}/hour`);
+    expect(squash(b)).toContain(squash(formatKw(1500)));
+    expect(b).not.toContain("Selling");
+  });
+
+  it("drops the old import text", () => {
+    expect(t).not.toContain("to import, until");
+  });
+});
+
+describe("Tooltip swatches", () => {
+  const row = { t: Date.parse("2026-07-16T20:00:00Z"), load: 2.1, solar: 3.7, band: [1.8, 2.6] as [number, number] };
+  const tipHtml = () =>
+    renderToStaticMarkup(<TimelineTooltip active payload={[{ payload: row }]} timezone="America/Los_Angeles" />);
+  const range = (html: string) => /<span\b[^>]*data-swatch="range"[^>]*><\/span>/.exec(html)?.[0];
+
+  it("uses home, range and solar swatches", () => {
+    const tip = tipHtml();
+    for (const k of ["home", "range", "solar"]) expect(tip).toContain(`data-swatch="${k}"`);
+  });
+
+  it("matches the legend range swatch markup", () => {
+    const legend = range(render());
+    expect(legend).toBeTruthy();
+    expect(range(tipHtml())).toBe(legend);
   });
 });
 
