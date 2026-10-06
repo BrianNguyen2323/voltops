@@ -8,13 +8,14 @@
 - **M1 results:**
   - merged into `front-end-development`: B002 474e892, B004 6971648, B001 475337a, B003 ff33d4e;
   - gate: vitest 165/165, typecheck, lint clean (raw), build OK; docker smoke PASS 303 MB at B001.
-- **Last action:** B007 impl green → gate; reviewer running.
+- **Last action:** B007 reviewer PASS → merged 6442b61, gate green, all worktrees/branches removed, Review M3 item written.
 - **Next action:**
-  1. B006 tester → implementer → reviewer (screenshots + tooltip hover; `agent-browser close` after);
-  2. merge, gate, clean up;
-  3. M3 Review item;
-  4. then the **optimization round**: cleaner pass + perf/size, plus a TODO item for the PO to run `/improve-codebase-architecture`.
-  - Still open from the PO: "add predev" (dev auto-migrate), the Tomorrow-tile indent nit.
+  - record the PO's M3 review;
+  - if approved: **optimization round**:
+    - `cleaner` over `src/components/dashboard/**`, `src/lib/format.ts` and `src/app/(protected)/home/**`;
+    - a perf/size pass: First Load JS for `/home` from `pnpm build`, and docker smoke for the image size;
+    - a TODO item for the PO to run `/improve-codebase-architecture`;
+  - still open from the PO: "add predev", the Tomorrow-tile indent, the Spending label colour.
 - **Integration branch:** `front-end-development` (Q1 A; the PO merges it into main). Records are committed there.
 - **Open branches / worktrees:** none from this scope. `worktree-agent-a85ac516cb7dc60dd` predates it (db-docker) and is left to the PO. Lint: use `rtk proxy pnpm lint` (the RTK filter prints false errors). Agents stalled 3 times (watchdog): give them bounded commands, and check worktrees for leftover junctions / dev servers on 3100 before re-spawning. Reviewers can leave an agent-browser daemon holding a worktree: run `agent-browser close` before removing it.
 - **Env lessons:** see `team/db-docker/RESUME.md` "Env lessons":
