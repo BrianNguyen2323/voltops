@@ -27,3 +27,7 @@
 - `site_info` non-OK → same;
 - success path → no tariff ID logged, timezone still logged;
 - non-JSON error body → `"unknown"`, no crash.
+
+## Gate log
+- Tests 737afc1 → impl 154c8dd → test lint typing a24ed4f. Reviewer: **PASS**. Merged d4f40ae. Main gate: vitest 39/39, test:scripts 45/45, typecheck, lint 0 errors, build OK.
+- Follow-up (non-blocking): `errorCode()` throws on a JSON body of literal `null` (use `(await res.json().catch(() => null))?.error`). There's no test for the token-exchange failure log.
