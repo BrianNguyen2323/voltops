@@ -10,7 +10,7 @@
 - **Earlier rounds:** round 1 B001–B006 (PR #7, CLOSEOUT.md). Round 2 B007–B009 (M3, merged to main 84b059c).
 - **Last action:** B011 merged 1294ef0 into `optimization-round` (reviewer PASS; gate green after a full node_modules reinstall). B010 tester 742127a committed; blocked on the PO restarting Docker Desktop (crashed, likely C: full).
 - **Next action:** after "docker up": `docker compose -p voltops-smoke down -v`, confirm the size FAIL on `phase1/image-shrink-test` (run it from a fresh worktree or checkout, `SMOKE_PORT=3100`), spawn the B010 implementer → reviewer → merge. Then B012 cleaner, then the Review item.
-- **Open branches / worktrees:** `phase1/image-shrink-test` (worktree `.claude/worktrees/agent-ac27fcd1579ef7f91`, locked by the tester process. Remove its node_modules junction with `cmd //c rmdir` first, then `git worktree unlock` + `remove`).
+- **Open branches / worktrees:** `phase1/image-shrink-test` (its worktree is removed). Docker disk image now on G:.
 - **Env lessons:**
   - agent worktrees have no node_modules, and parallel `pnpm install`s stall. When the branch changes no deps, link main's: `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`. Run `cmd //c rmdir node_modules` (removes only the link) BEFORE `git worktree remove`;
   - lint in a worktree without `.env` needs `SKIP_ENV_VALIDATION=1`. Never copy the PO's `.env` into a worktree;
