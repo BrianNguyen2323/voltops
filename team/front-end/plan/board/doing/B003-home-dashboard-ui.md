@@ -87,3 +87,4 @@
 - **Worktree:** no dep changes, so link main's node_modules (it now has radix-ui/recharts) (`cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`). Run `cmd //c rmdir node_modules` before any `git worktree remove`, and never use `--force`.
 
 ## Gate log
+- Tests f176485 on `phase2a/ui-home-test`: the file FAILS on base (module missing), ~20 tests. Contract: named `Dashboard({data, connected, isSample, showLogout})`; hero = markup between "Right now" and "Tonight"; Idle < 50 W; "~8,640 requests/month". Implementer spawned (skills frontend-design, dataviz, agent-browser).
