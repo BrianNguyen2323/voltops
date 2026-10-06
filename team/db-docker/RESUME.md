@@ -4,7 +4,9 @@
 - **Round 1 (closed):** B001–B006 merged into `main` via PR #7. See `CLOSEOUT.md`.
 - **Round 2 topic:** config + hygiene (Decision round 2 answered: 1A 2A 3A-keep-timezone 4A). SPEC Revision 3, R003.
 - **Integration branch:** `main`.
-- **Last action:** B007 tests at a29aeba (9 check-env tests + smoke a/b/c); B007 implementer spawned. B008 tester and B009 cleaner still running.
+- **Last action:** B007 tests a29aeba → implementer running. B008 tests 737afc1 (5 failing as intended) → implementer running. B009 cleaner done at 3a17910 (test:scripts 46/46); its pnpm install stalled, so the lead is running the full gate in `.claude/worktrees/gate-b009` (detached, node_modules junction to main).
 - **Next action:** when each tester reports, spawn its implementer on the tester's branch. Then a reviewer per brief, then gate + merge `--no-ff` into main, with the full build + docker smoke (`SMOKE_PORT=3100`) on main. Then a TODO Review item for the PO.
-- **Open branches:** `phase1/fail-fast-env-tests`, `phase1/callback-logs-tests`, `phase1/cleanup-batch` (in progress).
+- **Open branches:** `phase1/fail-fast-env-tests` + `-impl`, `phase1/callback-logs-tests` + `-impl`, `phase1/cleanup-batch`.
+- **Env lesson:** agent worktrees have no node_modules, and parallel `pnpm install`s stall. Link main's instead: `cmd //c mklink //J node_modules "D:Programming Projectsoltops
+ode_modules"` (only when the branch changes no deps).
 - **Housekeeping:** the 8 stale local branches are deleted. The PO deletes `origin/database-docker`.
