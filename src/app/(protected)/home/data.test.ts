@@ -32,6 +32,11 @@ describe("sampleDashboard", () => {
     });
   });
 
+  it("updatedAt is 17:00 PDT with 17 actual rows", () => {
+    expect(d.updatedAt).toBe("2026-07-16T00:00:00Z");
+    expect(d.timeline.filter((r) => r.kind === "actual")).toHaveLength(17);
+  });
+
   it("has tariffNow peak in integer cents", () => {
     expect(d.tariffNow.period).toBe("peak");
     expect(d.tariffNow.endsAt).toBe("2026-07-16T04:00:00Z");
@@ -170,7 +175,7 @@ describe("sampleDashboard", () => {
     const cap = d.live.usableCapacityWh;
     const RATE = { "off-peak": 30, "mid-peak": 38, peak: 48 } as const;
     const rows = actuals.map((r, i) => {
-      const next = i + 1 < actuals.length ? actuals[i + 1]!.socPct : d.live.socPct;
+      const next = d.timeline[i + 1]!.socPct;
       const batteryWh = Math.round(((r.socPct - next) / 100) * cap); // > 0 discharge
       return { period: r.period, batteryWh, gridWh: r.loadWh - r.solarWh - batteryWh };
     });
@@ -218,6 +223,58 @@ describe("sampleDashboard", () => {
     });
   });
 
+  describe("battery dispatch over all 48 rows (round 3)", () => {
+    const t = d.timeline;
+    const cap = d.live.usableCapacityWh;
+    const derived = t.slice(0, 47).map((r, i) => {
+      const battery = Math.round(((r.socPct - t[i + 1]!.socPct) / 100) * cap); // > 0 discharge
+      return { r, next: t[i + 1]!.socPct, battery, grid: r.loadWh - r.solarWh - battery };
+    });
+    it("every socPct is within 20..100", () => {
+      for (const r of t) {
+        expect(r.socPct).toBeGreaterThanOrEqual(20);
+        expect(r.socPct).toBeLessThanOrEqual(100);
+      }
+    });
+    it("surplus rows never import or discharge", () => {
+      for (const x of derived.filter((x) => x.r.solarWh > x.r.loadWh)) {
+        expect(x.grid, x.r.hour).toBeLessThanOrEqual(150);
+        expect(x.battery, x.r.hour).toBeLessThanOrEqual(150);
+      }
+    });
+    it("deficit rows with battery above reserve do not import", () => {
+      for (const x of derived.filter((x) => x.r.solarWh <= x.r.loadWh && x.next >= 22)) {
+        expect(x.grid, x.r.hour).toBeLessThanOrEqual(150);
+      }
+    });
+    it("exporting surplus rows have a full or rate-limited battery", () => {
+      for (const x of derived.filter((x) => -x.grid > 150)) {
+        expect(x.next >= 99 || -x.battery >= 4850, x.r.hour).toBe(true);
+      }
+    });
+    it("live battery/grid signs match the last actual row", () => {
+      const k = t.filter((r) => r.kind === "actual").length - 1;
+      const x = derived[k]!;
+      const sign = (v: number) => Math.sign(v);
+      if (Math.abs(x.battery) < 150 && Math.abs(x.grid) < 150) return;
+      expect(sign(d.live.batteryW)).toBe(sign(x.battery));
+      expect(sign(d.live.gridW)).toBe(sign(x.grid));
+    });
+    it("tomorrow is cloudy: day-2 solar <= 70% of day 1", () => {
+      const s = (rows: typeof t) => rows.reduce((a, r) => a + r.solarWh, 0);
+      expect(s(t.slice(24))).toBeLessThanOrEqual(0.7 * s(t.slice(0, 24)));
+    });
+    it("last7Days: prior 6 days are full July days and today is not the biggest", () => {
+      const prior = d.last7Days.slice(0, 6);
+      for (const p of prior) {
+        expect(p.solarWh).toBeGreaterThanOrEqual(44000);
+        expect(p.solarWh).toBeLessThanOrEqual(48000);
+        expect(p.loadWh).toBeGreaterThanOrEqual(24000);
+        expect(p.loadWh).toBeLessThanOrEqual(27000);
+      }
+      expect(d.today.solarWh).toBeLessThanOrEqual(Math.max(...prior.map((p) => p.solarWh)));
+    });
+  });
   it("source files have no UTF-8 BOM", () => {
     for (const f of ["./data.ts", "../../../lib/format.ts"]) {
       expect(readFileSync(new URL(f, import.meta.url))[0]).not.toBe(0xef);
