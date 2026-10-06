@@ -1,3 +1,7 @@
 # Milestones — front-end
 
-(none yet)
+## M1 — Home dashboard v1 on sample data (`/home` renders all 7 sections at 390 px and 1440 px) — SPEC Rev 1
+- B001 Theme tokens → shadcn names, `radix-nova`, Archivo, shadcn components. Tester → implementer.
+- B002 `DashboardData` contract + `sampleDashboard` + `src/lib/format.ts`. Tester → implementer. Runs in parallel with B001; no shared files.
+- B003 Dashboard components + `/home` page + header/logout move. Tester → implementer. Starts after B001 + B002 merge.
+- Then: a PO Review item in TODO.md.
