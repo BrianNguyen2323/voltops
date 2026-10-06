@@ -14,9 +14,10 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 COPY --from=build /app/drizzle ./drizzle
-COPY --from=build /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=build /app/scripts/migrate.mjs /app/scripts/check-env.mjs ./scripts/
+COPY --from=build /app/src/env.schema.js ./src/env.schema.js
 RUN mkdir /data && chown node /data
 USER node
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME=0.0.0.0 DATABASE_PATH=/data/voltops.db
-CMD ["sh","-c","node scripts/migrate.mjs && node server.js"]
+CMD ["sh","-c","node scripts/check-env.mjs && node scripts/migrate.mjs && node server.js"]
