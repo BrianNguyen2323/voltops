@@ -35,3 +35,7 @@ SPEC Rev 4, "Optimization round 1":
 ## Judged by
 - `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` prints PASS with the image ≤ 400 MB (report the number).
 - `pnpm test:scripts`, `pnpm typecheck` and `SKIP_ENV_VALIDATION=1 pnpm lint` are green.
+
+## Gate log
+- Tester 742127a on `phase1/image-shrink-test`: adds the `MAX_IMAGE_MB` gate (default 400) and `timeout 60` on (c); `bash -n` OK. **Not yet shown failing:** Docker Desktop crashed mid-run ("unable to start"). Blocked on the PO restarting Docker (TODO). Then I run `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` on the test branch myself to confirm the FAIL, and spawn the implementer.
+- Note: PowerShell `$env:SMOKE_PORT` does not reach bash; use `SMOKE_PORT=3100 bash ...`.

@@ -149,6 +149,14 @@ What to try:
 - Reply "optimize", "skip", or name what you want next (e.g. CI, monorepo split, `replay` source).
 - Answer: **optimize** (PO, 2026-10-05). The step 3 retry via `/api/auth/tesla` wasn't reported; treated as non-blocking. This round is M4 (SPEC Rev 4, R004), integrated on the PO's `optimization-round` branch.
 
+## USER INPUT REQUIRED — Restart Docker Desktop (B010 is blocked)
+Docker Desktop crashed while the B010 tester was running the smoke build. Every `docker` command now returns `Docker Desktop is unable to start`, and your `voltops-web-1` is down too. I didn't restart it myself, because it's your engine and your container.
+1. Quit Docker Desktop from the tray icon, then start it again. If it still won't start: Troubleshoot (bug icon) → **Restart**, and if that fails, run `wsl --shutdown` in a terminal and start Docker Desktop again.
+2. Check with `docker ps`. `voltops-web-1` should come back by itself (`restart: unless-stopped`); if not, run `docker compose up -d` in the repo.
+3. Tell me "docker up". I clear the leftover smoke resources (`docker compose -p voltops-smoke down -v`, which touches only the smoke project) and re-run the B010 size check.
+- Possible cause: two image builds plus your running container on Docker Desktop's default memory. If it crashes again, I'll suggest raising the memory limit in Settings → Resources.
+- Answer:
+
 ## USER INPUT REQUIRED — Optimization round: run `/improve-codebase-architecture`
 Non-blocking; do it whenever suits you. M4 (B010 image shrink, B011 nits, B012 cleaner) runs meanwhile.
 - In this session, run `/improve-codebase-architecture`. Tell me which of its suggestions you pick (or "none").
