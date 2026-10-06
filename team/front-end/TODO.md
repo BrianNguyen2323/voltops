@@ -253,3 +253,14 @@ Merged into `front-end-development` at d27022d. Gate: 195 app tests + 58 script 
   2. **Chart size: A** (keep as is).
   3. The PO merges into `main` **after** the architecture run.
 
+
+## USER INPUT REQUIRED — Pick an architecture candidate (2026-10-06)
+The report is at `C:\Users\nguye\AppData\Local\Temp\architecture-review-20261006-165151.html`, with full findings in `research/architecture/README.md`.
+1. **Deepen the `DashboardData` seam** (Strong, recommended): one module owns "today vs tomorrow" and every derived total; an invariant suite becomes the middleware team's acceptance test.
+2. **Gather the tariff knowledge into one module** and deepen `costNow` (Strong, but wait for the real tariff shape).
+3. **One site-local time module** with DST tests (Worth exploring, cheap).
+4. **One "what is this flow doing" module** (Worth exploring).
+5. **Name the sample sim as an adapter** (Speculative; do nothing now).
+
+Which would you like to explore? (We then walk through it together and it becomes SPEC Rev 5.)
+- Answer:
