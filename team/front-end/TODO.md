@@ -182,7 +182,7 @@ Merged into `front-end-development` at b891873. Gate: 180 tests, typecheck, lint
   - Not picked: "add predev" (still open), the Tomorrow-tile indent nit.
 
 
-## USER INPUT REQUIRED — Review: M3 (your M2 changes) (2026-10-06)
+## Review: M3 (your M2 changes) — ANSWERED 2026-10-06 (a; see design/revisions/R004.md)
 Merged into `front-end-development` at 6442b61. Gate: 195 tests, typecheck, lint and build all green. No new dependencies.
 
 **How to run it:**
@@ -217,4 +217,5 @@ Merged into `front-end-development` at 6442b61. Gate: 195 tests, typecheck, lint
   - chart table/CSV views;
   - nav + the Plan/Trends screens;
   - a middleware hand-off doc for `DashboardData`/`weatherTomorrow`.
-- Answer:
+- Answer: **a, approved** (PO, 2026-10-06). The PO merges `front-end-development` into `main`. Also requested: **add predev** and make the **"Spending" label pink**. → M4 = these two + the optimization round.
+

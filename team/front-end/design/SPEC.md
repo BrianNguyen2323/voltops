@@ -1,6 +1,6 @@
 # SPEC — Front end: home dashboard (`/home`)
 
-Revision 3
+Revision 4
 
 ## Goal
 `/home` becomes an overview dashboard of the MVP's key features (CLAUDE.md §9: Now, Plan, Trends, Accuracy, Health), fed by **sample data** through one typed contract. Another team will swap the sample data for real queries. It is dark only, built with shadcn (style `radix-nova`), and works at 390 px and 1440 px. Research and design plan: `research/home-dashboard/README.md`.
@@ -18,6 +18,7 @@ Revision 3
 - Q10 solar is #ffb547 and grid export is #8b93ff.
 - Q11 this team owns `DashboardData`.
 - M1 review (R002): the flow diagram becomes an orthogonal cross; Tonight gets a weather tile; the 48 h chart is plain-language with a hatched range band; a negative net cost reads as a credit.
+- M3 review (R004): the "Spending" label word is pink too; `pnpm dev` migrates the DB first (`predev`).
 - M2 review (R003): smaller, matching kW readings in the flow nodes on mobile; a labelled "Grid price now" + "Your home now" (spending/saving/earning per hour) strip replaces the bare Peak badge; the tooltip uses the legend's swatches.
 
 ## Theme (`src/styles/globals.css`)
@@ -130,7 +131,7 @@ Sections, in DOM order. On mobile they stack in this order; desktop follows the 
 | Right now | **Hero, no card frame.** SVG power-flow diagram laid out as an **orthogonal cross** (Rev 2): Solar top, Grid left, Home right, Powerwall bottom, and a hub in the centre. Every flow line is strictly horizontal or vertical; the four arms have equal length and are symmetric about the hub. Each line runs from its node's edge to the hub, with no gap. Each node is one unit: an icon/ring, then its name, kW and state word directly beneath. The **Powerwall node *is* its SoC ring** (the % sits inside the ring). Each node has its kW value; the grid shows "Importing"/"Exporting", the battery "Charging"/"Discharging"/"Idle". The SVG has `role="img"` and an `aria-label` that reads all four flows in words. **Rev 3, mobile:** below `sm` (640 px), the kW reading is one step smaller on the type scale, and it's the **same class on all four nodes**. Each node's content sits inside its box with ≥ 6 units of padding on every side. **Rev 3, below the diagram, replacing the bare Peak badge:** a labelled strip with two items (side by side ≥ `sm`, stacked below):
 - **"Grid price now"**: `formatMoney(importCentsPerKwh)` + "/kWh", then "{Peak / Mid-peak / Off-peak} rate until {endsAt local time}".
 - **"Your home now"**: one line per non-zero item, each with a plain explanation:
-  - **Spending** `formatMoney(round(max(gridW,0) × importRate / 1000))` + "/hour": "Buying {formatKw} from the grid at {importRate}/kWh".
+  - **Spending** (Rev 4: the label word *and* the amount in `text-grid-import`) `formatMoney(round(max(gridW,0) × importRate / 1000))` + "/hour": "Buying {formatKw} from the grid at {importRate}/kWh".
   - **Saving** `formatMoney(round((loadW − max(gridW,0)) × importRate / 1000))` + "/hour": "Solar and battery cover {formatKw} of home use, so you're not buying it at {importRate}/kWh".
   - **Earning** `formatMoney(round(max(−gridW,0) × exportRate / 1000))` + "/hour": "Selling {formatKw} to the grid at {exportRate}/kWh".
   - Pure helper `costNow(live, tariffNow)` → `{ spendingCentsPerHour, savingCentsPerHour, earningCentsPerHour }` (integers). |
@@ -154,6 +155,9 @@ Sections, in DOM order. On mobile they stack in this order; desktop follows the 
 - **Units:** kW for power, kWh for energy, always labelled. All conversion goes through `src/lib/format.ts`.
 - **Accessibility:** visible keyboard focus (`ring`), headings in order (h1 → h2), text contrast ≥ 4.5:1, chart series ≥ 3:1.
 - **Copy:** plain sentence case from the owner's point of view.
+
+## Dev setup (Rev 4)
+- `package.json` `"predev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrate.mjs"`: `pnpm dev` applies Drizzle migrations to `DATABASE_PATH` (default `./data/voltops.db`) first. It loads the same env files Next does, so both use one DB. Docker is unchanged (it already migrates at start).
 
 ## Tests
 - Vitest includes `src/**/*.test.{ts,tsx}`.
