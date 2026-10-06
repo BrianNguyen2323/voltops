@@ -35,3 +35,4 @@ Implementer: `Use skill: frontend-design`. `Use skill: agent-browser` for a 390 
 
 ## Gate log
 - Tests 388b17c on `phase2a/ui-m3b-test`: 3 FAIL for the right reason (negative saving; missing Saving/Earning/Spending labels). The label must sit right before the amount (whitespace-stripped). Implementer spawned.
+- Impl 0a7d81e on `phase2a/ui-m3b-impl`: 195/195, typecheck, lint clean, build OK. A muted label span precedes each strong reading; saving is clamped. The implementer checked text only, not the images. Reviewer spawned (asked to look at the label/amount spacing).
