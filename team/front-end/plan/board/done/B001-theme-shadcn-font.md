@@ -88,3 +88,5 @@
 - Judged by: `SKIP_ENV_VALIDATION=1 pnpm lint` has 0 errors and 0 warnings, and `pnpm test` is green.
 - Then the reviewer runs the full judged-by command, including `SMOKE_PORT=3100 bash scripts/docker-smoke.sh`.
 - Round 2 test fix 4ac42c4 on `phase2a/ui-theme-test2`: tests 104/104, and the 2 owned-file lint errors are fixed. The tester's lint run still showed 1 error + 2 warnings in non-owned files (`next-env.d.ts`, `postcss.config.js`, `prettier.config.js`), cause unknown (worktree vs branch). Reviewer spawned to run the full gate + docker smoke and attribute the lint errors.
+- Reviewer: **PASS**. The lint 'errors' were an RTK output-filter artefact (`rtk proxy pnpm lint` is clean on both base and branch). Merged 475337a into `front-end-development`. Gate there: `pnpm install --offline` (40 s), vitest 143/143, typecheck, lint clean (raw), build OK, docker smoke PASS 303 MB.
+- Nits: `chart.tsx` file-wide eslint-disable (vendored; could be narrowed). The type scale / 15 px mobile body / tabular-nums from SPEC 'Type' are not in B001 → B003.
