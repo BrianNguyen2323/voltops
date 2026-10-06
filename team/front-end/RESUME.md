@@ -14,7 +14,7 @@
   - the optimization round is due after M3 (3 milestones).
   - open nits: in the B003 and B004 gate logs (done/).
 - **Integration branch:** `front-end-development` (Q1 A; the PO merges it into main). Records are committed there.
-- **Open branches / worktrees:** none from this scope. `worktree-agent-a85ac516cb7dc60dd` predates it (db-docker) and is left to the PO. Lint: use `rtk proxy pnpm lint` (the RTK filter prints false errors). Agents stalled 3 times (watchdog): give them bounded commands, and check worktrees for leftover junctions / dev servers on 3100 before re-spawning.
+- **Open branches / worktrees:** none from this scope. `worktree-agent-a85ac516cb7dc60dd` predates it (db-docker) and is left to the PO. Lint: use `rtk proxy pnpm lint` (the RTK filter prints false errors). Agents stalled 3 times (watchdog): give them bounded commands, and check worktrees for leftover junctions / dev servers on 3100 before re-spawning. Reviewers can leave an agent-browser daemon holding a worktree: run `agent-browser close` before removing it.
 - **Env lessons:** see `team/db-docker/RESUME.md` "Env lessons":
   - node_modules junctions in worktrees: never `git worktree remove --force` while one exists;
   - `SKIP_ENV_VALIDATION=1` for lint/build;

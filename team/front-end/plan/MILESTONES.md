@@ -7,6 +7,6 @@
 - B003 Dashboard components + `/home` page + header/logout move. Tester → implementer. Starts after B001 + B002 merge.
 - Then: a PO Review item in TODO.md.
 
-## M2 — M1 review fixes (cross flow diagram, weather tile, readable chart, credit wording) — SPEC Rev 2
+## M2 — M1 review fixes (cross flow diagram, weather tile, readable chart, credit wording) — SPEC Rev 2 — DONE 2026-10-06 (b891873 on `front-end-development`)
 - B005 Contract (`weatherTomorrow`, `temperatureUnit`, `formatTemp`) + dashboard changes. Tester → implementer → reviewer with screenshots.
 - Then: a PO Review item in TODO.md.
