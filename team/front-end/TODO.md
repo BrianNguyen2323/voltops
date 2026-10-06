@@ -219,3 +219,33 @@ Merged into `front-end-development` at 6442b61. Gate: 195 tests, typecheck, lint
   - a middleware hand-off doc for `DashboardData`/`weatherTomorrow`.
 - Answer: **a, approved** (PO, 2026-10-06). The PO merges `front-end-development` into `main`. Also requested: **add predev** and make the **"Spending" label pink**. → M4 = these two + the optimization round.
 
+
+## USER INPUT REQUIRED — Review: M4 (your M3 asks + optimization round 1) (2026-10-06)
+Merged into `front-end-development` at d27022d. Gate: 195 app tests + 58 script tests, typecheck, lint and build all green. Nothing is in `main` yet; you merge it.
+
+**Done**
+- **"Spending" is pink:** the label word too, not just the amount. "Saving" and "Earning" stay grey.
+- **`pnpm dev` sets up the database first** (`predev`). It reads the same `.env`/`.env.local` as the app. It's safe to run again, and it never touches anything else.
+- **Cleaner pass:**
+  - consistent formatting over the dashboard code, and the garbled test line fixed;
+  - the unused shadcn `separator` component removed (SPEC updated);
+  - no behaviour change (the reviewer diffed every file against pure formatter output).
+- **Sizes** (`research/optimization/README.md`):
+  - Docker image 304 MB (400 MB cap);
+  - `/home` loads 320 kB of JavaScript, against 103 kB for login. About 217 kB of that is the chart library (Recharts).
+
+**Your three steps**
+1. **Run `/improve-codebase-architecture` in this session.** Tell me which suggestion you pick; it becomes SPEC Rev 5.
+
+   Small things the reviewers noticed, which it may also surface:
+   - a few needless `export`s;
+   - unused colour tokens;
+   - the hour/time formatters could share one helper.
+2. **Chart size: pick one.**
+   - **A.** Keep as is (recommended for now). Plan/Trends will reuse the same chart code anyway.
+   - **B.** Load the charts after the rest of the page. A few lines; first paint gets lighter; the charts appear a moment later.
+   - **C.** Hand-draw the charts and drop Recharts. Smallest page, but more code to maintain.
+3. **Merge** `front-end-development` into `main` when you're happy.
+
+- Still open from before: the Tomorrow-tile indent nit.
+- Answer:

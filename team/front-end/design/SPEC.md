@@ -55,7 +55,7 @@ shadcn Tailwind v4 layout: raw vars on `:root` (the app is always `.dark`, so on
 
 ## shadcn
 - `components.json` style `radix-nova`. Keep the aliases and hugeicons.
-- Components: `button`, `card`, `badge`, `chart`, `separator`. Add others only if a section needs them.
+- Components: `button`, `card`, `badge`, `chart` (`separator` was removed as unused in B009, Rev 4). Add others only if a section needs them.
 - Allowed new deps: `radix-ui`, `recharts`, plus whatever the shadcn CLI requires for these components (e.g. `tw-animate-css`, `shadcn` for its CSS import). List each one in the handoff.
 
 ## Data contract: `src/app/(protected)/home/data.ts`
