@@ -77,7 +77,7 @@ describe("globals.css tokens", () => {
 
 describe("shadcn setup", () => {
   it("components.json style is radix-nova", () => {
-    expect(JSON.parse(read("components.json")).style).toBe("radix-nova");
+    expect((JSON.parse(read("components.json")) as { style: string }).style).toBe("radix-nova");
   });
 
   for (const c of ["button", "card", "badge", "chart", "separator"]) {
