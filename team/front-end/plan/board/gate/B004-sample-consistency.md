@@ -86,3 +86,4 @@ The test re-computes the per-row model above independently and checks:
 
 Same command as round 1.
 - Round 2 tests c7d3e6d on `phase2a/ui-sample-test2`: 6 new FAIL for the right reason (21 pass). Tolerance is max(100 Wh, 3%); per-period cost is checked ±1 c. Round-2 implementer spawned.
+- Round 2 impl 1d75bb6 on `phase2a/ui-sample-impl2`: 73/73 (data 27/27), typecheck, lint clean. SoC runs 55→20% overnight, 92% at 16:00, live 93; all totals derived in code. Reviewer spawned.
