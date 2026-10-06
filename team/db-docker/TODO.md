@@ -135,7 +135,9 @@ What to try:
 3. **Logs:** log in, click **Connect Tesla**, finish the Tesla login, then `docker compose logs web | findstr "Tesla OAuth"`. You should see "Energy site: found" + "Timezone: …". There should be no tariff line and no JSON bodies.
 4. **Optional port:** put `VOLTOPS_PORT=3001` in `.env` and recreate. The app moves to http://localhost:3001. Only do this if you also change `TESLA_REDIRECT_URI` and the Tesla portal entry, so normally leave it unset.
 5. Also gone: `src/app/page_extras.tsx` and the Supabase registry. `pnpm verify:tesla` now errors on a wrong `DATABASE_PATH` instead of creating an empty DB.
-- Result:
+- Result (partial, PO 2026-10-05): step 3 printed nothing.
+  - Lead diagnosis: not a bug. The container was created 19:03 PDT and is healthy, and its log has only startup lines. The last Tesla connect in the DB was 14:44 PDT, so Connect Tesla hasn't run on this container. `docker compose logs` shows only the current container, so step 2's `--force-recreate` started a fresh log.
+  - PO to redo step 3: Connect Tesla first, then `docker compose logs web | findstr /C:"Tesla OAuth"`.
 
 **Next (my recommendation, answer with your review):** M1–M3 are 3 milestones, so the team process calls for an **optimization round**:
 - a `cleaner` pass;
