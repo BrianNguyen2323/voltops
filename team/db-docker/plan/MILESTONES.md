@@ -13,7 +13,7 @@
 - B008 Callback log redaction. Tester → implementer. Parallel with B007.
 - B009 Cleanup batch (cleaner). Parallel with B007/B008; no shared files.
 
-## M4 — Optimization round 1 (image ≤ 400 MB; nits closed; cleaner pass) — SPEC Rev 4
+## M4 — Optimization round 1 (image ≤ 400 MB; nits closed; cleaner pass) — SPEC Rev 4 — DONE 2026-10-06 (4d263ca on `optimization-round`)
 - B010 Image shrink + smoke size gate. Tester → implementer.
 - B011 Gate-log nits (check-env messages + argv guard, `errorCode` null, test gaps). Tester → implementer. Parallel with B010; no shared files.
 - B012 Cleaner pass over `src/` + `scripts/`. Starts after B010 + B011 merge.

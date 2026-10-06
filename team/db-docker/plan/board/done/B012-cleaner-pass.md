@@ -27,3 +27,8 @@ Off limits: `drizzle/` (applied migrations), `fixtures/`, `team/`, `docs/adr/`, 
 - Worktree:
   - if deps are unchanged, link main's node_modules (`cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`);
   - never copy the PO's `.env`.
+
+## Gate log
+- Cleaner 8f01cf1: removed `src/server/api/routers/post.ts` (+ its `root.ts` import), `createHydrationHelpers`/`HydrateClient` in `src/trpc/server.ts` (unused), deps `shadcn`, `radix-ui`, `tw-animate-css` (no references anywhere; lockfile −284 entries, removals only). Reviewer: **PASS**. Merged 4d263ca into `optimization-round`.
+- Gate there: install synced, test:scripts 56/56, typecheck, lint 0 warnings, build OK, smoke PASS 303 MB. vitest 39/41 under load (the worktree deletion ran in parallel), then 41/41 twice in a clean re-run: the known flake (CLOSEOUT item 3), now seen 3 times.
+- Nits (non-blocking): `src/trpc/server.ts` is now entirely unused (could be deleted with `server-only`); the tRPC `appRouter` is empty and `protectedProcedure` unused; `components.json` still names radix/hugeicons aliases (inert).
