@@ -1,16 +1,25 @@
+import { CloudAngledRainIcon, CloudIcon, Sun03Icon, SunCloud01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+
 import type { DashboardData, TouPeriod } from "~/app/(protected)/home/data";
 import { logoutAction } from "~/app/login/actions";
 import { Badge } from "~/components/ui/badge";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
-import { formatKwh, formatMoney } from "~/lib/format";
+import { formatKwh, formatMoney, formatTemp } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { TimelineChart, WeekChart } from "./charts";
 import { FlowDiagram } from "./flow-diagram";
 
 const PERIOD: Record<TouPeriod, string> = { "off-peak": "Off-peak", "mid-peak": "Mid-peak", peak: "Peak" };
-const SOURCE = { "fleet-api": "Tesla Fleet API", "local-gateway": "Local gateway", replay: "Replay data" };
+const WEATHER = {
+  clear: { label: "Sunny", icon: Sun03Icon },
+  "partly-cloudy": { label: "Partly cloudy", icon: SunCloud01Icon },
+  cloudy: { label: "Cloudy", icon: CloudIcon },
+  rain: { label: "Rain", icon: CloudAngledRainIcon },
+};
+const SOURCE ={ "fleet-api": "Tesla Fleet API", "local-gateway": "Local gateway", replay: "Replay data" };
 
 const clock = (iso: string, tz: string) =>
   new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz }).format(Date.parse(iso));
@@ -43,6 +52,10 @@ export function Dashboard({
 }) {
   const { site, live, tariffNow, recommendation: rec, today, costToday, currency, health } = data;
   const tz = site.timezone;
+  const weather = data.weatherTomorrow;
+  const solarSum = (a: number, b: number) => data.timeline.slice(a, b).reduce((s, r) => s + r.solarWh, 0);
+  const day2 = solarSum(24, 48);
+  const pct = Math.round((1 - day2 / solarSum(0, 24)) * 100); // negative = more sun tomorrow
   const money = (c: number) => formatMoney(c, currency);
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
@@ -104,6 +117,27 @@ export function Dashboard({
               ) : (
                 <p>No changes needed tonight.</p>
               )}
+              {weather && (
+                <div className="bg-muted flex flex-col gap-3 rounded-md p-4">
+                  <div className="flex items-center gap-3">
+                    <HugeiconsIcon icon={WEATHER[weather.condition].icon} size={32} className="text-solar shrink-0" />
+                    <div>
+                      <h3 className="font-semibold">Tomorrow</h3>
+                      <p className="text-muted-foreground text-sm">
+                        {WEATHER[weather.condition].label}, {formatTemp(weather.highC, site.temperatureUnit)} high,{" "}
+                        {formatTemp(weather.lowC, site.temperatureUnit)} low
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    {weather.cloudCoverPct}% cloud cover, {weather.precipitationChancePct}% chance of rain
+                  </p>
+                  <p>
+                    Expect <span className="reading text-solar">{formatKwh(day2)}</span> of solar,{" "}
+                    {Math.abs(pct)}% {pct >= 0 ? "less" : "more"} sun than today.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </section>
@@ -137,8 +171,10 @@ export function Dashboard({
             ))}
             <Row label="Export credit" value={money(costToday.exportCreditCents)} />
           </dl>
-          <p className="reading mt-3 text-4xl">{money(costToday.netCents)}</p>
-          <p className="text-muted-foreground text-sm">net so far today</p>
+          <p className="reading mt-3 text-4xl">{money(Math.abs(costToday.netCents))}</p>
+          <p className="text-muted-foreground text-sm">
+            {costToday.netCents < 0 ? "Credit earned" : "Net cost"} so far today
+          </p>
         </section>
 
         <section>
