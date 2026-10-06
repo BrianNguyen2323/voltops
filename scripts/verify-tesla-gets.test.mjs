@@ -164,7 +164,7 @@ function setup(over = {}) {
     encryptionKey: KEY,
     now: NOW,
     log: (m) => logs.push(String(m)),
-    loadToken: async () => ({ userId: "u1", encryptedRefreshToken: old.ciphertext, iv: old.iv }),
+    loadToken: async () => ({ encryptedRefreshToken: old.ciphertext, iv: old.iv }),
     saveToken: async (t) => { events.push("save"); saved.push(t); },
     writeFixture: async (name, data) => { written[name] = data; },
   };
@@ -191,7 +191,6 @@ test("run: saves rotated encrypted token before the first Fleet request", async 
   await run(s.deps);
   assert.deepEqual(s.events.slice(0, 3), ["refresh", "save", "fleet"]);
   const t = s.saved[0];
-  assert.equal(t.userId, "u1");
   assert.equal(decrypt(t.encryptedRefreshToken, t.iv, KEY), NEW_RT);
   assert.equal(t.accessTokenExpiresAt.getTime(), NOW.getTime() + 28800 * 1000);
 });
