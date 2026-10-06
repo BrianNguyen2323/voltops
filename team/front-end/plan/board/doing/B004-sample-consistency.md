@@ -125,7 +125,7 @@ Same command as round 1.
 - Update the pins: `updatedAt` = `2026-07-16T00:00:00Z`; actual rows = 17. Remove the `batteryW < 0 && gridW < 0` pin and the "live socPct within 3 of the last actual row" check. Instead, `live.socPct` === the first forecast row's `socPct`.
 - **Dispatch rules, for every row i < 47** (battery_i and grid_i derived from the SoC delta as in round 2; tolerance 150 Wh for SoC rounding):
   - surplus row (solar > load): `grid_i ≤ 150` and `battery_i ≤ 150`;
-  - deficit row with `soc_i ≥ 25`: `grid_i ≤ 150` (the battery covers it);
+  - deficit row where the battery stays above the reserve (`soc_{i+1} ≥ 22`): `grid_i ≤ 150` (the battery covers it);
   - surplus row that exports (`−grid_i > 150`): `soc_{i+1} ≥ 99` or `−battery_i ≥ 4850`;
   - every `socPct` is within 20–100.
 - **Live:** the signs of `batteryW` and `gridW` match the last actual row's derived battery/grid (or both are |·| < 150).
