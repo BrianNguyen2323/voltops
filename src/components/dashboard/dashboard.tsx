@@ -61,16 +61,16 @@ export function Dashboard({
   const imp = tariffNow.importCentsPerKwh;
   const cost = costNow(live, tariffNow);
   const bought = Math.max(live.gridW, 0);
-  // Only non-zero items: [cents per hour, plain explanation, colour].
-  const homeCost: Array<[number, string, string]> = [
+  // Only non-zero items: [label, cents per hour, plain explanation, colour].
+  const homeCost: Array<[string, number, string, string]> = [
     ...(cost.spendingCentsPerHour
-      ? [[cost.spendingCentsPerHour, `Buying ${formatKw(live.gridW)} from the grid at ${money(imp)}/kWh`, "text-grid-import"] as [number, string, string]]
+      ? [["Spending", cost.spendingCentsPerHour, `Buying ${formatKw(live.gridW)} from the grid at ${money(imp)}/kWh`, "text-grid-import"] as [string, number, string, string]]
       : []),
     ...(cost.savingCentsPerHour
-      ? [[cost.savingCentsPerHour, `Solar and battery cover ${formatKw(live.loadW - bought)} of home use, so you're not buying it at ${money(imp)}/kWh`, ""] as [number, string, string]]
+      ? [["Saving", cost.savingCentsPerHour, `Solar and battery cover ${formatKw(live.loadW - bought)} of home use, so you're not buying it at ${money(imp)}/kWh`, ""] as [string, number, string, string]]
       : []),
     ...(cost.earningCentsPerHour
-      ? [[cost.earningCentsPerHour, `Selling ${formatKw(live.gridW)} to the grid at ${money(tariffNow.exportCentsPerKwh)}/kWh`, ""] as [number, string, string]]
+      ? [["Earning", cost.earningCentsPerHour, `Selling ${formatKw(live.gridW)} to the grid at ${money(tariffNow.exportCentsPerKwh)}/kWh`, ""] as [string, number, string, string]]
       : []),
   ];
   return (
@@ -115,8 +115,9 @@ export function Dashboard({
             <div>
               <h3 className="text-muted-foreground text-sm font-medium">Your home now</h3>
               <ul className="mt-1 flex flex-col gap-2">
-                {homeCost.map(([amount, text, tone]) => (
+                {homeCost.map(([label, amount, text, tone]) => (
                   <li key={text}>
+                    <span className="text-muted-foreground mr-1.5 text-sm font-medium">{label}</span>
                     <span className={cn("reading text-lg", tone)}>{money(amount)}</span>
                     <span className="text-muted-foreground">/hour</span>
                     <p className="text-muted-foreground text-sm">{text}</p>
