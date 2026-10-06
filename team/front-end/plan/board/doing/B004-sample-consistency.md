@@ -41,3 +41,4 @@
 
 ## Gate log
 - Tester attempt 1 stalled (watchdog, no output, no worktree left). Re-spawned 2026-10-06.
+- Tests f677711 on `phase2a/ui-sample-test`: 5 FAIL on base for the right reason (mid-peak, the today sums, socPct, BOM). 2 checks pass on base by chance (live solarW, battery net vs SoC) and stay as guards. Implementer spawned.
