@@ -1,4 +1,4 @@
-﻿import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { sampleDashboard, type DashboardData } from "~/app/(protected)/home/data";
@@ -106,7 +106,7 @@ describe("Right now hero", () => {
   it("shows grid kW with a direction word and no minus signs", () => {
     expect(t).toContain(formatKw(live.gridW));
     expect(t).toMatch(live.gridW < 0 ? /\bExporting\b/ : /\bImporting\b/);
-    expect(t).not.toMatch(/[-âˆ’]\s?\d/);
+    expect(t).not.toMatch(/[-−]\s?\d/);
   });
 
   it("shows Idle for a battery under 50 W (the sample)", () => {
@@ -120,7 +120,7 @@ describe("Right now hero", () => {
     expect(charging).toMatch(/\bCharging\b/);
     expect(charging).not.toMatch(/\bIdle\b/);
     expect(charging).toContain(formatKw(1500));
-    expect(charging).not.toMatch(/[-âˆ’]\s?\d/);
+    expect(charging).not.toMatch(/[-−]\s?\d/);
 
     const discharging = text(hero(render({ data: withLive({ batteryW: 1500 }) })));
     expect(discharging).toMatch(/\bDischarging\b/);
@@ -355,8 +355,19 @@ describe("Price and cost strip", () => {
     expect(b).toMatch(/Spending\$0\.72/);
   });
 
-  it("drops the old import text", () => {
-    expect(t).not.toContain("to import, until");
+  it("colours the Spending label like the amount; Saving and Earning stay muted", () => {
+    const labelClass = (html: string, word: string) =>
+      new RegExp(`<span class="([^"]*)">${word}</span>`).exec(html)?.[1];
+    const buying = hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) }));
+    expect(labelClass(buying, "Spending")).toContain("text-grid-import");
+    const sample = hero(render());
+    expect(labelClass(sample, "Saving")).toBeDefined();
+    expect(labelClass(sample, "Saving")).not.toContain("text-grid-import");
+    expect(labelClass(sample, "Earning")).toBeDefined();
+    expect(labelClass(sample, "Earning")).not.toContain("text-grid-import");
+  });
+
+  it("drops the old import text", () => {    expect(t).not.toContain("to import, until");
   });
 });
 
