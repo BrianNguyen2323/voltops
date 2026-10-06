@@ -1,7 +1,7 @@
 // Contract for the /home dashboard. Canonical units (CLAUDE.md section 5): W, Wh, integer cents, ISO-8601 UTC.
 export type TouPeriod = "off-peak" | "mid-peak" | "peak";
 export type DashboardData = {
-  site: { name: string; timezone: string };
+  site: { name: string; timezone: string; temperatureUnit: "F" | "C" };
   source: "fleet-api" | "local-gateway" | "replay";
   updatedAt: string;
   currency: string;
@@ -69,6 +69,15 @@ export type DashboardData = {
     lastPollAt: string;
     estRequestsPerMonth: number;
     warnings: string[];
+  };
+  // Filled by the weather API later; null hides the tile.
+  weatherTomorrow: null | {
+    date: string; // YYYY-MM-DD, site-local
+    condition: "clear" | "partly-cloudy" | "cloudy" | "rain";
+    highC: number;
+    lowC: number;
+    cloudCoverPct: number;
+    precipitationChancePct: number;
   };
 };
 
@@ -174,7 +183,7 @@ const periods: DashboardData["costToday"]["periods"] = PERIOD_ORDER.filter(
 });
 const exportCreditCents = Math.round((gridExportWh * EXPORT_RATE) / 1000);
 export const sampleDashboard: DashboardData = {
-  site: { name: "Home", timezone: "America/Los_Angeles" },
+  site: { name: "Home", timezone: "America/Los_Angeles", temperatureUnit: "F" },
   source: "fleet-api",
   updatedAt: UPDATED_AT,
   currency: "USD",
@@ -249,4 +258,12 @@ export const sampleDashboard: DashboardData = {
     },
   ],
   health: { lastPollAt: UPDATED_AT, estRequestsPerMonth: 8640, warnings: [] },
+  weatherTomorrow: {
+    date: "2026-07-16",
+    condition: "cloudy",
+    highC: 24,
+    lowC: 16,
+    cloudCoverPct: 80,
+    precipitationChancePct: 20,
+  },
 };
