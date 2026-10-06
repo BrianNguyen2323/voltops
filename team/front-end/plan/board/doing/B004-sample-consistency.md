@@ -85,3 +85,4 @@ The test re-computes the per-row model above independently and checks:
 - the `last7Days` last entry equals `today` (solar and load), with date `2026-07-15`.
 
 Same command as round 1.
+- Round 2 tests c7d3e6d on `phase2a/ui-sample-test2`: 6 new FAIL for the right reason (21 pass). Tolerance is max(100 Wh, 3%); per-period cost is checked ±1 c. Round-2 implementer spawned.
