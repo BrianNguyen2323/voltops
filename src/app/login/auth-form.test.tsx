@@ -9,7 +9,7 @@ describe("AuthForm", () => {
     createElement(AuthForm, {
       title: "Sign in",
       hint: "a hint",
-      action: async () => {},
+      action: async () => undefined,
     }),
   );
 
