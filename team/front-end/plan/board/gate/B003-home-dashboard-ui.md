@@ -93,3 +93,4 @@
   - Deviations: hub-based flow diagram (not the corner wireframe); `Dashboard` imports `logoutAction`. The 390 px shot covered only the viewport and scroll width wasn't measured, so the reviewer checks both.
   - Reviewer spawned.
 - Reviewer attempt 1 **stalled** (watchdog, no verdict) during the PO pause. Re-spawn on "continue" after checking the worktree for a leftover junction / dev server on 3100.
+- Resumed (PO "continue"): stopped the stalled reviewer's dev server on 3100 (PID 50712, next start-server) and removed its junction. Reviewer attempt 2 spawned.

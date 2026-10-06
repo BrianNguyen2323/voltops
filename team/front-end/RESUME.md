@@ -4,11 +4,11 @@
   - Keep the existing colour theme. Use shadcn where it applies.
   - Use skill `frontend-design` in planning **and** in implementation (put `Use skill: frontend-design` in every UI brief; add `dataviz` for chart briefs).
   - Another team builds the middleware that feeds real data.
-- **Status: PAUSED by the PO (2026-10-06).** Resume on "continue".
+- **Status:** resumed after the PO pause.
 - **M1 progress:**
   - B001, B002 and B004 are done and merged into `front-end-development` (475337a; gate green, docker smoke PASS 303 MB);
   - B003 (dashboard UI) is in **gate**: impl cea2eb6 on `phase2a/ui-home-impl` (tests f176485), green per the implementer.
-- **Last action:** the B003 reviewer stalled (watchdog) with no verdict during the pause. No agents are running.
+- **Last action:** resumed; cleaned the B003 worktree (dev server + junction); B003 reviewer attempt 2 running.
 - **Next action on "continue":**
   1. If the B003 reviewer's verdict arrived, record it in `plan/board/gate/B003-home-dashboard-ui.md`. If not, check the worktree `.claude/worktrees/agent-ab69824e2037de5aa` first:
      - a leftover `node_modules` junction → `cmd //c rmdir node_modules`;
