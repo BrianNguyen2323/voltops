@@ -154,7 +154,7 @@ Docker Desktop crashed while the B010 tester was running the smoke build. Every 
 1. Quit Docker Desktop from the tray icon, then start it again. If it still won't start: Troubleshoot (bug icon) → **Restart**, and if that fails, run `wsl --shutdown` in a terminal and start Docker Desktop again.
 2. Check with `docker ps`. `voltops-web-1` should come back by itself (`restart: unless-stopped`); if not, run `docker compose up -d` in the repo.
 3. Tell me "docker up". I clear the leftover smoke resources (`docker compose -p voltops-smoke down -v`, which touches only the smoke project) and re-run the B010 size check.
-- Possible cause: two image builds plus your running container on Docker Desktop's default memory. If it crashes again, I'll suggest raising the memory limit in Settings → Resources.
+- **Likely cause: your C: drive filled up.** A member saw C: at 100% (0 bytes free) at about the time of the crash. It's back to 16 GB free (93% used), probably because the crashed build released space. Docker Desktop keeps its disk image and build cache on C:. Before restarting, consider freeing space on C:, or after it's up run `docker builder prune` (frees only build cache, not your volume). Optional: Settings → Resources → Advanced → move the disk image location to D:.
 - Answer:
 
 ## USER INPUT REQUIRED — Optimization round: run `/improve-codebase-architecture`
