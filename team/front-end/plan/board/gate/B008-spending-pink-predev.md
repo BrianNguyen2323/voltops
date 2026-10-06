@@ -36,3 +36,4 @@
 
 ## Gate log
 - Tests 539fe4c on `phase2a/ui-m4-test`: 2 FAIL for the right reason (the Spending label class; `scripts.predev`). The migrate-run guard passes on base (expected). Implementer spawned.
+- Impl c545ef3 on `phase2a/ui-m4-impl`: vitest 196/196, test:scripts 58/58, typecheck, lint clean, build OK. Reviewer spawned.

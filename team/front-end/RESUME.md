@@ -8,7 +8,7 @@
 - **M1 results:**
   - merged into `front-end-development`: B002 474e892, B004 6971648, B001 475337a, B003 ff33d4e;
   - gate: vitest 165/165, typecheck, lint clean (raw), build OK; docker smoke PASS 303 MB at B001.
-- **Last action:** recorded the M3 approval, SPEC Rev 4, R004, M4 and the B008 brief; B008 tester spawned; perf/size baseline running.
+- **Last action:** B008 impl green → gate; reviewer running. Docker smoke (size baseline) running in the background. Baseline: /home 217 kB route, 320 kB First Load JS (shared 102 kB).
 - **Next action:**
   1. B008 tester → implementer → reviewer → merge;
   2. B009 cleaner brief (after B008 merges);
