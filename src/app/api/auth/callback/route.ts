@@ -8,6 +8,12 @@ import { credentials, sites, tariffSchedule } from "~/server/db/schema";
 
 const FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
+// Log only Tesla's error code, never the raw body.
+async function errorCode(res: Response): Promise<string> {
+  const { error } = (await res.json().catch(() => ({}))) as { error?: unknown };
+  return typeof error === "string" ? error : "unknown";
+}
+
 export async function GET(request: NextRequest) {
   const denied = await requireAdminApi();
   if (denied) return denied;
@@ -64,15 +70,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    // Log only status + Tesla's error code, never the raw body.
-    const { error: code } = (await tokenRes.json().catch(() => ({}))) as {
-      error?: unknown;
-    };
-    console.error(
-      "[Tesla OAuth] Token exchange failed:",
-      tokenRes.status,
-      typeof code === "string" ? code : "unknown",
-    );
+    console.error("[Tesla OAuth] Token exchange failed:", tokenRes.status, await errorCode(tokenRes));
     loginUrl.searchParams.set("error", "token_exchange_failed");
     return NextResponse.redirect(loginUrl);
   }
@@ -122,16 +120,15 @@ export async function GET(request: NextRequest) {
       if (infoRes.ok) {
         siteInfo = ((await infoRes.json()) as SiteInfoResponse).response;
       } else {
-        console.warn("[Tesla OAuth] Could not fetch site_info:", await infoRes.text());
+        console.warn("[Tesla OAuth] Could not fetch site_info:", infoRes.status, await errorCode(infoRes));
       }
     }
   } else {
-    console.warn("[Tesla OAuth] Could not fetch products:", await productsRes.text());
+    console.warn("[Tesla OAuth] Could not fetch products:", productsRes.status, await errorCode(productsRes));
   }
 
   console.log("[Tesla OAuth] Energy site:", teslaEnergySiteId ? "found" : "none found");
   console.log("[Tesla OAuth] Timezone:", siteInfo?.installation_time_zone ?? "none");
-  console.log("[Tesla OAuth] Tariff:", siteInfo?.tariff_id ?? "none");
 
   // --- Upsert site (keyed on Tesla's site ID so re-logins stay idempotent) ---
 
