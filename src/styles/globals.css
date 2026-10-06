@@ -66,6 +66,12 @@
   --color-grid-import: var(--chart-4);
   --color-grid-export: var(--chart-5);
 
+  /* type scale, ratio 1.25: 12 14 16 20 25 31 39 49 */
+  --text-2xl: 25px;
+  --text-3xl: 31px;
+  --text-4xl: 39px;
+  --text-5xl: 49px;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -82,5 +88,28 @@
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
+  }
+}
+
+body {
+  font-size: 15px;
+}
+@media (min-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+/* live readings: meter-style numerals */
+@utility reading {
+  font-stretch: 112.5%;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the page's only ambient motion: energy moving along a flow line (applied under motion-safe) */
+@keyframes flow {
+  to {
+    stroke-dashoffset: -14;
   }
 }
