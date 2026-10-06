@@ -15,4 +15,7 @@ CLOSEOUT item 6, spec Rev 3 "Cleanup". No behaviour change, except item 5.
 `main` → branch `phase1/cleanup-batch`.
 
 ## Judged by
-`rm -rf .next && pnpm test && pnpm test:scripts && pnpm typecheck && pnpm lint && SKIP_ENV_VALIDATION=1 pnpm build`, all green, and `pnpm lint` reports 0 warnings.
+`rm -rf .next && pnpm test && pnpm test:scripts && pnpm typecheck && pnpm lint && SKIP_ENV_VALIDATION=1 pnpm build`, all green, and `pnpm lint` has 0 errors and no new warnings. (Correction 2026-10-05: `postcss.config.js` + `prettier.config.js` already had an `import/no-anonymous-default-export` warning each on main, so "0 warnings" was wrong.)
+
+## Gate log
+- 3a17910: test:scripts 46/46, vitest 34/34 (on re-run; the first run hit load timeouts), typecheck OK. **Lint error:** `drizzle.config.ts:7` `@typescript-eslint/prefer-nullish-coalescing` on the new `||`. Fix: the same justified disable comment as `src/server/db/index.ts:23`.
