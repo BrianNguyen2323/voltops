@@ -81,3 +81,39 @@ Answer in chat or here, e.g. "all recommended" or "Q3 B, rest recommended".
 - **A (recommended):** this team defines the `DashboardData` TypeScript type in W/Wh, with CLAUDE.md §5 signs, next to the page. The middleware team fills it.
 - B: the middleware team owns the type, and we wait for theirs. That blocks this scope.
 - Answer: **A** (PO, 2026-10-06).
+
+## USER INPUT REQUIRED — Review: M1 home dashboard on sample data (2026-10-06)
+Everything is merged into `front-end-development` at ff33d4e. The gate is green: 165 tests, typecheck, lint and build. The Docker smoke test passed at B001 (303 MB). Nothing is merged into `main` yet; you merge `front-end-development` into `main` after this review.
+
+**How to run it**
+- `pnpm install` (adds `radix-ui`, `recharts` and `tw-animate-css`; already done in your checkout), then `pnpm dev`, then open http://localhost:3000/home and log in.
+- Or Docker: `docker compose up --build`.
+- To check phone width, use browser devtools at 390 px.
+- The reviewer's screenshots are in `data/shots/review-390.png` and `data/shots/review-1440.png` (gitignored). They show the red "auth disabled" banner only because the reviewer ran with `AUTH_DISABLED=true`.
+
+**What to look at**
+1. **Hero ("Right now").** The live power-flow diagram: Solar, Home, Powerwall and Grid, with animated flow lines. The builder chose a **hub layout** (all lines meet in the middle) instead of the corner layout in the plan. The reviewer's main visual nit: the Powerwall charge ring sits far from its label on desktop, and the lines stop short of the readings.
+2. **"Tonight"** card: the advice, why, savings and confidence.
+3. **The 48 h chart:**
+   - amber solar against white home use, peak hours shaded, a "Now" line;
+   - cloudy tomorrow is visible as lower solar.
+4. **The strip:** Today so far, Cost today, Last 7 days and Forecast accuracy.
+   - Net cost shows "-$0.79", meaning you earned 79¢. Do you want it to read "$0.79 credit" instead?
+5. **Not connected banner** ("Connect Tesla"): it shows when no Tesla account is linked.
+6. **The theme:**
+   - Archivo font, Nova style, energy colours (solar amber, battery mint, grid import pink, export periwinkle);
+   - the login page should look the same as before.
+   - R001 note: your pink `#ff0066` became shadcn's `destructive` (alerts and money leaving) instead of `accent`, because shadcn uses `accent` as the subtle hover colour.
+
+**Sample data.** One simulated summer day at 5:00 PM: the battery is full and idle, and solar is exporting.
+- Not visible on `/home`, but it matters for the future Plan screen: in the simulation the battery is at 62% at 9 PM, under the 65% reserve the advice recommends, and cloudy tomorrow still refills it. The advice numbers and the forecast need aligning when Plan is built.
+
+**Known nits (non-blocking):**
+- no "kWh" title on the chart's y-axis (the legend has it);
+- the first Tab stop lands on the chart with no visible focus ring.
+
+**Your call — reply with any of:**
+- **a.** "approved": you merge `front-end-development` into `main`.
+- **b.** a list of changes. I'll make them round 2 (SPEC Rev 2) and fix them before or after your merge.
+- **c.** the next topic, e.g. the learning/loading/error states, the light theme, the chart table/CSV views, navigation plus the Plan/Trends screens, or a hand-off doc for the middleware team on `DashboardData`.
+- Answer:

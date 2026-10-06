@@ -94,3 +94,5 @@
   - Reviewer spawned.
 - Reviewer attempt 1 **stalled** (watchdog, no verdict) during the PO pause. Re-spawn on "continue" after checking the worktree for a leftover junction / dev server on 3100.
 - Resumed (PO "continue"): stopped the stalled reviewer's dev server on 3100 (PID 50712, next start-server) and removed its junction. Reviewer attempt 2 spawned.
+- Reviewer attempt 2: **PASS**. 165/165; scroll width 375 at 390 px (no overflow); the flow animation is `motion-safe` only, the idle battery line is static; Tonight is the only Card; scope OK. Merged ff33d4e into `front-end-development`. Gate there: vitest 165/165, typecheck, lint clean (raw), build OK. Screenshots copied to `data/shots/review-{390,1440}.png` (gitignored). Worktrees/branches removed.
+- Nits → PO review / next round: the Powerwall SoC ring sits ~200 px from its label at 1440 px (the main visual issue); flow lines stop short of the readings; no "kWh" y-axis title on the 48 h chart (legend only); net cost shows "-$0.79" (a "$0.79 credit" wording would be clearer); first Tab stop is the Recharts SVG with no visible focus ring.
