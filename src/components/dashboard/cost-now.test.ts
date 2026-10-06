@@ -23,6 +23,14 @@ describe("costNow", () => {
     });
   });
 
+  it("never reports a negative saving when import exceeds load", () => {
+    expect(costNow(live({ loadW: 1000, gridW: 4000 }), rates)).toEqual({
+      spendingCentsPerHour: 192,
+      savingCentsPerHour: 0,
+      earningCentsPerHour: 0,
+    });
+  });
+
   it("is all zero when load and grid are 0", () => {
     expect(costNow(live({ loadW: 0, gridW: 0 }), rates)).toEqual({
       spendingCentsPerHour: 0,
