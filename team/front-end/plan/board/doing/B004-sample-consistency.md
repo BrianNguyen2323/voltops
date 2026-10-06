@@ -43,3 +43,45 @@
 - Tester attempt 1 stalled (watchdog, no output, no worktree left). Re-spawned 2026-10-06.
 - Tests f677711 on `phase2a/ui-sample-test`: 5 FAIL on base for the right reason (mid-peak, the today sums, socPct, BOM). 2 checks pass on base by chance (live solarW, battery net vs SoC) and stay as guards. Implementer spawned.
 - Impl 4cac8c8 on `phase2a/ui-sample-impl`: 67/67, typecheck, lint clean. today/live derived from the actual rows; live = the 16:00 row (3747 W solar, SoC 80); peak ends 04:00Z. Reviewer spawned.
+- Reviewer: **FAIL**. Tests pass, but the numbers shown side by side disagree:
+  - (blocking) `exportCreditCents` is 38 while `gridExportWh` is 22090; at 8 c/kWh that should be about 177 c;
+  - (blocking) `gridImportWh` 3600 can't be right: 00:00–06:00 has about 7.5 kWh load, no solar and flat SoC, so it must have been imported. `gridExportWh` is a plug value, and `batteryDischargeWh` is 0;
+  - (nit) 300 Wh mid-peak import while 15:00 has a 4.6 kW surplus;
+  - (nit) `last7Days` 07-15 solar 36200 < `today.solarWh` 42176.
+
+## Round 2 (after review FAIL): derive every total from the actual rows
+### Facts (added)
+- **Per actual row `i`** (rows 0..k, where k = the last actual row; `next` = row i+1's `socPct`, or `live.socPct` for k):
+  - `batteryWh_i = round((soc_i − next) / 100 × usableCapacityWh)` (> 0 = discharge);
+  - `gridWh_i = load_i − solar_i − batteryWh_i` (> 0 = import).
+
+  A row's `socPct` is the SoC at the **start** of that hour.
+- **The timeline SoC must tell a plausible story:**
+  - overnight the battery covers the home and falls (e.g. ~55% at midnight down to ~20% by 06:00), then the grid covers the rest until solar;
+  - solar charges it through the day;
+  - in peak (16:00+) it starts covering the home.
+- **`today`:**
+  - `gridImportWh` = Σ max(gridWh_i, 0); `gridExportWh` = Σ max(−gridWh_i, 0);
+  - `batteryChargeWh` = Σ max(−batteryWh_i, 0); `batteryDischargeWh` = Σ max(batteryWh_i, 0);
+  - `selfPoweredPct` = round(100 × (1 − gridImportWh / loadWh)).
+- **`costToday`:**
+  - `periods[p].importWh` = Σ import of the rows in period p, and every period present in the actual rows is listed;
+  - `costCents` = round(importWh × that period's import rate / 1000). Rates are constants in `data.ts`: off-peak 30, mid-peak 38, peak 48 c/kWh. `tariffNow.importCentsPerKwh` = the peak rate;
+  - `exportCreditCents` = round(gridExportWh × `tariffNow.exportCentsPerKwh` / 1000); `netCents` = Σ cost − credit.
+- **`last7Days`:** the last entry is `2026-07-15` (today so far), and its `solarWh`/`loadWh` equal `today`'s.
+- Compute all of this in code from the timeline, not with hand-typed constants.
+
+### Owned files / Base
+- Tester: `data.test.ts`, base `phase2a/ui-sample-impl` (4cac8c8) → branch `phase2a/ui-sample-test2`.
+- Implementer: `data.ts`, base `phase2a/ui-sample-test2` → branch `phase2a/ui-sample-impl2`.
+
+### Judged by (added)
+The test re-computes the per-row model above independently and checks:
+- `today.gridImportWh`, `gridExportWh`, `batteryChargeWh` and `batteryDischargeWh` each within 3% (or 100 Wh) of the derived sums;
+- `batteryDischargeWh` > 0;
+- `selfPoweredPct` within 1 of the formula;
+- Σ `periods.importWh` === `today.gridImportWh`; each period's `importWh` within 100 Wh of the derived per-period sum;
+- `exportCreditCents` within 1 of the formula;
+- the `last7Days` last entry equals `today` (solar and load), with date `2026-07-15`.
+
+Same command as round 1.
