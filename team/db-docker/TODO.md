@@ -123,7 +123,7 @@ Scope reopened. Input: `CLOSEOUT.md` "Suggestions — next round". I checked eac
 - B: leave them.
 - Answer: **A** (PO, 2026-10-05). Done: all 8 were merged, so `git branch -d` deleted them. The PO deletes `origin/database-docker`.
 
-## USER INPUT REQUIRED — Review: M3 on `main` (84b059c)
+## ANSWERED 2026-10-05 — Review: M3 on `main` (84b059c)
 Gate on main: vitest 39/39, test:scripts 55/55, typecheck, lint 0 errors, build, and `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` PASS. The smoke test ran with **your** `.env` and came up healthy, so your config already passes the new check.
 
 What to try:
@@ -147,4 +147,10 @@ What to try:
 - the small nits logged in `done/B007` / `B008` / `B009`;
 - you run `/improve-codebase-architecture` in this session.
 - Reply "optimize", "skip", or name what you want next (e.g. CI, monorepo split, `replay` source).
+- Answer: **optimize** (PO, 2026-10-05). The step 3 retry via `/api/auth/tesla` wasn't reported; treated as non-blocking. This round is M4 (SPEC Rev 4, R004), integrated on the PO's `optimization-round` branch.
+
+## USER INPUT REQUIRED — Optimization round: run `/improve-codebase-architecture`
+Non-blocking; do it whenever suits you. M4 (B010 image shrink, B011 nits, B012 cleaner) runs meanwhile.
+- In this session, run `/improve-codebase-architecture`. Tell me which of its suggestions you pick (or "none").
+- Your pick becomes SPEC Revision 5. Likely candidates from CLOSEOUT: the monorepo split (`apps/web`, `packages/core`, `packages/db`), or deepening the Tesla client/`DataSource` seam.
 - Answer:
