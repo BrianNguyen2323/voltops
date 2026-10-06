@@ -3,6 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+export VOLTOPS_PORT="${SMOKE_PORT:-3000}"
+PORT="$VOLTOPS_PORT"
 P=(docker compose -p voltops-smoke)
 MADE_ENV=0
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -22,11 +24,11 @@ docker version --format '{{.Server.Version}}' >/dev/null 2>&1 \
 # 1. throwaway .env
 if [ ! -f .env ]; then
   MADE_ENV=1
-  cat > .env <<'ENV'
+  cat > .env <<ENV
 SESSION_SECRET=smoke-test-secret-smoke-test-secret-0000
 TESLA_CLIENT_ID=dummy
 TESLA_CLIENT_SECRET=dummy
-TESLA_REDIRECT_URI=http://localhost:3000/api/auth/callback
+TESLA_REDIRECT_URI=http://localhost:${PORT}/api/auth/callback
 VOLTOPS_SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 DATABASE_PATH=
 ENV
@@ -39,7 +41,7 @@ fi
 ok=0
 for _ in $(seq 1 45); do
   for path in login setup; do
-    code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3000/$path" || true)
+    code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/$path" || true)
     [ "$code" = 200 ] && ok=1 && break
   done
   [ $ok = 1 ] && break
@@ -63,4 +65,34 @@ check_db "after boot"
 "${P[@]}" restart
 sleep 5
 check_db "after restart"
-# 6. down -v runs in the EXIT trap
+
+# 6. (a) container health becomes healthy within 90 s
+cid=$("${P[@]}" ps -q web)
+[ -n "$cid" ] || fail "web container not found"
+healthy=0
+for _ in $(seq 1 45); do
+  [ "$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || true)" = healthy ] && healthy=1 && break
+  sleep 2
+done
+[ $healthy = 1 ] || fail "web container never became healthy within 90s"
+
+# 7. (b) TESLA_REDIRECT_URI is honoured by /api/auth/tesla (redirect not followed; no external network)
+"${P[@]}" exec -T web node -e '
+  const D=require("better-sqlite3"),c=require("crypto");
+  const db=new D("/data/voltops.db");
+  db.prepare("INSERT OR IGNORE INTO admin (id,password_hash,created_at) VALUES (1,?,?)").run("x",Date.now());
+  db.close();
+  const sig=c.createHmac("sha256",process.env.SESSION_SECRET).update("admin").digest("hex");
+  fetch("http://localhost:3000/api/auth/tesla",{redirect:"manual",headers:{cookie:"voltops_session=admin."+sig}}).then(r=>{
+    if(r.status<300||r.status>=400){console.error("status "+r.status);process.exit(1)}
+    const u=new URL(r.headers.get("location"));
+    if(u.searchParams.get("redirect_uri")!==process.env.TESLA_REDIRECT_URI){console.error("redirect_uri mismatch");process.exit(1)}
+  }).catch(e=>{console.error(String(e));process.exit(1)});
+' || fail "/api/auth/tesla did not redirect with the configured redirect_uri"
+
+# 8. (c) missing VOLTOPS_SECRET_KEY must fail fast and name the key
+if out=$("${P[@]}" run --rm --no-deps -e VOLTOPS_SECRET_KEY= web 2>&1); then
+  fail "container started with empty VOLTOPS_SECRET_KEY"
+fi
+echo "$out" | grep -q VOLTOPS_SECRET_KEY || fail "fail-fast output did not mention VOLTOPS_SECRET_KEY"
+# down -v runs in the EXIT trap
