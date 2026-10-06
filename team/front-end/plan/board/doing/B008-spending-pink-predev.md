@@ -35,3 +35,4 @@
 - **Worktree:** junction `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`; `cmd //c rmdir node_modules` before finishing; never use `--force`. Keep commands bounded. No dev server is needed.
 
 ## Gate log
+- Tests 539fe4c on `phase2a/ui-m4-test`: 2 FAIL for the right reason (the Spending label class; `scripts.predev`). The migrate-run guard passes on base (expected). Implementer spawned.
