@@ -107,9 +107,12 @@ test("loadToken with no row throws the exact error", async () => {
 
 test("sqliteTokenStore with non-existent path throws and no file is created", () => {
   const path = join(tmpdir(), `voltops-nonexistent-${Date.now()}.db`);
-  assert.throws(() => {
-    mod.sqliteTokenStore(path);
-  });
+  assert.throws(
+    () => {
+      mod.sqliteTokenStore(path);
+    },
+    { name: "SqliteError", code: "SQLITE_CANTOPEN" },
+  );
   assert.equal(existsSync(path), false, "file should not be created");
 });
 
