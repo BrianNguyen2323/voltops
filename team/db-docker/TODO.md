@@ -149,13 +149,13 @@ What to try:
 - Reply "optimize", "skip", or name what you want next (e.g. CI, monorepo split, `replay` source).
 - Answer: **optimize** (PO, 2026-10-05). The step 3 retry via `/api/auth/tesla` wasn't reported; treated as non-blocking. This round is M4 (SPEC Rev 4, R004), integrated on the PO's `optimization-round` branch.
 
-## USER INPUT REQUIRED — Restart Docker Desktop (B010 is blocked)
+## ANSWERED 2026-10-05 — Restart Docker Desktop (B010 was blocked)
 Docker Desktop crashed while the B010 tester was running the smoke build. Every `docker` command now returns `Docker Desktop is unable to start`, and your `voltops-web-1` is down too. I didn't restart it myself, because it's your engine and your container.
 1. Quit Docker Desktop from the tray icon, then start it again. If it still won't start: Troubleshoot (bug icon) → **Restart**, and if that fails, run `wsl --shutdown` in a terminal and start Docker Desktop again.
 2. Check with `docker ps`. `voltops-web-1` should come back by itself (`restart: unless-stopped`); if not, run `docker compose up -d` in the repo.
 3. Tell me "docker up". I clear the leftover smoke resources (`docker compose -p voltops-smoke down -v`, which touches only the smoke project) and re-run the B010 size check.
 - **Likely cause: your C: drive filled up.** A member saw C: at 100% (0 bytes free) at about the time of the crash. It's back to 16 GB free (93% used), probably because the crashed build released space. Docker Desktop keeps its disk image and build cache on C:. Before restarting, consider freeing space on C:, or after it's up run `docker builder prune` (frees only build cache, not your volume). Optional: Settings → Resources → Advanced → move the disk image location to D:.
-- Answer:
+- Answer: **docker up** (PO, 2026-10-05). The PO moved the Docker Desktop disk image to G:. Engine 29.8.2, `voltops-web-1` healthy, C: 50 GB free. No `voltops-smoke` leftovers.
 
 ## USER INPUT REQUIRED — Optimization round: run `/improve-codebase-architecture`
 Non-blocking; do it whenever suits you. M4 (B010 image shrink, B011 nits, B012 cleaner) runs meanwhile.
