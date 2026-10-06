@@ -8,7 +8,7 @@
   - B009 merged 6879b52 (cleanup).
   - Main gate: vitest 39/39, test:scripts 55/55, typecheck, lint, build, docker smoke PASS.
 - **Integration branch:** `main`. Not pushed: the PO pushes/releases.
-- **Last action:** PO review step 3 printed nothing. Diagnosed as not a bug (no Connect Tesla since the 19:03 PDT recreate; last connect 14:44 PDT). Asked the PO to connect, then re-check with `findstr /C:"Tesla OAuth"`.
+- **Last action:** PO review step 3 empty twice. Root cause: `/home` hides Connect Tesla when connected, so the callback never ran. Told the PO to open `/api/auth/tesla` directly. Logged a "Reconnect Tesla" UI follow-up in TODO.
 - **Next action:** record the PO's review result. M1–M3 = 3 milestones, so an optimization round is due unless the PO says skip:
   - cleaner;
   - image shrink (CLOSEOUT item 5);
