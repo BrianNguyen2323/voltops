@@ -1,6 +1,6 @@
 # SPEC — Database adjustments + Docker (SQLite file)
 
-Revision 3
+Revision 4
 
 ## Goal
 VoltOps runs self-hosted with `docker compose up`: one `web` container plus one SQLite file on a named volume. Single owner. Supabase/Postgres and the Netlify app deploy are gone. (CLAUDE.md D1, D2, D4, D6, D10.)
@@ -73,3 +73,10 @@ Remove `DATABASE_URL`. Add `DATABASE_PATH` (optional) and `AUTH_DISABLED` (optio
 
 ## Tests
 Vitest (CLAUDE.md §11) for `src/**`: `pnpm test` = `vitest run`. Scripts keep `node --test`. No network. DB tests use a temp file or `:memory:`.
+
+## Optimization round 1 (Rev 4, M4)
+No user-visible behaviour change, except where stated.
+- **Image size:** the `web` image (`docker image inspect … --format '{{.Size}}'`) is **≤ 400 MB** (was 898 MB). The runtime stage ships the Next standalone trace plus only what `check-env.mjs` and `migrate.mjs` need (`zod`, `drizzle-orm`, `better-sqlite3`). There's no compiler toolchain in the runtime stage. The Dockerfile comments why the build stage has python3/make/g++ (pnpm 9 runs node-gyp despite prebuilds). `scripts/docker-smoke.sh` fails if the image exceeds `MAX_IMAGE_MB` (default 400), and it wraps check (c) in `timeout 60` so a missing check-env fails instead of hanging.
+- **check-env never echoes a received value:** the zod enum messages for `AUTH_DISABLED` and `NODE_ENV` are fixed strings (e.g. `AUTH_DISABLED: must be "true" or unset`). The CLI guard is `process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href`.
+- **Callback `errorCode()`:** a JSON body of literal `null` (or any non-object) logs `unknown` and doesn't throw.
+- **Cleanup:** a `cleaner` pass over `src/` + `scripts/` (dead code such as the T3 `post` router if unused, duplication, unused deps). No behaviour change; the gate stays green.

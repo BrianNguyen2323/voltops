@@ -123,7 +123,7 @@ Scope reopened. Input: `CLOSEOUT.md` "Suggestions — next round". I checked eac
 - B: leave them.
 - Answer: **A** (PO, 2026-10-05). Done: all 8 were merged, so `git branch -d` deleted them. The PO deletes `origin/database-docker`.
 
-## USER INPUT REQUIRED — Review: M3 on `main` (84b059c)
+## ANSWERED 2026-10-05 — Review: M3 on `main` (84b059c)
 Gate on main: vitest 39/39, test:scripts 55/55, typecheck, lint 0 errors, build, and `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` PASS. The smoke test ran with **your** `.env` and came up healthy, so your config already passes the new check.
 
 What to try:
@@ -147,4 +147,40 @@ What to try:
 - the small nits logged in `done/B007` / `B008` / `B009`;
 - you run `/improve-codebase-architecture` in this session.
 - Reply "optimize", "skip", or name what you want next (e.g. CI, monorepo split, `replay` source).
+- Answer: **optimize** (PO, 2026-10-05). The step 3 retry via `/api/auth/tesla` wasn't reported; treated as non-blocking. This round is M4 (SPEC Rev 4, R004), integrated on the PO's `optimization-round` branch.
+
+## ANSWERED 2026-10-05 — Restart Docker Desktop (B010 was blocked)
+Docker Desktop crashed while the B010 tester was running the smoke build. Every `docker` command now returns `Docker Desktop is unable to start`, and your `voltops-web-1` is down too. I didn't restart it myself, because it's your engine and your container.
+1. Quit Docker Desktop from the tray icon, then start it again. If it still won't start: Troubleshoot (bug icon) → **Restart**, and if that fails, run `wsl --shutdown` in a terminal and start Docker Desktop again.
+2. Check with `docker ps`. `voltops-web-1` should come back by itself (`restart: unless-stopped`); if not, run `docker compose up -d` in the repo.
+3. Tell me "docker up". I clear the leftover smoke resources (`docker compose -p voltops-smoke down -v`, which touches only the smoke project) and re-run the B010 size check.
+- **Likely cause: your C: drive filled up.** A member saw C: at 100% (0 bytes free) at about the time of the crash. It's back to 16 GB free (93% used), probably because the crashed build released space. Docker Desktop keeps its disk image and build cache on C:. Before restarting, consider freeing space on C:, or after it's up run `docker builder prune` (frees only build cache, not your volume). Optional: Settings → Resources → Advanced → move the disk image location to D:.
+- Answer: **docker up** (PO, 2026-10-05). The PO moved the Docker Desktop disk image to G:. Engine 29.8.2, `voltops-web-1` healthy, C: 50 GB free. No `voltops-smoke` leftovers.
+
+## USER INPUT REQUIRED — Review: M4 (optimization round) on `optimization-round` (4d263ca)
+Gate on `optimization-round`:
+- `pnpm install --frozen-lockfile` synced, test:scripts 56/56, typecheck, lint 0 warnings, build;
+- `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` PASS with **your** `.env`, image **303 MB** (was 856–899 MB);
+- vitest 41/41 (twice in a row). Once it hit 39/41 under disk load: the known timeout flake.
+
+What changed:
+- **B010:** the image ships Next's traced deps instead of all of node_modules, and no compiler. The smoke test now fails if the image is over 400 MB (`MAX_IMAGE_MB`), and the bad-config check can't hang.
+- **B011:** the startup config check never prints a value you set (e.g. `AUTH_DISABLED: must be "true" or unset`). A Tesla error with an empty `null` body no longer crashes the log line. 4 new tests.
+- **B012:** removed the T3 example `post` tRPC router, unused tRPC server helpers, and the deps `shadcn`, `radix-ui`, `tw-animate-css` (−284 lockfile entries).
+
+What to try:
+1. Your repo checkout is already on `optimization-round`, and I've synced its node_modules to the new lockfile.
+2. **Rebuild:** `docker compose up -d --build`. Then `docker images voltops-web` should show about 303 MB (yours is 899 MB now), and `docker compose ps` should show `web` as `(healthy)` after ~20 s.
+3. **App still works:** open http://localhost:3000 → log in → `/home` still shows "Tesla connected", because the volume is kept. Optionally `docker compose restart` and reload.
+4. **Config message (optional):** put `AUTH_DISABLED=yes` in `.env` → `docker compose up -d --force-recreate` → `docker compose logs web` shows `AUTH_DISABLED: must be "true" or unset` and not the word `yes`. Remove the line and recreate.
+5. **Disk (optional):** `docker builder prune` frees about 12–20 GB of build cache on G:. It never touches your `voltops-data` volume.
+6. **Merge:** if happy, merge `optimization-round` into `main` (your call, as with PR #7).
+- Known, not fixed: the vitest timeout flake (CLOSEOUT item 3, seen 3 times this round), and the missing "Reconnect Tesla" link on `/home` (CLOSEOUT item 7).
+- Next round, your pick: (a) deflake vitest + auth hardening + Reconnect Tesla link; (b) CI + GHCR multi-arch images; (c) monorepo split; (d) `replay` source + demo data; or whatever `/improve-codebase-architecture` (below) suggests.
+- Result:
+
+## USER INPUT REQUIRED — Optimization round: run `/improve-codebase-architecture`
+Do it whenever suits you, ideally with the M4 review. M4 itself is done.
+- In this session, run `/improve-codebase-architecture`. Tell me which of its suggestions you pick (or "none").
+- Your pick becomes SPEC Revision 5. Likely candidates from CLOSEOUT: the monorepo split (`apps/web`, `packages/core`, `packages/db`), or deepening the Tesla client/`DataSource` seam.
 - Answer:
