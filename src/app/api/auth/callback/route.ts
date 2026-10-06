@@ -10,7 +10,8 @@ const FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
 // Log only Tesla's error code, never the raw body.
 async function errorCode(res: Response): Promise<string> {
-  const { error } = (await res.json().catch(() => ({}))) as { error?: unknown };
+  const body: unknown = await res.json().catch(() => null);
+  const error = typeof body === "object" && body ? (body as { error?: unknown }).error : undefined;
   return typeof error === "string" ? error : "unknown";
 }
 
