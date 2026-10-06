@@ -11,7 +11,7 @@ export default async function ProtectedLayout({
     <>
       {!isAuthDisabled() && (
         <form action={logoutAction} className="absolute top-4 right-4">
-          <button className="text-muted hover:text-foreground text-sm">
+          <button className="text-muted-foreground hover:text-foreground text-sm">
             Log out
           </button>
         </form>
