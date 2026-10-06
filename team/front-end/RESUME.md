@@ -8,7 +8,7 @@
 - **M1 results:**
   - merged into `front-end-development`: B002 474e892, B004 6971648, B001 475337a, B003 ff33d4e;
   - gate: vitest 165/165, typecheck, lint clean (raw), build OK; docker smoke PASS 303 MB at B001.
-- **Last action:** B008 merged d386e12 (gate green). Perf/size recorded (`research/optimization/`: /home 217/320 kB, image 304 MB). B009 cleaner to doing; cleaner spawned.
+- **Last action:** B009 cleaner done → gate; reviewer running (separator removal + theme.test.ts edit outside owned files to judge).
 - **Next action:**
   1. B008 tester → implementer → reviewer → merge;
   2. B009 cleaner brief (after B008 merges);

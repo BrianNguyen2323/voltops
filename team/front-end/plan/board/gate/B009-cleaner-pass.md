@@ -37,3 +37,7 @@
 - **Worktree:** junction `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`; `cmd //c rmdir node_modules` before finishing; never use `--force`. Keep commands bounded.
 
 ## Gate log
+- Cleaner on `phase2a/ui-cleaner`: gate green per handoff; vitest 195 (−1: the separator existence assertion), scripts 58; `/home` 217 kB / First Load 319 kB (−1).
+  - Removed `ui/separator.tsx`; prettier over 18 files; fixed the mangled test line; kept the chart.tsx disable.
+  - **Edited `src/styles/theme.test.ts` (not owned).** Reported no other dead code or duplication.
+  - Reviewer spawned: asked to judge the separator/SPEC conflict and the thoroughness.
