@@ -134,3 +134,4 @@ Same command as round 1.
 - All round-2 checks stay.
 
 Same command.
+- Round 3 tests 0a84739 on `phase2a/ui-sample-test3`: 7 FAIL for the right reason (28 pass); lint clean. Live sign rule: passes if both derived battery and grid are < 150 Wh, else both signs must match. Round-3 implementer spawned.
