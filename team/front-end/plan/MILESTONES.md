@@ -6,3 +6,7 @@
 - B004 Sample consistency fix (B002 review nits). Tester → implementer. Parallel with B001.
 - B003 Dashboard components + `/home` page + header/logout move. Tester → implementer. Starts after B001 + B002 merge.
 - Then: a PO Review item in TODO.md.
+
+## M2 — M1 review fixes (cross flow diagram, weather tile, readable chart, credit wording) — SPEC Rev 2
+- B005 Contract (`weatherTomorrow`, `temperatureUnit`, `formatTemp`) + dashboard changes. Tester → implementer → reviewer with screenshots.
+- Then: a PO Review item in TODO.md.
