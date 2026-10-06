@@ -59,7 +59,7 @@
 - **The timeline SoC must tell a plausible story:**
   - overnight the battery covers the home and falls (e.g. ~55% at midnight down to ~20% by 06:00), then the grid covers the rest until solar;
   - solar charges it through the day;
-  - in peak (16:00+) it starts covering the home.
+  - at 16:40 solar still exceeds the load, so the battery is still charging and the grid exports a little. That matches the existing B002 test (`batteryW < 0`, `gridW < 0`) and the round-1 checks.
 - **`today`:**
   - `gridImportWh` = Σ max(gridWh_i, 0); `gridExportWh` = Σ max(−gridWh_i, 0);
   - `batteryChargeWh` = Σ max(−batteryWh_i, 0); `batteryDischargeWh` = Σ max(batteryWh_i, 0);
