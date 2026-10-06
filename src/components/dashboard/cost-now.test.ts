@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { sampleDashboard, type DashboardData } from "~/app/(protected)/home/data";
+import {
+  sampleDashboard,
+  type DashboardData,
+} from "~/app/(protected)/home/data";
 import { costNow } from "~/components/dashboard/cost-now";
 
-const live = (p: Partial<DashboardData["live"]>): DashboardData["live"] => ({ ...sampleDashboard.live, ...p });
-const rates = { ...sampleDashboard.tariffNow, importCentsPerKwh: 48, exportCentsPerKwh: 8 };
+const live = (p: Partial<DashboardData["live"]>): DashboardData["live"] => ({
+  ...sampleDashboard.live,
+  ...p,
+});
+const rates = {
+  ...sampleDashboard.tariffNow,
+  importCentsPerKwh: 48,
+  exportCentsPerKwh: 8,
+};
 
 describe("costNow", () => {
   it("matches the sample: not buying, saving 99, earning 13", () => {
@@ -40,7 +50,11 @@ describe("costNow", () => {
   });
 
   it("returns integers", () => {
-    const r = costNow(live({ loadW: 1333, gridW: 777 }), { ...rates, importCentsPerKwh: 37, exportCentsPerKwh: 11 });
+    const r = costNow(live({ loadW: 1333, gridW: 777 }), {
+      ...rates,
+      importCentsPerKwh: 37,
+      exportCentsPerKwh: 11,
+    });
     for (const v of Object.values(r)) expect(Number.isInteger(v)).toBe(true);
   });
 });

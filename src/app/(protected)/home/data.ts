@@ -145,13 +145,18 @@ const timeline: DashboardData["timeline"] = rows.map((r) => {
 const actual = timeline.filter((r) => r.kind === "actual");
 const nowRow = actual[actual.length - 1];
 const nextRow = timeline[actual.length];
-if (!nowRow || !nextRow) throw new Error("sample timeline needs actual and forecast rows");
+if (!nowRow || !nextRow)
+  throw new Error("sample timeline needs actual and forecast rows");
 // Per actual row: battery energy is the SoC drop to the next row (> 0 = discharge).
 const flows = actual.map((r, i) => {
   const batteryWh = Math.round(
     ((r.socPct - (timeline[i + 1]?.socPct ?? r.socPct)) / 100) * cap,
   );
-  return { period: r.period, gridWh: r.loadWh - r.solarWh - batteryWh, batteryWh };
+  return {
+    period: r.period,
+    gridWh: r.loadWh - r.solarWh - batteryWh,
+    batteryWh,
+  };
 });
 const lastFlow = flows[flows.length - 1];
 if (!lastFlow) throw new Error("no flows");
