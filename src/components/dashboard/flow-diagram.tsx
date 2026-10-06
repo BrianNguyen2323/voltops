@@ -9,8 +9,8 @@ type Pt = readonly [number, number];
 
 // Orthogonal cross: four equal arms (ARM) around the hub, each ending on its node's box edge.
 const ARM = 95;
-const HUB: Pt = [230, 208];
-const BOX = { w: 116, h: 108 };
+const HUB: Pt = [230, 220];
+const BOX = { w: 116, h: 120 };
 const CENTRE = {
   solar: [HUB[0], HUB[1] - ARM - BOX.h / 2],
   battery: [HUB[0], HUB[1] + ARM + BOX.h / 2],
@@ -70,12 +70,12 @@ function Node({ id, c, name, w, state, symbol, color }: {
   return (
     <g data-node={id} textAnchor="middle">
       <rect x={x - BOX.w / 2} y={y - BOX.h / 2} width={BOX.w} height={BOX.h} rx={12} className="fill-card" />
-      <g transform={`translate(${x} ${y - 34})`} className={color}>
+      <g transform={`translate(${x} ${y - 30})`} className={color}>
         {symbol}
       </g>
-      <text x={x} y={y + 5} className="fill-muted-foreground text-base">{name}</text>
-      <text x={x} y={y + 29} className="reading fill-foreground text-xl">{formatKw(w)}</text>
-      {state && <text x={x} y={y + 47} className="fill-muted-foreground text-base">{state}</text>}
+      <text x={x} y={y + 6} className="fill-muted-foreground text-base">{name}</text>
+      <text x={x} y={y + 30} data-reading="kw" className="reading fill-foreground text-lg sm:text-xl">{formatKw(w)}</text>
+      {state && <text x={x} y={y + 49} className="fill-muted-foreground text-base">{state}</text>}
     </g>
   );
 }
@@ -97,7 +97,7 @@ export function FlowDiagram({ live }: { live: DashboardData["live"] }) {
   const [bFrom, bTo] = out(batteryW, EDGE.battery); // discharging flows into the hub
   const [gFrom, gTo] = out(gridW, EDGE.grid); // importing flows into the hub
   return (
-    <svg role="img" aria-label={label} viewBox="0 0 460 416" className="mx-auto w-full max-w-xl">
+    <svg role="img" aria-label={label} viewBox="0 0 460 440" className="mx-auto w-full max-w-xl">
       <Flow id="solar" from={EDGE.solar} to={HUB} w={solarW} color="text-solar" />
       <Flow id="home" from={HUB} to={EDGE.home} w={loadW} color="text-home" />
       <Flow id="battery" from={bFrom} to={bTo} w={batteryW} color="text-battery" />
