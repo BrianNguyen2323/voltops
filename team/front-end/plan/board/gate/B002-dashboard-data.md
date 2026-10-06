@@ -82,3 +82,4 @@ export type DashboardData = {
 
 ## Gate log
 - Tests f596477 on `phase2a/ui-data-test`: 2 files FAIL on base (modules missing). Also pins usableCapacityWh 13500, tariffNow mid-peak, model/baseline names. Implementer spawned.
+- Impl 9c17b2e on `phase2a/ui-data-impl`: B002 tests 20/20, typecheck, lint clean. Full suite reported red (8 files/18 tests, undiagnosed; B001's pnpm install was running in parallel). Reviewer spawned, asked to re-run and attribute.
