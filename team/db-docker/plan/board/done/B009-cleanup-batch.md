@@ -19,3 +19,5 @@ CLOSEOUT item 6, spec Rev 3 "Cleanup". No behaviour change, except item 5.
 
 ## Gate log
 - 3a17910: test:scripts 46/46, vitest 34/34 (on re-run; the first run hit load timeouts), typecheck OK. **Lint error:** `drizzle.config.ts:7` `@typescript-eslint/prefer-nullish-coalescing` on the new `||`. Fix: the same justified disable comment as `src/server/db/index.ts:23`.
+- 5bbb7ad: lint fix. Reviewer: **PASS**. Merged 6879b52. Main gate: vitest 39/39, test:scripts 46/46, typecheck, lint 0 errors, build OK.
+- Follow-up nit: `scripts/verify-sqlite.test.mjs:110` `assert.throws` has no matcher.
