@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { sampleDashboard as d } from "./data";
 
@@ -31,8 +32,9 @@ describe("sampleDashboard", () => {
     });
   });
 
-  it("has tariffNow mid-peak in integer cents", () => {
-    expect(d.tariffNow.period).toBe("mid-peak");
+  it("has tariffNow peak in integer cents", () => {
+    expect(d.tariffNow.period).toBe("peak");
+    expect(d.tariffNow.endsAt).toBe("2026-07-16T04:00:00Z");
     expect(Number.isInteger(d.tariffNow.importCentsPerKwh)).toBe(true);
     expect(Number.isInteger(d.tariffNow.exportCentsPerKwh)).toBe(true);
   });
@@ -134,5 +136,38 @@ describe("sampleDashboard", () => {
       ...(d.recommendation ? [d.recommendation.validFrom, d.recommendation.validTo] : []),
     ];
     for (const x of times) expect(isIso(x)).toBe(true);
+  });
+
+  describe("consistency with the timeline", () => {
+    const actuals = d.timeline.filter((r) => r.kind === "actual");
+    const last = actuals[actuals.length - 1]!;
+    const first = d.timeline[0]!;
+    const sum = (k: "solarWh" | "loadWh") => actuals.reduce((a, r) => a + r[k], 0);
+    const cap = d.live.usableCapacityWh;
+
+    it("tariffNow.period matches the last actual row", () => {
+      expect(d.tariffNow.period).toBe(last.period);
+    });
+    it("today.solarWh and loadWh are within 10% of the actual rows", () => {
+      expect(Math.abs(d.today.solarWh - sum("solarWh"))).toBeLessThanOrEqual(0.1 * sum("solarWh"));
+      expect(Math.abs(d.today.loadWh - sum("loadWh"))).toBeLessThanOrEqual(0.1 * sum("loadWh"));
+    });
+    it("live socPct is within 3 of the last actual row", () => {
+      expect(Math.abs(d.live.socPct - last.socPct)).toBeLessThanOrEqual(3);
+    });
+    it("live solarW is within 30% of the last actual row's solarWh", () => {
+      expect(Math.abs(d.live.solarW - last.solarWh)).toBeLessThanOrEqual(0.3 * last.solarWh);
+    });
+    it("battery charge - discharge matches the SoC change since midnight", () => {
+      const expected = ((d.live.socPct - first.socPct) / 100) * cap;
+      const net = d.today.batteryChargeWh - d.today.batteryDischargeWh;
+      expect(Math.abs(net - expected)).toBeLessThanOrEqual(0.1 * cap);
+    });
+  });
+
+  it("source files have no UTF-8 BOM", () => {
+    for (const f of ["./data.ts", "../../../lib/format.ts"]) {
+      expect(readFileSync(new URL(f, import.meta.url))[0]).not.toBe(0xef);
+    }
   });
 });
