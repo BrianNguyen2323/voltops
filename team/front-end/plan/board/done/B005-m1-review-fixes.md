@@ -113,3 +113,6 @@ Implementer:
   - The final 1440 shot wasn't opened and the tooltip wasn't checked. The Tomorrow tile heading is an h3.
   - Tester lint fix-up spawned → `phase2a/ui-m2-test2`.
 - Test lint fix f456e77 on `phase2a/ui-m2-test2`: 180/180, lint clean. Reviewer spawned (full gate, full-page shots, tooltip hover).
+- Reviewer: **PASS** on all four PO asks. Lines are equal 95-unit orthogonal arms; the tooltip reads "Expected range 0.9 to 1.3 kWh"; "$0.79 Credit earned so far today"; scroll width 375 at 390 px. Merged b891873 into `front-end-development`. Gate there: vitest 180/180, typecheck, lint clean, build OK. Screenshots copied to `data/shots/review-m2-{390,1440}.png`.
+- Cleanup: the reviewer left screenshot shells and an agent-browser daemon holding its worktree. The lead closed them (`agent-browser close`) and removed the worktrees/branches.
+- Nits (non-blocking): at 390 px the SoC "100%" is ~8 px and nearly touches the ring; the ring is flush with the node box top and the state words tight to the bottom (add 4–6 units of padding); the Tomorrow tile's lines 3–4 aren't indented like lines 1–2.

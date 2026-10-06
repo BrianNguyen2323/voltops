@@ -124,3 +124,47 @@ Everything is merged into `front-end-development` at ff33d4e. The gate is green:
      - "Home use range" and "Home use" colours are too similar to tell apart.
   4. **Net cost:** the "credit earned" wording is better.
 
+
+## USER INPUT REQUIRED — Review: M2 (your M1 changes) (2026-10-06)
+Merged into `front-end-development` at b891873. Gate: 180 tests, typecheck, lint and build all green. No new dependencies.
+
+**How to run it:** `pnpm dev`, then open http://localhost:3000/home. Check phone width at 390 px in devtools. The reviewer's screenshots are in `data/shots/review-m2-390.png` and `data/shots/review-m2-1440.png`.
+
+**What changed (your four asks)**
+1. **Right now:**
+   - the diagram is now a straight cross: Solar top, Grid left, Home right, Powerwall bottom;
+   - four equal horizontal/vertical lines meet at a centre point and touch each node;
+   - the Powerwall node is its charge ring, with the % inside.
+2. **Tonight:**
+   - a "Tomorrow" weather tile sits inside the card: an amber cloud icon, "Cloudy, 75°F high, 61°F low", "80% cloud cover, 20% chance of rain", and "Expect 25.4 kWh of solar, 45% less sun than today";
+   - the solar figure comes from the chart's own forecast, so the two always agree;
+   - the weather is sample data for now. The middleware team fills `weatherTomorrow` (temperatures in °C) from a weather API later.
+3. **48 h chart:**
+   - no "p10/p90" anywhere;
+   - home use is a white line (dashed after "Now"), and the forecast range is a striped band called "Expected range for home use";
+   - a plain legend and a one-line caption sit under the chart, and the y-axis says kWh;
+   - the tooltip reads, e.g., "Expected range 0.9 to 1.3 kWh".
+4. **Cost today:** shows "$0.79 Credit earned so far today", with no minus sign.
+
+**Decisions I made inside your direction** (`design/revisions/R002.md`; override any):
+- the cross layout mirrors Tesla's own app;
+- temperatures are stored in °C, and the display unit is a per-site setting (the sample uses °F);
+- the band is told apart by its stripes rather than a new colour, so each energy type keeps one colour.
+
+**Small leftover nits** (say if you want them fixed now):
+- on a phone, the "100%" inside the ring is small and nearly touches it;
+- the Powerwall ring and the state words sit tight to their box edges;
+- the last two lines of the Tomorrow tile aren't indented like the first two.
+
+**Your call:**
+- **a.** "approved": you merge `front-end-development` into `main`;
+- **b.** more changes (e.g. the nits above);
+- **c.** the next topic. Options:
+  - the learning/loading/error states;
+  - the light theme;
+  - the chart table/CSV views;
+  - navigation plus the Plan/Trends screens;
+  - a hand-off doc for the middleware team describing `DashboardData` and `weatherTomorrow`.
+
+  Note: an **optimization round** (cleaner pass + perf/size + `/improve-codebase-architecture`) is due after the next milestone (M3).
+- Answer:
