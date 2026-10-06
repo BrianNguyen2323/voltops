@@ -40,3 +40,4 @@
 - **Worktree:** no dep changes, so link main's node_modules (`cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`). Run `cmd //c rmdir node_modules` before finishing, and never use `--force`.
 
 ## Gate log
+- Tester attempt 1 stalled (watchdog, no output, no worktree left). Re-spawned 2026-10-06.
