@@ -135,3 +135,4 @@ Same command as round 1.
 
 Same command.
 - Round 3 tests 0a84739 on `phase2a/ui-sample-test3`: 7 FAIL for the right reason (28 pass); lint clean. Live sign rule: passes if both derived battery and grid are < 150 Wh, else both signs must match. Round-3 implementer spawned.
+- Round 3 impl aa1a038 on `phase2a/ui-sample-impl3`: 80/81. The one red is the stale B002 pin `batteryW<0 && gridW<0` that round-3 tests didn't remove (the sim has the battery full at 16:00, so live is idle and exporting). Tester fix-up spawned → `phase2a/ui-sample-test3b`.
