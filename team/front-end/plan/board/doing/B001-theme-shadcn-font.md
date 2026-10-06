@@ -76,3 +76,14 @@
 
 ## Gate log
 - Tests fd7d504 on `phase2a/ui-theme-test`: 63 new FAIL on base (41 existing pass). Vitest needs `oxc: { jsx: { runtime: "automatic" } }` for .tsx (Vite 8). Hex tests expect literal `--name: #hex;`. Implementer spawned.
+- Impl 89c371a on `phase2a/ui-theme-impl`: tests 104/104, typecheck clean, `next build --no-lint` OK.
+  - **GATE red:** lint (and so `pnpm build` and the docker build) fails on 2 errors in the tester's files:
+    - `auth-form.test.tsx:12` `no-empty-function` (`async action() {}`);
+    - `theme.test.ts:80` `no-unsafe-member-access` (untyped JSON.parse).
+  - Deps: `radix-ui`, `recharts` 3.8.0, `tw-animate-css`. The CLI added a bogus `cn` package; the implementer removed it and used `~/lib/utils`. The CLI didn't touch `globals.css`, so the tokens were written by hand.
+  - Deviations: `chart.tsx` has a file-level eslint-disable for 4 type-safety rules (loose recharts types); `layout.tsx` was prettier-formatted.
+
+## Round 2: test lint fix
+- Tester: base `phase2a/ui-theme-impl` (89c371a) → branch `phase2a/ui-theme-test2`. Fix only the 2 lint errors in the owned test files: give the empty function a body (e.g. `return undefined;`), and type the JSON parse (e.g. `as { style: string }`). No assertion changes.
+- Judged by: `SKIP_ENV_VALIDATION=1 pnpm lint` has 0 errors and 0 warnings, and `pnpm test` is green.
+- Then the reviewer runs the full judged-by command, including `SMOKE_PORT=3100 bash scripts/docker-smoke.sh`.
