@@ -87,3 +87,6 @@ Implementer:
 
 ## Gate log
 - Tests c9477f0 on `phase2a/ui-m3-test`: cost-now suite FAIL (module missing) + 7/41 dashboard FAIL for the right reason. Money strings compared whitespace-stripped; the range swatch must be an identical empty span in the legend and the tooltip. Implementer spawned.
+- Impl 7b3c42b on `phase2a/ui-m3-impl`: 192/192, typecheck, lint clean, build OK.
+  - After its screenshot critique: node boxes 120 tall (viewBox 440), ≥ 8 units of padding; kW `text-lg sm:text-xl` on all four; a two-column price/cost strip; a shared `Swatch`.
+  - Reviewer spawned.
