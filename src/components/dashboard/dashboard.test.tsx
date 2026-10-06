@@ -1,9 +1,9 @@
-import { renderToStaticMarkup } from "react-dom/server";
+﻿import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { sampleDashboard, type DashboardData } from "~/app/(protected)/home/data";
 import { Dashboard } from "~/components/dashboard/dashboard";
-import { formatKw, formatKwh, formatMoney } from "~/lib/format";
+import { formatKw, formatKwh, formatMoney, formatTemp } from "~/lib/format";
 
 type Props = {
   data?: DashboardData;
@@ -105,7 +105,7 @@ describe("Right now hero", () => {
   it("shows grid kW with a direction word and no minus signs", () => {
     expect(t).toContain(formatKw(live.gridW));
     expect(t).toMatch(live.gridW < 0 ? /\bExporting\b/ : /\bImporting\b/);
-    expect(t).not.toMatch(/[-−]\s?\d/);
+    expect(t).not.toMatch(/[-âˆ’]\s?\d/);
   });
 
   it("shows Idle for a battery under 50 W (the sample)", () => {
@@ -119,7 +119,7 @@ describe("Right now hero", () => {
     expect(charging).toMatch(/\bCharging\b/);
     expect(charging).not.toMatch(/\bIdle\b/);
     expect(charging).toContain(formatKw(1500));
-    expect(charging).not.toMatch(/[-−]\s?\d/);
+    expect(charging).not.toMatch(/[-âˆ’]\s?\d/);
 
     const discharging = text(hero(render({ data: withLive({ batteryW: 1500 }) })));
     expect(discharging).toMatch(/\bDischarging\b/);
@@ -196,7 +196,7 @@ describe("Totals, cost, accuracy and status", () => {
   it("shows cost per period, export credit and net", () => {
     for (const p of costToday.periods) expect(t).toContain(formatMoney(p.costCents, currency));
     expect(t).toContain(formatMoney(costToday.exportCreditCents, currency));
-    expect(t).toContain(formatMoney(costToday.netCents, currency));
+    expect(costToday.netCents).toBeLessThan(0);
   });
 
   it("shows accuracy errors and the measuring window", () => {
@@ -220,3 +220,141 @@ describe("Totals, cost, accuracy and status", () => {
     expect(t).not.toContain("Poll failed twice");
   });
 });
+
+const tonight = (html: string) => {
+  const start = html.indexOf("Tonight");
+  return html.slice(start, html.indexOf("Today and tomorrow", start));
+};
+const sum = (rows: DashboardData["timeline"]) => rows.reduce((a, r) => a + r.solarWh, 0);
+const day1 = sum(sampleDashboard.timeline.slice(0, 24));
+const day2 = sum(sampleDashboard.timeline.slice(24, 48));
+const pctLess = Math.round((1 - day2 / day1) * 100);
+
+describe("Flow diagram cross layout", () => {
+  const h = hero(render());
+  const lines = [...h.matchAll(/<line\b[^>]*>/g)]
+    .map((m) => m[0])
+    .filter((l) => /data-flow="/.test(l))
+    .map((l) => {
+      const attr = (n: string) => Number(new RegExp(`\\s${n}="([^"]*)"`).exec(l)?.[1]);
+      return {
+        flow: /data-flow="([^"]*)"/.exec(l)?.[1],
+        x1: attr("x1"),
+        y1: attr("y1"),
+        x2: attr("x2"),
+        y2: attr("y2"),
+      };
+    });
+  const by = (f: string) => {
+    const l = lines.find((x) => x.flow === f);
+    if (!l) throw new Error(`no line ${f}`);
+    return l;
+  };
+
+  it("has exactly four flow lines", () => {
+    expect(lines.map((l) => l.flow).sort()).toEqual(["battery", "grid", "home", "solar"]);
+  });
+
+  it("makes every line strictly horizontal or vertical", () => {
+    for (const l of lines) expect(l.x1 === l.x2 || l.y1 === l.y2).toBe(true);
+  });
+
+  it("shares one hub endpoint and equal lengths", () => {
+    const hubs = lines.map((l) =>
+      [
+        [l.x1, l.y1],
+        [l.x2, l.y2],
+      ].map((p) => p.join(",")),
+    );
+    const common = hubs[0]?.filter((p) => hubs.every((e) => e.includes(p))) ?? [];
+    expect(common).toHaveLength(1);
+    const hub = (common[0] ?? "").split(",").map(Number) as [number, number];
+    const len = lines.map((l) => Math.hypot(l.x2 - l.x1, l.y2 - l.y1));
+    for (const v of len) expect(Math.abs(v - (len[0] ?? 0))).toBeLessThanOrEqual(0.5);
+    expect(len[0]).toBeGreaterThan(0);
+
+    // far end of each line, relative to the hub
+    const far = (f: string) => {
+      const l = by(f);
+      return l.x1 === hub[0] && l.y1 === hub[1] ? [l.x2, l.y2] : [l.x1, l.y1];
+    };
+    expect(far("solar")[1]).toBeLessThan(hub[1]);
+    expect(far("battery")[1]).toBeGreaterThan(hub[1]);
+    expect(far("grid")[0]).toBeLessThan(hub[0]);
+    expect(far("home")[0]).toBeGreaterThan(hub[0]);
+  });
+
+  it("puts the SoC ring text inside the battery node", () => {
+    const m = /<g[^>]*data-node="battery"[^>]*>([\s\S]*?)<\/g>\s*<\/g>|<g[^>]*data-node="battery"[^>]*>([\s\S]*)/.exec(h);
+    expect(m).not.toBeNull();
+    expect(h.slice(h.indexOf('data-node="battery"'))).toContain(`${live.socPct}%`);
+    const inside = text(m?.[1] ?? m?.[2] ?? "");
+    expect(inside).toContain(`${live.socPct}%`);
+  });
+});
+
+describe("Tomorrow weather tile", () => {
+  const w = sampleDashboard.weatherTomorrow;
+  const t = text(tonight(render()));
+
+  it("shows the forecast, solar and sun comparison", () => {
+    expect(w).not.toBeNull();
+    expect(t).toContain("Tomorrow");
+    expect(t).toContain("Cloudy");
+    expect(t).toContain(formatTemp(24, "F"));
+    expect(t).toContain(formatTemp(16, "F"));
+    expect(t).toContain("80% cloud cover");
+    expect(t).toContain("20% chance of rain");
+    expect(t).toContain(formatKwh(day2));
+    expect(t).toContain(`${pctLess}% less sun than today`);
+  });
+
+  it("says more when tomorrow has more sun", () => {
+    const rows = sampleDashboard.timeline.map((r, i) => (i >= 24 ? { ...r, solarWh: r.solarWh * 3 } : r));
+    const more = text(tonight(render({ data: { ...sampleDashboard, timeline: rows } })));
+    expect(more).toContain("more sun than today");
+    expect(more).not.toContain("less sun than today");
+  });
+
+  it("omits the tile when weatherTomorrow is null", () => {
+    const n = text(tonight(render({ data: { ...sampleDashboard, weatherTomorrow: null } })));
+    for (const s of ["Cloudy", "80% cloud cover", "20% chance of rain", "less sun than today"])
+      expect(n).not.toContain(s);
+  });
+});
+
+describe("48 h chart", () => {
+  const html = render();
+  const t = text(html);
+
+  it("never mentions p10 or p90", () => {
+    expect(html).not.toMatch(/p10|p90/i);
+  });
+
+  it("has the custom legend and caption", () => {
+    for (const s of ["Home use", "Expected range for home use", "Solar", "Peak price hours"]) expect(t).toContain(s);
+    expect(t).toContain(
+      "Hours after Now are a forecast. The hatched band shows where home use will most likely land.",
+    );
+  });
+});
+
+describe("Cost today credit wording", () => {
+  it("shows Credit earned without a minus sign for a negative net", () => {
+    const html = render();
+    const t = text(html);
+    expect(costToday.netCents).toBeLessThan(0);
+    expect(t).toContain("Credit earned");
+    expect(t).toContain(formatMoney(-costToday.netCents, currency));
+    expect(t).not.toContain(formatMoney(costToday.netCents, currency));
+  });
+
+  it("shows Net cost for a positive net", () => {
+    const data = { ...sampleDashboard, costToday: { ...costToday, netCents: 250 } };
+    const t = text(render({ data }));
+    expect(t).toContain("Net cost");
+    expect(t).toContain(formatMoney(250, currency));
+    expect(t).not.toContain("Credit earned");
+  });
+});
+
