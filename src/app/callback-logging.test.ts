@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { NextRequest } from "next/server";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi, type MockInstance } from "vitest";
 
 const jar = vi.hoisted(() => new Map<string, string>());
 vi.mock("next/headers", () => ({
@@ -40,7 +40,7 @@ let dir: string;
 const g = globalThis as unknown as {
   __voltopsDb?: { $client: { close(): void } };
 };
-let spies: ReturnType<typeof vi.spyOn>[];
+let spies: MockInstance<(...args: unknown[]) => void>[];
 
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), "voltops-cblog-"));
@@ -98,7 +98,7 @@ const logged = () => JSON.stringify(allArgs());
 const expectNoMarkers = () => {
   for (const m of MARKERS) expect(logged()).not.toContain(m);
 };
-const warns = () => (spies[1]!.mock.calls as unknown[][]);
+const warns = () => (spies[1]!.mock.calls);
 
 const leakyBody = {
   error: "forbidden",
@@ -177,7 +177,7 @@ it("success path logs timezone and site status but no tariff ID", async () => {
       }),
   });
   await run();
-  const logs = spies[0]!.mock.calls as unknown[][];
+  const logs = spies[0]!.mock.calls;
   expect(logs).toContainEqual(["[Tesla OAuth] Energy site:", "found"]);
   expect(logs).toContainEqual([
     "[Tesla OAuth] Timezone:",
