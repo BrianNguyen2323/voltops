@@ -11,7 +11,7 @@
 - B005 Contract (`weatherTomorrow`, `temperatureUnit`, `formatTemp`) + dashboard changes. Tester → implementer → reviewer with screenshots.
 - Then: a PO Review item in TODO.md.
 
-## M3 — M2 review fixes (mobile kW size, labelled grid price + home cost now, tooltip swatches) — SPEC Rev 3
+## M3 — M2 review fixes (mobile kW size, labelled grid price + home cost now, tooltip swatches) — SPEC Rev 3 — DONE 2026-10-06 (6442b61 on `front-end-development`)
 - B006 Flow-node mobile sizing/padding, the "Grid price now" / "Your home now" strip with `costNow`, shared legend/tooltip swatches. Tester → implementer → reviewer with screenshots.
 - B007 Name the cost lines (Spending/Saving/Earning) + clamp saving at 0 (B006 review nits). Tester → implementer → reviewer.
 - Then: a PO Review item. **The optimization round is due after M3** (3 milestones).

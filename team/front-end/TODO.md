@@ -181,3 +181,40 @@ Merged into `front-end-development` at b891873. Gate: 180 tests, typecheck, lint
   - Asked: is Tailwind used? (Answered in chat: yes, Tailwind v4 throughout.)
   - Not picked: "add predev" (still open), the Tomorrow-tile indent nit.
 
+
+## USER INPUT REQUIRED — Review: M3 (your M2 changes) (2026-10-06)
+Merged into `front-end-development` at 6442b61. Gate: 195 tests, typecheck, lint and build all green. No new dependencies.
+
+**How to run it:**
+- Docker: `docker compose up --build` (your real instance).
+- Or local: `pnpm db:migrate` once, then `pnpm dev`.
+- Open `/home` and check phone width at 390 px. Screenshots: `data/shots/review-m3-*.png` and `data/shots/review-b007-*.png`.
+
+**What changed**
+1. **Mobile tiles:** all four kW readings are the same, one step smaller on phones. Every tile has padding around its ring, name, kW and state. The cross arms are still equal.
+2. **Under "Right now"** (replaces the bare "Peak" badge):
+   - **Grid price now:** "$0.48/kWh, Peak rate until 9:00 PM", i.e. the grid's price per kWh, not a total.
+   - **Your home now:** one labelled line per thing happening, each with a plain sentence. Sample:
+     - "Saving $0.99/hour": solar and battery cover 2.1 kW of home use, so you're not buying it at $0.48/kWh;
+     - "Earning $0.13/hour": selling 1.6 kW to the grid at $0.08/kWh;
+     - when the home buys from the grid, a "Spending $X/hour" line appears with a pink amount.
+   - Decision (R003): "saving" = home use not drawn from the grid, priced at the current grid rate. Export earnings are separate, so nothing is double-counted. Saving can't go negative.
+3. **Chart tooltip:** it uses the exact same markers as the legend (line, stripes, amber square).
+
+**Still open** (say if you want any):
+- "add predev": `pnpm dev` would set up the database automatically;
+- the Tomorrow-tile indent nit;
+- making the "Spending" label word pink too (today only its amount is pink).
+
+**Your call:**
+- **a.** "approved": you merge `front-end-development` into `main`. I then run the **optimization round**, which is due now that 3 milestones are done:
+  - a cleaner pass over the front-end code, plus a perf/size check (bundle size, Docker image);
+  - and you run `/improve-codebase-architecture` in this session. Its pick becomes the next design revision.
+- **b.** more changes. The optimization round waits until they land.
+- **c.** the next topic. Options:
+  - learning/loading/error states;
+  - the light theme;
+  - chart table/CSV views;
+  - nav + the Plan/Trends screens;
+  - a middleware hand-off doc for `DashboardData`/`weatherTomorrow`.
+- Answer:
