@@ -5,7 +5,7 @@
   - Use skill `frontend-design` in planning **and** in implementation (put `Use skill: frontend-design` in every UI brief; add `dataviz` for chart briefs).
   - Another team builds the middleware that feeds real data.
 - **Status:** Decision round 1 answered (all recommended; Q3 = Nova). SPEC Rev 1 + R001 written. M1 in progress.
-- **Last action:** both tester handoffs received; B001 + B002 implementers spawned.
+- **Last action:** B002 impl done (scope green, full suite red under load, unattributed) → gate, reviewer running. B001 implementer still running.
 - **Next action:**
   1. tester handoffs → spawn the implementers on the tester branches;
   2. reviewer → gate → merge `--no-ff` into `front-end-development`;
