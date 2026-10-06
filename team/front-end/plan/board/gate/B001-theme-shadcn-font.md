@@ -87,3 +87,4 @@
 - Tester: base `phase2a/ui-theme-impl` (89c371a) → branch `phase2a/ui-theme-test2`. Fix only the 2 lint errors in the owned test files: give the empty function a body (e.g. `return undefined;`), and type the JSON parse (e.g. `as { style: string }`). No assertion changes.
 - Judged by: `SKIP_ENV_VALIDATION=1 pnpm lint` has 0 errors and 0 warnings, and `pnpm test` is green.
 - Then the reviewer runs the full judged-by command, including `SMOKE_PORT=3100 bash scripts/docker-smoke.sh`.
+- Round 2 test fix 4ac42c4 on `phase2a/ui-theme-test2`: tests 104/104, and the 2 owned-file lint errors are fixed. The tester's lint run still showed 1 error + 2 warnings in non-owned files (`next-env.d.ts`, `postcss.config.js`, `prettier.config.js`), cause unknown (worktree vs branch). Reviewer spawned to run the full gate + docker smoke and attribute the lint errors.
