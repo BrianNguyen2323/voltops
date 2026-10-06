@@ -8,7 +8,7 @@
 - **M1 results:**
   - merged into `front-end-development`: B002 474e892, B004 6971648, B001 475337a, B003 ff33d4e;
   - gate: vitest 165/165, typecheck, lint clean (raw), build OK; docker smoke PASS 303 MB at B001.
-- **Last action:** B005 tests in (12 failing); implementer running.
+- **Last action:** B005 impl green except one test-file lint error; tester fix-up running.
 - **Next action:**
   - record the PO's M1 review: approve, a change list (→ SPEC Rev 2 + fix briefs), or the next topic;
   - the optimization round is due after M3 (3 milestones).
