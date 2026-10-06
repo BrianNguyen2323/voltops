@@ -73,7 +73,7 @@ export type DashboardData = {
 };
 
 const HOUR = 3_600_000;
-const UPDATED_AT = "2026-07-15T23:40:00Z"; // 16:40 PDT
+const UPDATED_AT = "2026-07-16T00:00:00Z"; // 17:00 PDT
 const MIDNIGHT = Date.parse("2026-07-15T07:00:00Z"); // local midnight PDT
 
 // Peak 16-21 local, mid-peak 15-16 and 21-24, else off-peak.
@@ -85,61 +85,67 @@ const periodOf = (localHour: number): TouPeriod =>
       : "off-peak";
 
 // Deterministic summer shapes; tomorrow (second day) is cloudier.
-// SoC at the start of each local hour: battery covers the night, solar charges it by day.
-const SOC_BY_HOUR = [
-  55, 48, 42, 36, 30, 25, 20, 20, 23, 33, 44, 55, 66, 76, 84, 89, 92, 86, 80,
-  74, 68, 62, 56, 50,
-];
-
-const timeline: DashboardData["timeline"] = Array.from(
-  { length: 48 },
-  (_, i) => {
-    const t = MIDNIGHT + i * HOUR;
-    const h = i % 24;
-    const cloud = i >= 24 ? 0.55 : 1;
-    const sun = Math.max(0, Math.sin(((h - 6) / 13) * Math.PI));
-    const solarWh = Math.round(5600 * sun * cloud);
-    const loadWh = Math.round(
+const rows = Array.from({ length: 48 }, (_, i) => {
+  const h = i % 24;
+  const cloud = i >= 24 ? 0.55 : 1;
+  const sun = Math.max(0, Math.sin(((h - 6) / 13) * Math.PI));
+  return {
+    t: MIDNIGHT + i * HOUR,
+    h,
+    solarWh: Math.round(5600 * sun * cloud),
+    loadWh: Math.round(
       900 +
         700 * Math.max(0, Math.sin(((h - 13) / 10) * Math.PI)) +
         (h >= 16 && h < 21 ? 600 : 0),
-    );
-    const socPct = SOC_BY_HOUR[h] ?? 50;
-    const kind = t < Date.parse(UPDATED_AT) ? "actual" : "forecast";
-    const row: DashboardData["timeline"][number] = {
-      hour: new Date(t).toISOString(),
-      kind,
-      loadWh,
-      solarWh,
-      socPct,
-      period: periodOf(h),
-    };
-    if (kind === "forecast") {
-      row.loadP10Wh = Math.round(loadWh * 0.85);
-      row.loadP90Wh = Math.round(loadWh * 1.2);
-      row.solarP10Wh = Math.round(solarWh * 0.7);
-      row.solarP90Wh = Math.round(solarWh * 1.15);
-    }
-    return row;
-  },
-);
-
-// today and live derive from the actual timeline rows; the last actual row is the current hour.
-const actual = timeline.filter((r) => r.kind === "actual");
-const nowRow = actual[actual.length - 1];
-if (!nowRow) throw new Error("sample timeline has no actual rows");
-const cap = 13500;
-const liveSoc = Math.min(100, nowRow.socPct + 1); // still charging at 16:40
-// Per actual row: SoC is the start-of-hour value, so battery energy is the drop to the next row (> 0 = discharge).
-const flows = actual.map((r, i) => {
-  const next = actual[i + 1]?.socPct ?? liveSoc;
-  const batteryWh = Math.round(((r.socPct - next) / 100) * cap);
-  return {
-    period: r.period,
-    gridWh: r.loadWh - r.solarWh - batteryWh,
-    batteryWh,
+    ),
   };
 });
+
+// One self-powered dispatch loop: surplus charges the battery (export the rest),
+// deficit discharges it down to the reserve (import the rest). SoC is the start-of-hour value.
+const cap = 13500;
+const RESERVE_WH = 0.2 * cap;
+const MAX_WH = 5000; // per hour
+let energy = 0.55 * cap;
+const timeline: DashboardData["timeline"] = rows.map((r) => {
+  const socPct = Math.round((energy / cap) * 100);
+  const net = r.solarWh - r.loadWh;
+  energy +=
+    net > 0
+      ? Math.min(net, MAX_WH, cap - energy)
+      : -Math.min(-net, MAX_WH, energy - RESERVE_WH);
+  const kind = r.t < Date.parse(UPDATED_AT) ? "actual" : "forecast";
+  const row: DashboardData["timeline"][number] = {
+    hour: new Date(r.t).toISOString(),
+    kind,
+    loadWh: r.loadWh,
+    solarWh: r.solarWh,
+    socPct,
+    period: periodOf(r.h),
+  };
+  if (kind === "forecast") {
+    row.loadP10Wh = Math.round(r.loadWh * 0.85);
+    row.loadP90Wh = Math.round(r.loadWh * 1.2);
+    row.solarP10Wh = Math.round(r.solarWh * 0.7);
+    row.solarP90Wh = Math.round(r.solarWh * 1.15);
+  }
+  return row;
+});
+
+// today and live derive from the actual rows; live power is the hour just completed, live SoC is now (first forecast row).
+const actual = timeline.filter((r) => r.kind === "actual");
+const nowRow = actual[actual.length - 1];
+const nextRow = timeline[actual.length];
+if (!nowRow || !nextRow) throw new Error("sample timeline needs actual and forecast rows");
+// Per actual row: battery energy is the SoC drop to the next row (> 0 = discharge).
+const flows = actual.map((r, i) => {
+  const batteryWh = Math.round(
+    ((r.socPct - (timeline[i + 1]?.socPct ?? r.socPct)) / 100) * cap,
+  );
+  return { period: r.period, gridWh: r.loadWh - r.solarWh - batteryWh, batteryWh };
+});
+const lastFlow = flows[flows.length - 1];
+if (!lastFlow) throw new Error("no flows");
 const total = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
 const solarWh = total(actual.map((r) => r.solarWh));
 const loadWh = total(actual.map((r) => r.loadWh));
@@ -175,13 +181,9 @@ export const sampleDashboard: DashboardData = {
   live: {
     solarW: nowRow.solarWh,
     loadW: nowRow.loadWh,
-    batteryW: -Math.round((nowRow.solarWh - nowRow.loadWh) * 0.6), // surplus: 60% charges, 40% exports
-    gridW: -(
-      nowRow.solarWh -
-      nowRow.loadWh -
-      Math.round((nowRow.solarWh - nowRow.loadWh) * 0.6)
-    ),
-    socPct: liveSoc,
+    batteryW: lastFlow.batteryWh,
+    gridW: lastFlow.gridWh,
+    socPct: nextRow.socPct,
     usableCapacityWh: cap,
     gridStatus: "connected",
   },
@@ -224,8 +226,8 @@ export const sampleDashboard: DashboardData = {
   last7Days: [9, 10, 11, 12, 13, 14]
     .map((d, i) => ({
       date: `2026-07-${String(d).padStart(2, "0")}`,
-      solarWh: 38000 - i * 300,
-      loadWh: 24000 + i * 400,
+      solarWh: 47500 - i * 500,
+      loadWh: 24500 + i * 300,
     }))
     .concat([{ date: "2026-07-15", solarWh, loadWh }]),
   accuracy: [
