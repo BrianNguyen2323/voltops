@@ -81,3 +81,4 @@ export type DashboardData = {
 - **Worktree:** no dep changes, so link main's node_modules: `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`. Run `cmd //c rmdir node_modules` **before** any `git worktree remove`, and never use `--force`. Never copy the PO's `.env`.
 
 ## Gate log
+- Tests f596477 on `phase2a/ui-data-test`: 2 files FAIL on base (modules missing). Also pins usableCapacityWh 13500, tariffNow mid-peak, model/baseline names. Implementer spawned.

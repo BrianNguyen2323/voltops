@@ -75,3 +75,4 @@
   - before removing the worktree, delete its node_modules from PowerShell: `cmd /c rmdir /s /q "\\?\<full path>\node_modules"`.
 
 ## Gate log
+- Tests fd7d504 on `phase2a/ui-theme-test`: 63 new FAIL on base (41 existing pass). Vitest needs `oxc: { jsx: { runtime: "automatic" } }` for .tsx (Vite 8). Hex tests expect literal `--name: #hex;`. Implementer spawned.
