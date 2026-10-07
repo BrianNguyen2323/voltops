@@ -8,6 +8,7 @@ import { checkSnapshot } from "~/lib/dashboard";
 import { addDays, localDate, localMidnight } from "~/lib/time";
 import { openDb } from "~/server/db";
 import * as schema from "~/server/db/schema";
+import type * as LoadMod from "./load";
 import siteInfo from "../../../fixtures/fleet-api/site_info.json";
 
 // Signatures under test (see handoff):
@@ -23,7 +24,7 @@ const FALL = Date.parse("2026-11-01T20:00:00Z");
 
 let dir: string;
 let db: ReturnType<typeof openDb>;
-let mod: typeof import("./load");
+let mod: typeof LoadMod;
 
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), "voltops-snap-"));
