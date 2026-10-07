@@ -254,7 +254,7 @@ Merged into `front-end-development` at d27022d. Gate: 195 app tests + 58 script 
   3. The PO merges into `main` **after** the architecture run.
 
 
-## USER INPUT REQUIRED — Pick an architecture candidate (2026-10-06)
+## Pick an architecture candidate — ANSWERED 2026-10-06
 The report is at `C:\Users\nguye\AppData\Local\Temp\architecture-review-20261006-165151.html`, with full findings in `research/architecture/README.md`.
 1. **Deepen the `DashboardData` seam** (Strong, recommended): one module owns "today vs tomorrow" and every derived total; an invariant suite becomes the middleware team's acceptance test.
 2. **Gather the tariff knowledge into one module** and deepen `costNow` (Strong, but wait for the real tariff shape).
@@ -263,4 +263,16 @@ The report is at `C:\Users\nguye\AppData\Local\Temp\architecture-review-20261006
 5. **Name the sample sim as an adapter** (Speculative; do nothing now).
 
 Which would you like to explore? (We then walk through it together and it becomes SPEC Rev 5.)
+- Answer: **1** (PO, 2026-10-06): do the suggested fix, and keep a priority list for the others (see `plan/MILESTONES.md` "Architecture backlog").
+
+## USER INPUT REQUIRED — Decision round 2: candidate 1, deepen the `DashboardData` seam (2026-10-06)
+The questions are in chat; summary here. Answer e.g. "all recommended".
+- **Q1. Day rule:** derive today/tomorrow by grouping `timeline` rows by **site-local date** from `hour` + `site.timezone` (rec). Or document the "row 24" index rule, or add a `day` field.
+- **Q2. Per-hour energy breakdown:** add `gridImportWh`, `gridExportWh`, `batteryChargeWh` and `batteryDischargeWh` to **actual** timeline rows, so today's totals are derived (rec). Or keep the grid/battery totals as inputs.
+- **Q3. Cost today:** stays an **input** this round, cross-checked against the derived grid import (rec). Deriving it needs the tariff module (candidate 2).
+- **Q4. Last 7 days:** the input is the **6 previous days**; today's bar is derived (rec).
+- **Q5. `live`:** documented as the instantaneous reading at `updatedAt` (rec).
+- **Q6. Invariant suite:** an exported pure check that returns a list of problems, used by our tests and handed to the middleware team for theirs (rec). Or a test-only helper.
+- **Q7. Where it lives:** one pure module, `src/lib/dashboard.ts` (input type, check, derive), with the sample staying in `home/data.ts` as the sample adapter (rec).
 - Answer:
+
