@@ -102,6 +102,14 @@ export function yesterdayRange(timeZone, now) {
   return { start_date: fmtLocal(timeZone, start), end_date: fmtLocal(timeZone, start + 86399000) };
 }
 
+export function todayRange(timeZone, now) {
+  const p = localParts(timeZone, now);
+  return {
+    start_date: fmtLocal(timeZone, Date.UTC(p.year, p.month - 1, p.day)),
+    end_date: fmtLocal(timeZone, Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second)),
+  };
+}
+
 export function checkInvariant(live) {
   const residualW = live.solar_power + live.battery_power + live.grid_power - live.load_power;
   return { ok: Math.abs(residualW) <= Math.max(50, 0.05 * live.load_power), residualW };
@@ -162,7 +170,8 @@ export async function run(deps) {
       const sid = body.response.find((i) => i.resource_type === "battery")?.energy_site_id;
       if (sid != null) secrets.push(String(sid), Number(sid));
     }
-    if (is2xx && body && typeof body === "object") await deps.writeFixture(name, anonymize(body, secrets));
+    // Today's data is not anonymized-reviewed: never write a fixture for it.
+    if (is2xx && body && typeof body === "object" && name !== "calendar_history_today") await deps.writeFixture(name, anonymize(body, secrets));
     if (!ok) log(`${name} error: ${JSON.stringify(anonymize(body, secrets)).slice(0, 300)}`);
     results.push({ name, path, status, ok });
     return ok ? body.response : undefined;
@@ -182,6 +191,14 @@ export async function run(deps) {
     const { start_date, end_date } = yesterdayRange(tz, now);
     const q = new URLSearchParams({ kind: "energy", period: "day", start_date, end_date, time_zone: tz });
     await call("calendar_history_energy", `${base}/calendar_history`, `?${q}`);
+    const t = todayRange(tz, now);
+    const tq = new URLSearchParams({ kind: "energy", period: "day", ...t, time_zone: tz });
+    const today = await call("calendar_history_today", `${base}/calendar_history`, `?${tq}`);
+    if (today) {
+      const n = Array.isArray(today.time_series) ? today.time_series.length : 0;
+      const m = Math.floor((now.getTime() - Date.parse(t.start_date)) / 300000);
+      log(`today intervals: ${n} (expected about ${m} so far)`);
+    }
   }
 
   log("\n" + results.map((r) => `${r.ok ? "OK  " : "FAIL"} ${String(r.status).padEnd(4)} ${r.name.padEnd(24)} ${anonymize(r.path, secrets)}`).join("\n"));
