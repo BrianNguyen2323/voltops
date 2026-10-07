@@ -297,6 +297,5 @@ The questions are in chat; summary here.
   - **Q11:** yes.
   - **Q12:** A, plus create the `team/middleware/` scope with the doc in it. Done: tree + RESUME hand-off notes; the doc copy lands after M5.
 
-## USER INPUT REQUIRED — Confirm the candidate-1 design (summary in chat), then I write SPEC Rev 5 + briefs
-- Answer:
-
+## Confirm the candidate-1 design — ANSWERED 2026-10-06
+- Answer: **confirmed** (PO, 2026-10-06) → SPEC Rev 5, R005, M5 (B010, B011).

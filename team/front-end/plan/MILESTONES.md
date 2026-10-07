@@ -22,6 +22,11 @@
 - Perf/size pass (lead): `/home` First Load JS from `pnpm build`, and the docker image size (smoke). Recorded in `research/optimization/README.md`.
 - PO: run `/improve-codebase-architecture` in this session. The pick becomes SPEC Rev 5.
 
+## M5 — Architecture candidate 1: deepen the Dashboard snapshot seam — SPEC Rev 5
+- B010 `src/lib/dashboard.ts` (`DashboardSnapshot`, `checkSnapshot`, `DashboardView`, `toDashboardView`) + sample adapter → `sampleSnapshot` + tests (DST day, non-midnight start). Keeps a temporary `DashboardData = DashboardView` alias so the UI builds unchanged. Tester → implementer → reviewer.
+- B011 UI reads the view (`view` prop, `solarOutlook` instead of Timeline slicing), the page runs the check + logs, remove the alias, `docs/dashboard-snapshot.md`. Starts after B010 merges. Tester → implementer → reviewer with before/after screenshots (must be identical).
+- Then: the lead copies the doc into `team/middleware/`; a PO review; **the PO merges `front-end-development` → `main`**.
+
 ## Architecture backlog (from the 2026-10-06 review, `research/architecture/README.md`; priority order set by the lead)
 1. **Candidate 1, deepen the `DashboardData` seam:** IN PROGRESS (Decision round 2 → SPEC Rev 5 → M5).
 2. **Candidate 3, one site-local time module + DST tests:** next. Unblocked, cheap, and lands the DST tests CLAUDE.md §5 requires. Do it before or with the Plan/Trends time axes.

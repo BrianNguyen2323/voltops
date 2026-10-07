@@ -1,6 +1,6 @@
 # SPEC — Front end: home dashboard (`/home`)
 
-Revision 4
+Revision 5
 
 ## Goal
 `/home` becomes an overview dashboard of the MVP's key features (CLAUDE.md §9: Now, Plan, Trends, Accuracy, Health), fed by **sample data** through one typed contract. Another team will swap the sample data for real queries. It is dark only, built with shadcn (style `radix-nova`), and works at 390 px and 1440 px. Research and design plan: `research/home-dashboard/README.md`.
@@ -18,6 +18,7 @@ Revision 4
 - Q10 solar is #ffb547 and grid export is #8b93ff.
 - Q11 this team owns `DashboardData`.
 - M1 review (R002): the flow diagram becomes an orthogonal cross; Tonight gets a weather tile; the 48 h chart is plain-language with a hatched range band; a negative net cost reads as a credit.
+- Architecture candidate 1 (R005): the `DashboardData` contract splits into a **Dashboard snapshot** (inputs only) and a **Dashboard view** (derived) in `src/lib/dashboard.ts`, with `checkSnapshot` and `toDashboardView`. The day rule is the site-local date. See GLOSSARY.md.
 - M3 review (R004): the "Spending" label word is pink too; `pnpm dev` migrates the DB first (`predev`).
 - M2 review (R003): smaller, matching kW readings in the flow nodes on mobile; a labelled "Grid price now" + "Your home now" (spending/saving/earning per hour) strip replaces the bare Peak badge; the tooltip uses the legend's swatches.
 
@@ -58,56 +59,43 @@ shadcn Tailwind v4 layout: raw vars on `:root` (the app is always `.dark`, so on
 - Components: `button`, `card`, `badge`, `chart` (`separator` was removed as unused in B009, Rev 4). Add others only if a section needs them.
 - Allowed new deps: `radix-ui`, `recharts`, plus whatever the shadcn CLI requires for these components (e.g. `tw-animate-css`, `shadcn` for its CSS import). List each one in the handoff.
 
-## Data contract: `src/app/(protected)/home/data.ts`
-Exports `type DashboardData` and `const sampleDashboard: DashboardData`. All units are canonical (CLAUDE.md §5):
-- power in **W** and energy in **Wh**, both integers; money in integer **cents**;
-- times are ISO-8601 UTC strings.
-- Signs: `batteryW` > 0 discharging; `gridW` > 0 importing.
+## Dashboard snapshot and view (Rev 5; replaces the Rev 1–4 "Data contract")
+Terms are as in `GLOSSARY.md`. Everything lives in one pure module, **`src/lib/dashboard.ts`**: no React, no I/O.
 
-```ts
-type TouPeriod = "off-peak" | "mid-peak" | "peak";
-type DashboardData = {
-  site: { name: string; timezone: string; temperatureUnit: "F" | "C" };  // IANA tz; display unit only
-  source: "fleet-api" | "local-gateway" | "replay";
-  updatedAt: string;
-  currency: string;                                     // ISO 4217, e.g. "USD"
-  live: { solarW: number; loadW: number; batteryW: number; gridW: number;
-          socPct: number; usableCapacityWh: number; gridStatus: "connected" | "islanded" };
-  tariffNow: { period: TouPeriod; importCentsPerKwh: number; exportCentsPerKwh: number; endsAt: string };
-  recommendation: null | {
-    action: string;                                     // "Raise backup reserve to 65%"
-    validFrom: string; validTo: string;
-    effectWh: number; savingsCents: number;
-    why: string[];                                      // 1–3 plain sentences
-    confidence: "low" | "medium" | "high";
-    wouldChange: string;
-  };
-  timeline: Array<{                                     // 48 consecutive hours
-    hour: string;                                       // start of hour, UTC
-    kind: "actual" | "forecast";                        // all actuals precede all forecasts
-    loadWh: number; solarWh: number; socPct: number; period: TouPeriod;
-    loadP10Wh?: number; loadP90Wh?: number;             // forecast rows only
-    solarP10Wh?: number; solarP90Wh?: number;           // p10 ≤ value ≤ p90
-  }>;
-  today: { solarWh: number; loadWh: number; gridImportWh: number; gridExportWh: number;
-           batteryChargeWh: number; batteryDischargeWh: number; selfPoweredPct: number };
-  costToday: { periods: Array<{ period: TouPeriod; importWh: number; costCents: number }>;
-               exportCreditCents: number; netCents: number };   // net = Σcost − credit
-  last7Days: Array<{ date: string; solarWh: number; loadWh: number }>;  // 7 site-local dates, oldest first
-  accuracy: Array<{ target: "load" | "solar"; model: string; baseline: string;
-                    maePct: number; baselineMaePct: number; days: number }>;
-  health: { lastPollAt: string; estRequestsPerMonth: number; warnings: string[] };
-  weatherTomorrow: null | {                             // Rev 2; filled by the middleware team's weather API later
-    date: string;                                       // YYYY-MM-DD, site-local
-    condition: "clear" | "partly-cloudy" | "cloudy" | "rain";
-    highC: number; lowC: number;                        // canonical °C (Open-Meteo default), converted only in the UI
-    cloudCoverPct: number;                              // daytime mean, 0–100
-    precipitationChancePct: number;                     // 0–100
-  };
-};
-```
+**`DashboardSnapshot`**: inputs only, supplied by an adapter (today the sample in `src/app/(protected)/home/data.ts`; later the middleware team's real one). Its fields are the Rev 4 `DashboardData` fields **minus** `today` and `last7Days`, **plus**:
+- `previousDays: Array<{ date: "YYYY-MM-DD"; solarWh; loadWh }>`: exactly the 6 site-local days before today, oldest first.
+- On **actual** Timeline hours only: `gridImportWh`, `gridExportWh`, `batteryChargeWh` and `batteryDischargeWh` (integers ≥ 0). Forecast hours don't have them.
+- TSDoc on every field states the units and signs (CLAUDE.md §5).
+- `live` is the **instantaneous Live reading at `updatedAt`**. The sample approximates it; a code comment says so.
+- `costToday` stays an input until the tariff module exists (architecture backlog item 3).
 
-The sample is one plausible summer day for a 13.5 kWh Powerwall home in `America/Los_Angeles`, frozen at a fixed `updatedAt` in the late afternoon. It is deterministic: no `Date.now()`, no randomness. The live flows obey `solarW + batteryW + gridW ≈ loadW` (±50 W).
+**Timeline rule:**
+- the Timeline covers the **whole** site-local today and tomorrow: from local midnight of `updatedAt`'s site-local date to the last hour of the next site-local date, in consecutive UTC hours (46, 48 or 50 rows on DST days);
+- "today" and "tomorrow" are always found by each hour's **site-local date** (`hour` + `site.timezone`), never by row index.
+
+**`checkSnapshot(snapshot): string[]`** returns one plain message per problem (empty = OK). It never throws and never fixes data. It checks:
+1. Live: integer W, `solarW ≥ 0`, `loadW ≥ 0`, `|solarW + batteryW + gridW − loadW| ≤ 50`, `socPct` 0–100.
+2. Timeline:
+   - consecutive hours, exactly 1 h apart;
+   - full coverage of site-local today + tomorrow;
+   - all actual hours before all forecast hours, and actual hours start before `updatedAt`;
+   - actual hours carry the four breakdown fields and balance: `solar + batteryDischarge + gridImport ≈ load + batteryCharge + gridExport` (±50 Wh);
+   - forecast hours have `p10 ≤ value ≤ p90` for load and solar; actual hours have no p10/p90.
+3. `costToday`: Σ `periods.importWh` = today's derived grid import; `netCents` = Σ `costCents` − `exportCreditCents`.
+4. `previousDays`: 6 consecutive dates ending the day before today, ascending.
+5. `weatherTomorrow` (if present): `date` = tomorrow's site-local date.
+6. Every ISO time string parses.
+
+**`toDashboardView(snapshot): DashboardView`** = the snapshot's fields (minus `previousDays`) **plus** the derived fields:
+- `today`: Σ over actual hours of today's site-local date (`solarWh`, `loadWh`, grid import/export, battery charge/discharge), and `selfPoweredPct = round(100 × (1 − gridImportWh / loadWh))`, clamped to 0–100;
+- `last7Days`: `previousDays` + today's entry (`date`, `solarWh`, `loadWh` from `today`);
+- `solarOutlook: { todayWh, tomorrowWh, changePct, direction: "less" | "more" }`: Σ `solarWh` over **all** hours (actual + forecast) of each site-local day; `changePct = round(|1 − tomorrow/today| × 100)`.
+
+**Page:** `/home` runs `checkSnapshot` on the snapshot and logs each problem server-side (`console.warn("[dashboard snapshot]", problem)`). It still renders `<Dashboard view={toDashboardView(snapshot)} … />`. Dashboard modules read only the view; none slices the Timeline by index.
+
+**Sample adapter** (`home/data.ts`): `sampleSnapshot`, produced by the existing dispatch simulation (it already computes per-hour battery/grid). **Every number on screen stays identical** to Rev 4.
+
+**Hand-off:** `docs/dashboard-snapshot.md` is a one-page guide for the middleware team (units, signs, the day rule, the Live reading, the check, an example). A copy goes in `team/middleware/research/dashboard-snapshot/README.md`.
 
 ## Formatters: `src/lib/format.ts`
 - `formatKw(w)`: absolute value, 1 decimal, e.g. `4180` → `"4.2 kW"`, `-2100` → `"2.1 kW"`, `0` → `"0.0 kW"`.
@@ -119,7 +107,7 @@ The sample is one plausible summer day for a 13.5 kWh Powerwall home in `America
 ## Page: `/home`
 - `page.tsx` stays a server component:
   - it reads `connected` (a `credentials` row exists, as today);
-  - it renders `<Dashboard data={sampleDashboard} connected={connected} isSample />`.
+  - it renders `<Dashboard view={toDashboardView(sampleSnapshot)} connected={connected} isSample showLogout={…} />` after logging `checkSnapshot` problems (Rev 5).
 - `Dashboard` and its sections live in `src/components/dashboard/`. They are pure: props in, markup out, no fetching.
 - **Header:** h1 = site name, "Updated <time>" in site-local time, the "Sample data" badge when `isSample`, and Log out. Log out moves from the absolute-positioned form in `(protected)/layout.tsx` into the header. The header gets the form via `logoutAction`, which keeps `isAuthDisabled()` hiding it.
 - **Not connected:** a slim banner above the content with the text "Connect your Tesla account to see your own system" and a primary button "Connect Tesla" (`href="/api/auth/tesla"`). The sample dashboard still renders below it.
