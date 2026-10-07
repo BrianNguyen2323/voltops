@@ -5,7 +5,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 
-import type { DashboardData } from "~/app/(protected)/home/data";
+import type { DashboardView } from "~/lib/dashboard";
 import { formatKw } from "~/lib/format";
 
 const IDLE_W = 50;
@@ -140,7 +140,7 @@ const Symbol = ({ icon }: { icon: IconSvgElement }) => (
   </g>
 );
 
-export function FlowDiagram({ live }: { live: DashboardData["live"] }) {
+export function FlowDiagram({ live }: { live: DashboardView["live"] }) {
   const { solarW, loadW, batteryW, gridW, socPct } = live;
   const bState = batteryState(batteryW);
   const gState = gridState(gridW);

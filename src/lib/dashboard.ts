@@ -34,6 +34,7 @@ export type TimelineHour = {
 
 export type DashboardSnapshot = {
   site: {
+    /** Display name shown as the page heading. */
     name: string;
     /** IANA timezone, e.g. "America/Los_Angeles"; defines site-local days and TOU boundaries. */
     timezone: string;

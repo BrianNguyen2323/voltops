@@ -6,11 +6,11 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import type { DashboardData, TouPeriod } from "~/app/(protected)/home/data";
 import { logoutAction } from "~/app/login/actions";
 import { Badge } from "~/components/ui/badge";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
+import type { DashboardView, TouPeriod } from "~/lib/dashboard";
 import { formatKw, formatKwh, formatMoney, formatTemp } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -66,12 +66,12 @@ const Row = ({
 );
 
 export function Dashboard({
-  data,
+  view,
   connected,
   isSample,
   showLogout,
 }: {
-  data: DashboardData;
+  view: DashboardView;
   connected: boolean;
   isSample: boolean;
   showLogout: boolean;
@@ -85,13 +85,10 @@ export function Dashboard({
     costToday,
     currency,
     health,
-  } = data;
+    solarOutlook,
+  } = view;
   const tz = site.timezone;
-  const weather = data.weatherTomorrow;
-  const solarSum = (a: number, b: number) =>
-    data.timeline.slice(a, b).reduce((s, r) => s + r.solarWh, 0);
-  const day2 = solarSum(24, 48);
-  const pct = Math.round((1 - day2 / solarSum(0, 24)) * 100); // negative = more sun tomorrow
+  const weather = view.weatherTomorrow;
   const money = (c: number) => formatMoney(c, currency);
   const imp = tariffNow.importCentsPerKwh;
   const cost = costNow(live, tariffNow);
@@ -135,7 +132,7 @@ export function Dashboard({
         <h1 className="text-3xl font-bold">{site.name}</h1>
         {isSample && <Badge variant="secondary">Sample data</Badge>}
         <p className="text-muted-foreground text-sm">
-          Updated {clock(data.updatedAt, tz)}
+          Updated {clock(view.updatedAt, tz)}
         </p>
         {showLogout && (
           <form action={logoutAction} className="ml-auto">
@@ -257,10 +254,10 @@ export function Dashboard({
                   <p>
                     Expect{" "}
                     <span className="reading text-solar">
-                      {formatKwh(day2)}
+                      {formatKwh(solarOutlook.tomorrowWh)}
                     </span>{" "}
-                    of solar, {Math.abs(pct)}% {pct >= 0 ? "less" : "more"} sun
-                    than today.
+                    of solar, {solarOutlook.changePct}% {solarOutlook.direction}{" "}
+                    sun than today.
                   </p>
                 </div>
               )}
@@ -271,7 +268,7 @@ export function Dashboard({
 
       <section className="flex flex-col gap-3">
         <H2>Today and tomorrow</H2>
-        <TimelineChart timeline={data.timeline} timezone={tz} />
+        <TimelineChart timeline={view.timeline} timezone={tz} />
       </section>
 
       <div className="bg-border [&>section]:bg-background grid gap-px overflow-hidden rounded-lg md:grid-cols-2 lg:grid-cols-4 [&>section]:p-4">
@@ -337,14 +334,14 @@ export function Dashboard({
         <section>
           <H2>Last 7 days</H2>
           <div className="mt-2">
-            <WeekChart days={data.last7Days} />
+            <WeekChart days={view.last7Days} />
           </div>
         </section>
 
         <section>
           <H2>Forecast accuracy</H2>
           <ul className="mt-2 flex flex-col gap-3">
-            {data.accuracy.map((a) => (
+            {view.accuracy.map((a) => (
               <li key={a.target}>
                 <p className="font-medium capitalize">{a.target}</p>
                 <p>
@@ -363,7 +360,7 @@ export function Dashboard({
 
       <footer className="text-muted-foreground flex flex-col gap-1 text-sm">
         <p>
-          Source: {SOURCE[data.source]}. Last poll{" "}
+          Source: {SOURCE[view.source]}. Last poll{" "}
           {clock(health.lastPollAt, tz)}. ~
           {health.estRequestsPerMonth.toLocaleString("en-US")} requests/month.
         </p>

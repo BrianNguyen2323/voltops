@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { checkSnapshot } from "../../../lib/dashboard";
-import { sampleDashboard as d, sampleSnapshot } from "./data";
+import { checkSnapshot, toDashboardView } from "../../../lib/dashboard";
+import { sampleSnapshot } from "./data";
+
+const d = toDashboardView(sampleSnapshot);
 
 const isIso = (x: string) => !isNaN(Date.parse(x));
 

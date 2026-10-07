@@ -1,9 +1,9 @@
-import type { DashboardData } from "~/app/(protected)/home/data";
+import type { DashboardView } from "~/lib/dashboard";
 
 // Money per hour at the current power and rates; whole cents.
 export function costNow(
-  live: DashboardData["live"],
-  t: DashboardData["tariffNow"],
+  live: DashboardView["live"],
+  t: DashboardView["tariffNow"],
 ) {
   const bought = Math.max(live.gridW, 0);
   const per = (w: number, cents: number) => Math.round((w * cents) / 1000);
