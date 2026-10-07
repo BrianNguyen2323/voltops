@@ -63,3 +63,6 @@ Implementer: `Use skill: frontend-design` (no visual change allowed; use it to c
   - Deviations: edited `cost-now.test.ts` and `home/data.test.ts` (not owned) because the alias removal broke their imports; tests still import `sampleSnapshot` from `home/data`; equal solar now reads "0% more".
   - The 390 screenshots were eyeballed identical; the 1440 pair was not viewed.
   - Reviewer spawned.
+- Reviewer: **PASS**. Both screenshot pairs (390 and 1440) are identical; the view seam is clean; the doc is accurate; deviations (a)–(c) are accepted (the test edits preserve assertions; tests may import the sample; "0% more" on equal is per SPEC). Merged 10f2f7f into `front-end-development`. Gate there: vitest 243/243, scripts 58/58, typecheck, lint clean, build OK, `/home` 217/320 kB.
+- Lead: screenshots kept in `data/shots/b011-*.png`; the doc copied to `team/middleware/research/dashboard-snapshot/README.md` (links rebased). Worktrees removed.
+- Nits: the doc doesn't mention the `selfPoweredPct` clamp; `myAdapter.getDashboardSnapshot` in the doc is an illustrative name.

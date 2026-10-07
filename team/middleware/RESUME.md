@@ -6,7 +6,7 @@ Scope created by the front-end team lead on 2026-10-06 at the PO's request. No r
 - **Read first:**
   1. `CLAUDE.md` §5 (DataSource, units, signs), §6 (data model + retention), §7;
   2. `GLOSSARY.md`;
-  3. `research/dashboard-snapshot/README.md`, which becomes the hand-off doc once the front-end M5 lands;
+  3. `research/dashboard-snapshot/README.md`: the **hand-off doc** (a copy of `docs/dashboard-snapshot.md`; the code in `src/lib/dashboard.ts` is canonical);
   4. `team/front-end/design/SPEC.md`;
   5. `docs/adr/0001-no-hourly-rollup-table.md`;
   6. `team/db-docker/design/SPEC.md` (current schema).
@@ -23,6 +23,6 @@ Scope created by the front-end team lead on 2026-10-06 at the PO's request. No r
   - **Conflict to resolve first.** CLAUDE.md §6 keeps raw samples 90 days and rollups forever, and ADR 0001 says "no hourly rollup table; GROUP BY the 5-minute interval rows". Together, the 5-minute interval rows are the *only* long-term energy record, so they must never be pruned by the 90-day retention. Otherwise add a durable hourly/daily rollup and revise ADR 0001. `weather_observed` (hourly irradiance, cloud, temperature) must be kept forever too.
   - Scale note: 288 five-minute rows/day ≈ 105k rows/year/Site, which is fine for SQLite. This is still to decide with the PO.
 - **Open question for this team:** the `tariffSchedule.content` JSON shape. The front-end's architecture candidate 2 (one tariff module) waits on it.
-- **Status:** not started. **Next action:** the PO calls this team; its lead runs the research round.
+- **Status:** not started. The hand-off doc is in place (front-end M5, 10f2f7f). **Next action:** the PO calls this team; its lead runs the research round.
 - **Open branches / worktrees:** none.
 - **Env lessons:** see `team/front-end/RESUME.md` and `team/db-docker/RESUME.md`.
