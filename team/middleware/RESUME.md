@@ -11,7 +11,7 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - Lead chore 59973ab: `.claude` + `next-env.d.ts` excluded from tsc/eslint (lint OOM'd scanning agent worktrees).
   - 2 old lint warnings remain (postcss/prettier anonymous default export); they're for a cleaner pass.
 - **LATEST (session paused at the usage limit). Pick up here:**
-  - **B003 worker:** the lint fix is on `worktree-agent-a24369ba4c5a5e5da` (424f320). A reviewer (incl. docker smoke) was spawned; on PASS, merge that branch.
+  - **B003:** DONE, merged 3a601ee. Main gate: vitest 379, tsc, lint, test:scripts 70, build:worker, build. Review findings → B011.
   - **B010:** DONE, merged 7f7f1c6. Main gate: vitest 359, tsc, lint, test:scripts 70.
   - **B007 snapshot:** impl on `worktree-agent-a50ada8c7f39f5ff6` (7bfb5f2): 381/382. A TEST bug: build.test.ts ~line 209 passes `hour: Date.parse(...)` to costToday, which takes an ISO string; use `hour: r.hour`. Also one consistent-type-imports lint hit in load.test.ts. Next: tester fix → reviewer → merge.
     - Reviewer note: the tests use synthetic data with no battery flow, so ask the reviewer to check the breakdown/balance with battery Wh.
