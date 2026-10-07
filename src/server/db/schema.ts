@@ -24,6 +24,7 @@ export const credentials = sqliteTable(
     scope: text(),
     accessTokenExpiresAt: ts("access_token_expires_at"),
     updatedAt: ts("updated_at"),
+    refreshLockUntil: ts("refresh_lock_until"),
   },
   (t) => [check("credentials_single_row", sql`${t.id} = 1`)],
 );

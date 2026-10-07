@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import type { EnergyInterval, LiveSample } from "~/lib/core/types";
 
 const liveSchema = z.object({
