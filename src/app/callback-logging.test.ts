@@ -2,7 +2,7 @@
  * CONTRACT (B008): the Tesla callback never logs Tesla response bodies or the
  * tariff ID. Failure logs are `[msg, status, error-code-or-"unknown"]`.
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
@@ -213,6 +213,58 @@ it("success path logs timezone and site status but no tariff ID", async () => {
   ]);
   expect(logged()).not.toContain("Tariff");
   expectNoMarkers();
+});
+
+// B002: the callback stores site facts from site_info.
+async function siteRow() {
+  const { db } = await import("~/server/db");
+  return db.$client
+    .prepare(
+      "SELECT name, usable_capacity_wh AS cap, backup_reserve_pct AS reserve FROM sites",
+    )
+    .all();
+}
+
+it("stores name, capacity (nested nameplate_energy_watts) and reserve from site_info", async () => {
+  const fixture = JSON.parse(
+    readFileSync("fixtures/fleet-api/site_info.json", "utf8"),
+  ) as { response: Record<string, unknown> };
+  fixture.response.site_name = "My Home";
+  stubFetch({ products, siteInfo: () => Response.json(fixture) });
+  await run();
+  expect(await siteRow()).toEqual([
+    { name: "My Home", cap: 27000, reserve: 20 },
+  ]);
+  expectNoMarkers();
+  expect(logged()).not.toContain("My Home");
+});
+
+it("re-running the callback updates the site facts", async () => {
+  const body = (name: string, wh: number, pct: number) => () =>
+    Response.json({
+      response: {
+        site_name: name,
+        backup_reserve_percent: pct,
+        components: { gateways: [{ nameplate_energy_watts: wh }] },
+      },
+    });
+  stubFetch({ products, siteInfo: body("A", 13500, 10) });
+  await run();
+  jar.set("tesla_oauth_state", "s");
+  jar.set("tesla_code_verifier", "v");
+  stubFetch({ products, siteInfo: body("B", 27000, 35) });
+  await run();
+  expect(await siteRow()).toEqual([{ name: "B", cap: 27000, reserve: 35 }]);
+});
+
+it("missing site_info values store null", async () => {
+  stubFetch({
+    products,
+    siteInfo: () =>
+      Response.json({ response: { installation_time_zone: "America/Los_Angeles" } }),
+  });
+  await run();
+  expect(await siteRow()).toEqual([{ name: null, cap: null, reserve: null }]);
 });
 
 vi.setConfig({ testTimeout: 60000, hookTimeout: 60000 });

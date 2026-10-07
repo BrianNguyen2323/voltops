@@ -194,7 +194,7 @@ it is not on the MVP path.
   JSON of the inputs + human text), status (shown / accepted / dismissed / applied).
 - `settings`, `admin` (single row), `job_runs` (for the health page).
 
-Retention: raw samples kept 90 days by default (configurable); rollups kept forever.
+Retention: Energy history (`energy_intervals`, `samples`, `weather_observed`, `weather_forecast`) is never pruned; hourly figures are computed by GROUP BY (ADR 0001).
 
 ---
 
