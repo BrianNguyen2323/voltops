@@ -27,6 +27,10 @@
 - B011 UI reads the view (`view` prop, `solarOutlook` instead of Timeline slicing), the page runs the check + logs, remove the alias, `docs/dashboard-snapshot.md`. Starts after B010 merges. Tester → implementer → reviewer with before/after screenshots (must be identical).
 - Then: the lead copies the doc into `team/middleware/`; a PO review; **the PO merges `front-end-development` → `main`**.
 
+## M6 — Peak-hours tile + reserve advice sentence (placeholders) — SPEC Rev 6
+- B012 contract (`peakEstimate`, `recommendation.reserve`, `peakEstimateWh`, `reservePlan`, check rules, `peakUsage` view), sample values, the tile + the Tonight sentence, the `build.ts` stub, the doc section. Tester → implementer → reviewer with screenshots.
+- Then: the lead refreshes the middleware's doc copy; middleware B013 (in their backlog) fills the real numbers; a PO review.
+
 ## Architecture backlog (from the 2026-10-06 review, `research/architecture/README.md`; priority order set by the lead)
 1. **Candidate 1, deepen the `DashboardData` seam:** DONE in M5 (10f2f7f).
 2. **Candidate 3, one site-local time module + DST tests:** next. Unblocked, cheap, and lands the DST tests CLAUDE.md §5 requires. Do it before or with the Plan/Trends time axes.

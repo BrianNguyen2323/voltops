@@ -327,7 +327,7 @@ Merged into `front-end-development` at 10f2f7f. Gate: 243 app tests + 58 script 
 - **c.** next topic: backlog #3, learning/loading/error states, the light theme, chart table/CSV views, nav + Plan/Trends, or call the **middleware** team.
 - Answer: **a, approved** (PO, 2026-10-06). The PO merges `front-end-development` → `main` now. The remaining architecture backlog waits until the PO prompts this team again ("continue" → read RESUME.md).
 
-## USER INPUT REQUIRED — Decision round 4: peak-hours estimate + reserve advice (2026-10-07)
+## Decision round 4: peak-hours estimate + reserve advice — ANSWERED 2026-10-07 (see design/revisions/R006.md)
 Research: `research/peak-estimate/README.md`. Answer e.g. "all recommended" or "Q3 B, rest recommended". After your answers, I write SPEC Rev 6. The front-end then builds the placeholder tile and the advice sentence on sample data, and I hand the middleware team a brief: the two SQL averages, the reserve rule, and filling the new fields.
 
 **Q1. What the tile shows** (3rd cell next to "Your home now"; on a phone it stacks under it).
@@ -378,3 +378,10 @@ Research: `research/peak-estimate/README.md`. Answer e.g. "all recommended" or "
 - B: the middleware sends the whole sentence as free text in `action` (wording changes then need the middleware team).
 
 **Note (no decision needed):** the 48 h chart's forecast for 4–9 PM won't match the tile exactly. The chart uses a 7-day median with no temperature term. Adding temperature to the chart forecast is a later round (CLAUDE.md §7 "load model v1").
+- Answer (PO, 2026-10-07):
+  - **Q1–Q3 and Q5–Q8:** A.
+  - **Q2 question, answered in chat:** both averages use the whole stored history.
+    - Average 1 covers every complete stored day.
+    - Average 2 covers every complete stored day whose high is within ±3 °C of the target day's forecast high.
+    - Today is excluded until it is complete.
+  - **Q4:** A, with a condition: backfill past weather **only for days that have stored energy data but no observed weather**. It's a gap-fill, up to 92 days back; nothing beyond the energy history.

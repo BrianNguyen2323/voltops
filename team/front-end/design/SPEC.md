@@ -1,6 +1,6 @@
 # SPEC — Front end: home dashboard (`/home`)
 
-Revision 5
+Revision 6
 
 ## Goal
 `/home` becomes an overview dashboard of the MVP's key features (CLAUDE.md §9: Now, Plan, Trends, Accuracy, Health), fed by **sample data** through one typed contract. Another team will swap the sample data for real queries. It is dark only, built with shadcn (style `radix-nova`), and works at 390 px and 1440 px. Research and design plan: `research/home-dashboard/README.md`.
@@ -20,6 +20,7 @@ Revision 5
 - M1 review (R002): the flow diagram becomes an orthogonal cross; Tonight gets a weather tile; the 48 h chart is plain-language with a hatched range band; a negative net cost reads as a credit.
 - Architecture candidate 1 (R005): the `DashboardData` contract splits into a **Dashboard snapshot** (inputs only) and a **Dashboard view** (derived) in `src/lib/dashboard.ts`, with `checkSnapshot` and `toDashboardView`. The day rule is the site-local date. See GLOSSARY.md.
 - M3 review (R004): the "Spending" label word is pink too; `pnpm dev` migrates the DB first (`predev`).
+- Topic 2 (R006, Decision round 4): a **"Peak hours" tile** (today's and tomorrow's estimated peak-window home use) next to "Your home now", and a structured **reserve advice sentence** in Tonight. The front-end builds placeholders on sample data; the middleware computes the numbers (`team/middleware/plan/board/backlog/B013-peak-estimate.md`).
 - M2 review (R003): smaller, matching kW readings in the flow nodes on mobile; a labelled "Grid price now" + "Your home now" (spending/saving/earning per hour) strip replaces the bare Peak badge; the tooltip uses the legend's swatches.
 
 ## Theme (`src/styles/globals.css`)
@@ -96,6 +97,102 @@ Terms are as in `GLOSSARY.md`. Everything lives in one pure module, **`src/lib/d
 **Sample adapter** (`home/data.ts`): `sampleSnapshot`, produced by the existing dispatch simulation (it already computes per-hour battery/grid). **Every number on screen stays identical** to Rev 4.
 
 **Hand-off:** `docs/dashboard-snapshot.md` is a one-page guide for the middleware team (units, signs, the day rule, the Live reading, the check, an example). A copy goes in `team/middleware/research/dashboard-snapshot/README.md`.
+
+## Peak-hours estimate and reserve advice (Rev 6)
+The PO's reasons: show the household's usual peak use and build up a usage pattern. Weather drives usage: hot days mean AC and cold days mean heating.
+
+**Snapshot additions** (`src/lib/dashboard.ts`, TSDoc on every field):
+```ts
+type PeakHistory = {
+  /** Average home use (Wh, integer ≥ 0) inside this day's peak window, over every complete stored day. */
+  historyAvgWh: number;
+  /** This day's forecast high, °C (the temperature the days are matched on). */
+  highC: number;
+  /** Complete stored days whose high is within ±3 °C of highC. Integer ≥ 0. */
+  similarTempDays: number;
+  /** Average peak-window home use over those days, Wh; null when similarTempDays < 3. */
+  similarTempAvgWh: number | null;
+};
+peakEstimate: {
+  /** Complete site-local days of stored history (integer ≥ 0). < 7 = learning. */
+  historyDays: number;
+  /** null when that day has no peak hours in the Timeline, or historyDays is 0. */
+  today: PeakHistory | null;
+  tomorrow: PeakHistory | null;
+};
+// recommendation gains an optional structured part (Q8):
+reserve?: {
+  /** Fixed emergency floor, percent (20). */
+  emergencyPct: number;
+  /** Percent of usable capacity to hold for the peak: min(100 − emergencyPct, ceil(peakWh × 100 / usableCapacityWh)). */
+  extraPct: number;
+  /** emergencyPct + extraPct (≤ 100). */
+  targetPct: number;
+  /** Tomorrow's peak estimate, Wh (= peakEstimateWh(tomorrow)). */
+  peakWh: number;
+  /** Peak Wh the extra reserve covers: peakWh, or less when the target is capped at 100%. */
+  coveredWh: number;
+};
+// recommendation.savingsCents (existing) = round(coveredWh × (peak rate − off-peak rate) / 1000) when reserve is present (Q7).
+```
+
+**Pure helpers (exported, used by the view and by the middleware advisor so both agree):**
+- `peakEstimateWh(p: PeakHistory): number` = `similarTempAvgWh === null ? historyAvgWh : round((historyAvgWh + similarTempAvgWh) / 2)` (Q2).
+- `reservePlan(peakWh, usableCapacityWh, emergencyPct = 20)` → `{ emergencyPct, extraPct, targetPct, peakWh, coveredWh }`, following the rule above. `coveredWh = targetPct < 100 ? peakWh : min(peakWh, floor(extraPct × usableCapacityWh / 100))`. Example: 27 000 Wh battery, 11 000 Wh peak → extra 41, target 61.
+
+**`checkSnapshot` adds:**
+- `historyDays` is an integer ≥ 0;
+- each non-null `PeakHistory` has integer Wh ≥ 0 and `similarTempDays` ≤ `historyDays`, and `similarTempAvgWh` is null **iff** `similarTempDays < 3`;
+- `today` / `tomorrow` is null when that site-local day has no `peak` hour in the Timeline;
+- when `recommendation.reserve` is present:
+  - it deep-equals `reservePlan(peakEstimateWh(peakEstimate.tomorrow), live.usableCapacityWh, reserve.emergencyPct)`;
+  - `emergencyPct ≥ 20`;
+  - `peakEstimate.tomorrow` is non-null and `historyDays ≥ 7`.
+
+**View** (`toDashboardView`) adds `peakUsage`:
+```ts
+peakUsage: {
+  learning: boolean;            // historyDays < 7
+  historyDays: number;
+  today: PeakDay | null;
+  tomorrow: PeakDay | null;
+};
+type PeakDay = PeakHistory & {
+  estimateWh: number;           // peakEstimateWh(...)
+  windowStart: string;          // ISO UTC: start of that day's first peak Timeline hour
+  windowEnd: string;            // ISO UTC: end of its last peak hour (+1 h)
+  usedSoFarWh: number | null;   // today only: Σ loadWh of actual peak hours of today; null if the window hasn't started (no actual peak hour yet); always null for tomorrow
+};
+```
+The window is derived from the Timeline's `period === "peak"` hours of that site-local date, so it matches the chart's shading.
+
+**UI** (`dashboard.tsx`; `Use skill: frontend-design`):
+- **"Peak hours" tile:** a 3rd cell in the "Right now" strip, after "Your home now". The strip is `sm:grid-cols-2 lg:grid-cols-3`; on a phone it stacks under "Your home now". Content (Q1):
+  - h3 "Peak hours" (same style as the other two h3s);
+  - one row per non-null day:
+    - "**Today** {4–9 PM}", then `reading` **{formatKwh(estimateWh)}** "expected";
+    - if `usedSoFarWh !== null`: "{formatKwh} used so far";
+    - "**Tomorrow** {window}" with its **estimate**;
+  - a null day reads "{Today/Tomorrow}: no peak hours";
+  - one small `text-muted-foreground text-sm` line per day: "Usual {formatKwh(historyAvgWh)} ({historyDays} days). On days near {formatTemp(highC)}: {formatKwh(similarTempAvgWh)} ({similarTempDays} days)." When `similarTempAvgWh` is null, the second sentence reads "Not enough days near {formatTemp(highC)} yet.";
+  - **learning:** instead of all of the above, "Learning your usage: {historyDays} of 7 days" (Q5);
+  - the window time format is the existing local `clock` style, e.g. "4:00 PM–9:00 PM".
+- **Tonight card, when `rec.reserve` is present** (replaces the big `action` line and the "From … Stores … saves" line; the why list, confidence and weather tile stay):
+  - big line: "Raise your backup reserve to {targetPct}%."
+  - next line (normal size), the PO's wording: "With {emergencyPct}% as reserve for emergencies, an additional {extraPct}% will help you save {money(savingsCents)} for tomorrow's estimated {formatKwh(peakWh)} usage during peak hours." The money value uses `reading text-foreground`, as today;
+  - if `targetPct === 100 && coveredWh < peakWh`: append " That covers about {formatKwh(coveredWh)} of it.";
+  - small muted line: "From {clock(validFrom)} until {clock(validTo)}."
+  - Without `reserve`, the card is unchanged (Rev 5).
+
+**Sample adapter** (`home/data.ts`): `historyDays: 30`.
+- `today` (hot): `{ historyAvgWh: 10200, highC: 33, similarTempDays: 8, similarTempAvgWh: 11600 }` → estimate 10 900.
+- `tomorrow` (cloudy, cooler, matching the weather tile's 24 °C): `{ historyAvgWh: 10200, highC: 24, similarTempDays: 6, similarTempAvgWh: 8400 }` → estimate 9 300.
+- `recommendation.action` becomes "Raise backup reserve to 89%", with `reserve = reservePlan(9300, 13500)` = extra 69, target 89, covered 9 300. `savingsCents = round(9300 × (48 − 30) / 1000) = 167`. `effectWh` = 9300.
+- The "11 kWh" why-line becomes "about 9.3 kWh".
+- Today's used-so-far comes from the existing Timeline: the 16:00 hour is actual at 17:00.
+- `checkSnapshot(sampleSnapshot)` stays `[]`.
+
+**Hand-off:** `docs/dashboard-snapshot.md` gets a "Peak estimate and reserve advice" section (fields, helpers, check rules), and its copy in `team/middleware/research/dashboard-snapshot/README.md` is refreshed by the lead.
 
 ## Formatters: `src/lib/format.ts`
 - `formatKw(w)`: absolute value, 1 decimal, e.g. `4180` → `"4.2 kW"`, `-2100` → `"2.1 kW"`, `0` → `"0.0 kW"`.
