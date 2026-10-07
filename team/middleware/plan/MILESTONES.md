@@ -14,6 +14,7 @@ Fetch and store real data, never pruned.
 - B006 Baseline forecast + SoC projection (needs B005)
 - B007 Snapshot builder + loader, `/home` wiring (needs all above)
 - B011 Worker follow-ups (B003 review: today first, blank env, idle w/o creds, smoke image name)
+- B012 Snapshot follow-ups (B007 review: page fallback, live error log, behind warning, battery-flow test)
 - B008 Replay seed + `VOLTOPS_DEMO` (needs B002, B009 fixture, B003)
 
 Order: wave 1 = B001, B002, B005, B009 (parallel, disjoint files) → wave 2 = B003, B006, B004 → wave 3 = B008, B007.
