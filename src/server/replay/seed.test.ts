@@ -26,7 +26,7 @@ const FALL = Date.parse("2026-11-01T20:07:00Z"); // 25 h local day
 const SPRING = Date.parse("2026-03-08T20:07:00Z"); // 23 h local day
 const AFTER_SPRING = Date.parse("2026-03-09T20:07:00Z"); // 3/8 is inside today-7..today
 
-const read = (p: string) => JSON.parse(readFileSync(join(process.cwd(), p), "utf8"));
+const read = (p: string): unknown => JSON.parse(readFileSync(join(process.cwd(), p), "utf8"));
 const fixture = mapCalendarHistory(read("fixtures/fleet-api/calendar_history_energy.json"));
 const fixtureDay = localDate(Date.parse(fixture[0]!.start), TZ);
 const offsets = fixture.map((i) => Date.parse(i.start) - localMidnight(fixtureDay, TZ));
@@ -84,7 +84,8 @@ describe.each([
       temperatureUnit: "F",
     });
     const t = db.select().from(s.tariffSchedule).where(eq(s.tariffSchedule.siteId, site!.id)).get();
-    const info = read("fixtures/fleet-api/site_info.json").response;
+    const info = (read("fixtures/fleet-api/site_info.json") as { response: { tariff_content: unknown } })
+      .response;
     expect(t).toMatchObject({ tariffId: "replay", currency: "USD", content: info.tariff_content });
   });
 
@@ -93,8 +94,8 @@ describe.each([
     const dates = new Set(rows.map((r) => localDate(r.start.getTime(), TZ)));
     expect([...dates].sort()).toEqual(Array.from({ length: 8 }, (_, i) => addDays(today, i - 7)));
     for (const r of rows) {
-      expect(r.solarWh! + r.batteryDischargeWh! + r.gridImportWh!).toBe(
-        r.loadWh! + r.batteryChargeWh! + r.gridExportWh!,
+      expect(r.solarWh + r.batteryDischargeWh + r.gridImportWh).toBe(
+        r.loadWh + r.batteryChargeWh + r.gridExportWh,
       );
       expect(r.start.getTime() + STEP).toBeLessThanOrEqual(now);
     }
@@ -118,17 +119,17 @@ describe.each([
     expect(hours).toEqual(Array.from({ length: hours.length }, (_, i) => first + i * HOUR));
     expect(hours.at(-1)! + HOUR).toBeGreaterThan(now);
     for (const r of rows) {
-      expect(Math.abs(r.solarW! + r.batteryW! + r.gridW! - r.loadW!)).toBeLessThanOrEqual(50);
+      expect(Math.abs(r.solarW + r.batteryW + r.gridW - r.loadW)).toBeLessThanOrEqual(50);
       expect(r.socPct).toBeGreaterThanOrEqual(0);
       expect(r.socPct).toBeLessThanOrEqual(100);
       expect(r.gridStatus).toBe("connected");
     }
     const iv = intervals(id)[0]!;
     expect(rows[0]).toMatchObject({
-      solarW: iv.solarWh! * 12,
-      loadW: iv.loadWh! * 12,
-      batteryW: (iv.batteryDischargeWh! - iv.batteryChargeWh!) * 12,
-      gridW: (iv.gridImportWh! - iv.gridExportWh!) * 12,
+      solarW: iv.solarWh * 12,
+      loadW: iv.loadWh * 12,
+      batteryW: (iv.batteryDischargeWh - iv.batteryChargeWh) * 12,
+      gridW: (iv.gridImportWh - iv.gridExportWh) * 12,
     });
   });
 
@@ -142,7 +143,7 @@ describe.each([
     expect(fc.every((r) => r.issuedAt.getTime() === now)).toBe(true);
     const firstFc = Math.min(...fc.map((r) => r.hour.getTime()));
     const shift = firstFc - src.forecast[0]!.hour;
-    expect(shift % HOUR).toBe(0);
+    expect(Math.abs(shift % HOUR)).toBe(0);
     expect(localDate(FETCHED + shift, TZ)).toBe(today);
     const days = new Set(fc.map((r) => localDate(r.hour.getTime(), TZ)));
     expect(days.has(today)).toBe(true);
