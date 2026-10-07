@@ -11,9 +11,9 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - Lead chore 59973ab: `.claude` + `next-env.d.ts` excluded from tsc/eslint (lint OOM'd scanning agent worktrees).
   - 2 old lint warnings remain (postcss/prettier anonymous default export); they're for a cleaner pass.
 - **LATEST (session paused at the usage limit). Pick up here:**
-  - **B003 worker:** impl f622c41 on `worktree-agent-a9825b798a63f8d7a` (green except 2 test-lint errors, which also fail `next build`). A tester lint-fix was spawned on top (branch unknown: newest `worktree-agent-*` with a commit on f622c41). Then reviewer + docker smoke (`SMOKE_PORT=3100`) → merge.
-  - **B010 lease:** lint fixed on `worktree-agent-a059e54a6e5db9483` (6321114, includes the impl e0a31da). A reviewer was spawned; on PASS, merge that branch (migration 0002).
-  - **B007 snapshot:** tests on `worktree-agent-aeb9db146542b476d` (f38fc86). The implementer was spawned (branch unknown; look for a commit on f38fc86). Then reviewer → merge.
+  - **B003 worker:** the lint fix is on `worktree-agent-a24369ba4c5a5e5da` (424f320). A reviewer (incl. docker smoke) was spawned; on PASS, merge that branch.
+  - **B010:** DONE, merged 7f7f1c6. Main gate: vitest 359, tsc, lint, test:scripts 70.
+  - **B007 snapshot:** impl on `worktree-agent-a50ada8c7f39f5ff6` (7bfb5f2): 381/382. A TEST bug: build.test.ts ~line 209 passes `hour: Date.parse(...)` to costToday, which takes an ISO string; use `hour: r.hour`. Also one consistent-type-imports lint hit in load.test.ts. Next: tester fix → reviewer → merge.
     - Reviewer note: the tests use synthetic data with no battery flow, so ask the reviewer to check the breakdown/balance with battery Wh.
   - **B008 replay:** the brief is not written yet (after B003 merges; it hooks `src/worker/main.ts`, `VOLTOPS_DEMO`).
   - Then: the full gate on main + docker smoke → a PO Review item in TODO.md (M1+M2).
