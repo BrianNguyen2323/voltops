@@ -70,3 +70,30 @@ Implementer: `Use skill: codebase-design` (one deep module: a small interface �
 - Impl 89eb085 on `phase2a/ui-snapshot-impl`: vitest 237/237, scripts 58, typecheck, lint clean, build OK. The UI and its tests are unchanged via the temporary alias.
   - Deviations: (a) rule 3 cost-import sum tolerates ±50 Wh, to match a tester test; (b) `data.ts` imports `../../../lib/dashboard` relatively (the `~` alias exists, so the reviewer checks).
   - Reviewer spawned.
+- Reviewer: **FAIL** (one blocking). `checkSnapshot` **throws** a `RangeError` for an invalid `site.timezone` (via `Intl.DateTimeFormat` in `localDate`, dashboard.ts:141/163/181). That breaks "never throws" and would crash `/home`.
+
+  Everything else passes. The module is deep: 2 functions + 4 types. DST and non-midnight tests are real; pinned numbers reproduce; scope clean.
+
+  Nits:
+  - rule tests only assert `length > 0`; the ordering test is incidentally satisfied by other rules;
+  - rule 3 tolerates ±50 Wh (spec says exact). The cause is the tester's "50 Wh imbalance" test not adjusting `costToday`;
+  - `data.ts` uses a relative import, but `~` works;
+  - TSDoc is thin on several fields.
+
+## Round 2 (after review FAIL)
+### Facts (added)
+- `checkSnapshot` must **never throw**, for any input shape the type allows. An invalid `site.timezone` (e.g. `"Nope/Zone"`) yields the message `site.timezone is not a valid IANA timezone`, and the timezone-dependent rules are skipped (no cascade of noise). Same for an unparseable `updatedAt`.
+- **Rule 3 is exact:** Σ `costToday.periods.importWh` === derived today grid import.
+- Each rule's failing-case test asserts that the **message text** identifies the rule. Use a substring the implementer's messages contain: read them on the base, or agree on them in the handoff. The ordering test swaps two adjacent rows cleanly, so only the ordering rule can fire.
+- `home/data.ts` imports `~/lib/dashboard`.
+- **TSDoc on every snapshot field:** units for `accuracy.maePct`/`baselineMaePct` (percent), `tariffNow.exportCentsPerKwh`, `health.estRequestsPerMonth`, `weatherTomorrow.highC`/`lowC` (°C), `currency` (ISO 4217), `source`, and `site.*`.
+
+### Owned files / Base
+- Tester: `src/lib/dashboard.test.ts`, base `phase2a/ui-snapshot-impl` (89eb085) → branch `phase2a/ui-snapshot-test2`.
+  - Add: the invalid-timezone test (returns the message, doesn't throw).
+  - Make the "50 Wh actual imbalance" test also adjust `costToday` so it stays valid under exact rule 3, and add a "cost import off by 1 Wh" failing case.
+  - Sharpen the message assertions; do the clean ordering swap.
+- Implementer: `src/lib/dashboard.ts`, `src/app/(protected)/home/data.ts`, base `phase2a/ui-snapshot-test2` → branch `phase2a/ui-snapshot-impl2`.
+
+### Judged by
+The same command as round 1, all green; the new tests fail on base `phase2a/ui-snapshot-impl` for the right reason.

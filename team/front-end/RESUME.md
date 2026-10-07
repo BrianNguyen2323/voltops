@@ -11,7 +11,7 @@
   - M3 6442b61: the PO's M2 changes (B006, B007): mobile kW size, Grid price now + Your home now (`costNow`), tooltip swatches, cost-line labels. Rev 3 / R003;
   - M4 d27022d: the PO's M3 asks (B008): pink Spending label, `predev`; plus optimization round 1 (B009 cleaner, perf/size). Rev 4 / R004.
 - **Gate on `front-end-development`:** vitest 195/195, test:scripts 58/58, typecheck, lint clean, build OK; `/home` 217 kB route / 320 kB First Load; docker image 304 MB.
-- **Last action:** B010 impl green → gate; reviewer running.
+- **Last action:** B010 review FAIL (checkSnapshot throws on an invalid timezone) → round 2 written; tester2 spawned.
 - **Next action:**
   1. B010 tester → implementer → reviewer → merge;
   2. B011 (UI reads view + page check + `docs/dashboard-snapshot.md`) → merge;
