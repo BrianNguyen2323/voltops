@@ -1,44 +1,46 @@
 # Resume board — middleware
 
-Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). It replaces `sampleSnapshot` on `/home`. Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).
+Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).
 
-- **Current round:** build, M1 + M2 (SPEC Revision 1, Decision round 1 = all recommended). The plan is in `plan/MILESTONES.md`:
-  - wave 1 = B001 fleet client, B002 schema, B005 time+tariff, B009 Open-Meteo;
-  - wave 2 = B003 worker, B006 forecast, B004 probe;
-  - wave 3 = B008 replay, B007 snapshot + `/home`.
-  - Wave 2/3 briefs are written when they move to ready (they depend on wave 1's actual exports).
-- **Done:** B002 (6a8afaf), B005 (f45dc61), B009 (1bbcf84). Main gate after the merges: vitest 305/305, tsc, lint exit 0, build green.
-  - Lead chore 59973ab: `.claude` + `next-env.d.ts` excluded from tsc/eslint (lint OOM'd scanning agent worktrees).
-  - 2 old lint warnings remain (postcss/prettier anonymous default export); they're for a cleaner pass.
-- **LATEST (session paused at the usage limit). Pick up here:**
-  - **B003:** DONE, merged 3a601ee. Main gate: vitest 379, tsc, lint, test:scripts 70, build:worker, build. Review findings → B011.
-  - **B010:** DONE, merged 7f7f1c6. Main gate: vitest 359, tsc, lint, test:scripts 70.
-  - **B007:** DONE, merged 3b2abed (vitest 411, tsc, lint, build). Follow-ups (B012, not written yet): `firstSiteId` inside try in page.tsx; log the live error class in load.ts; a fixture-based battery-flow snapshot test; the behind-warning uses the hour bucket (up to 1 h pessimistic).
-    - Reviewer note: the tests use synthetic data with no battery flow, so ask the reviewer to check the breakdown/balance with battery Wh.
-  - **B008 replay:** tests f593bb2 (`worktree-agent-af37729843df0df1c`); implementer running (base the tests + main). Then reviewer + docker smoke → merge → PO Review item.
-  - **B011:** DONE, merged 3677be0 (vitest 422, smoke image 305 MB).
-  - Then: the full gate on main + docker smoke → a PO Review item in TODO.md (M1+M2).
-  - Clean up merged worktrees: junction first, never `--force` with a junction.
-- **Update (later the same day):**
-  - B001 (167d93a), B004 (12b39f7) and B006 (7e7015d) are merged too. Main gate: vitest 350, tsc, lint, build, test:scripts 70 all green.
-  - In flight: the B003 worker implementer, the B010 fleet-hardening implementer (refresh lease; SPEC revised after the tester's finding).
-  - B007 snapshot brief is in doing; its tester failed to start twice ("isolation worktree … git could not be run"). Retry when fewer members are running.
-  - B008 replay brief to write after B003 merges (it hooks into `src/worker/main.ts`).
-  - Leftover dirs needing the PO's cleanup (removal was denied to the lead): `.claude/worktrees/agent-acef4e3717147cf8b`, `agent-a1fb976491a87f4dd` (locked, empty spawns), `rv-b001` (a reviewer's temp copy).
-- **In flight (older notes):**
-  - B001: the implementer is green (branch `worktree-agent-aab4391a32ab05f74`). A tester is fixing a lint error in client.test.ts on top, then it goes to the reviewer.
-    - Deviation to review: `src/env.js` runtimeEnv = `process.env`.
-  - B006 and B004 testers are running.
-- **Next action:** gate B001 → write the B003 worker brief (needs B001 + the B002/B009 exports) → B006/B004 implementers → wave 3 (B008, B007).
-- **Open branches / worktrees:** B001 tester `worktree-agent-a8dded76b564f91a5`, B001 impl `worktree-agent-aab4391a32ab05f74`, the B001 lint-fix tester, the B006 and B004 testers. Remove the junction before `git worktree remove`.
-- **Read first next session:** `design/SPEC.md`, then the board.
-- **Env lessons** (from db-docker):
-  - worktrees need the node_modules junction; remove it with `cmd /c rmdir node_modules` BEFORE `git worktree remove`, and never use `--force` while the junction exists;
-  - run `rm -rf .next` before gating builds;
-  - lint needs `SKIP_ENV_VALIDATION=1` in worktrees;
-  - vitest flakes under load: re-run once;
+- **Status (2026-10-06): M1 + M2 DONE. Waiting on the PO's Review** (TODO.md "Review: M1 + M2"). SPEC Revision 1, R001.
+- **Merged to main:**
+
+| Brief | What | Merge |
+|---|---|---|
+| B002 | schema | 6a8afaf |
+| B005 | time + tariff | f45dc61 |
+| B009 | Open-Meteo | 1bbcf84 |
+| B001 | fleet client | 167d93a |
+| B004 | probe | 12b39f7 |
+| B006 | forecast | 7e7015d |
+| B010 | refresh lease | 7f7f1c6 |
+| B003 | worker | 3a601ee |
+| B007 | snapshot + /home | 3b2abed |
+| B011 | worker follow-ups | 3677be0 |
+| B012 | snapshot follow-ups | 26644d6 |
+| B008 | replay | 0166a1b |
+
+- **Lead chore:** 59973ab (`.claude` + `next-env.d.ts` excluded from tsc/eslint).
+- **Final gate on main:** vitest 448, tsc, lint, test:scripts 70, build:worker, build; docker smoke PASS at 305 MB (reviewer, on the merged tree).
+- **Last action:** wrote the PO Review item (890e44e). All merged worktrees and branches removed.
+- **Next action:**
+  - record the PO's review (a/b/c) and the B004 probe result. If N = 0 (no partial today), open a decision on the fetch plan;
+  - review notes become the next round's input;
+  - an optimization round is due after 3 milestones (M1, M2 so far → after M3).
+- **Open branches / worktrees:** only 2 locked, empty spawns (`agent-acef4e3717147cf8b`, `agent-a1fb976491a87f4dd`) and `rv-b001`. Their removal was denied to the lead; it's in the PO housekeeping list. `worktree-agent-a85ac516cb7dc60dd` predates this team.
+- **Follow-ups / backlog ideas (not MVP):**
+  - the callback still hard-codes the NA Fleet base URL (the client uses `TESLA_FLEET_BASE_URL`);
+  - the front-end needs a "learning" state for `accuracy: []`;
+  - the Dockerfile ships 4 fleet fixtures (2 unused);
+  - non-whole-hour timezones (India etc.) would mis-bucket hours;
+  - `verify:tesla` refreshes without the lease;
+  - the 2 old lint warnings (postcss/prettier) are for a cleaner.
+- **Env lessons:**
+  - worktrees need the node_modules junction; remove it with `cmd /c rmdir node_modules` BEFORE `git worktree remove`, and never `--force` with a junction;
+  - a real node_modules: `cmd /c rmdir /s /q "\\?\<literal full path>\node_modules"` (a literal path; a variable in the path gets blocked);
+  - run `rm -rf .next` before gating builds; lint needs `SKIP_ENV_VALIDATION=1`;
   - `pnpm lint` right after a merge sometimes exits 1 with no findings; re-run once;
-  - smoke: `SMOKE_PORT=3100`.
-- **Follow-ups (not MVP):**
-  - the callback still hard-codes the NA Fleet base URL (B001 adds `TESLA_FLEET_BASE_URL` for the client only);
-  - the front-end needs an empty/"learning" state for `accuracy: []`.
+  - vitest flakes under load: re-run once;
+  - smoke: `SMOKE_PORT=3100`, from Git Bash on D:;
+  - members often forget to commit or hit test-file lint errors (`no-base-to-string`, `unbound-method`). Say "COMMIT and give the hash" in every spawn;
+  - Agent isolation sometimes fails ("git could not be run"); retry later with fewer members running.
