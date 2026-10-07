@@ -66,3 +66,4 @@ Implementer: `Use skill: codebase-design` (one deep module: a small interface �
 - **Worktree:** junction `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`; `cmd //c rmdir node_modules` before finishing; never `--force`. Keep commands bounded.
 
 ## Gate log
+- Tests 0344124 on `phase2a/ui-snapshot-test`: both files fail at import (module missing), the right reason. Pinned today 42176/18286/2901/20716/10800/4725/84%, last7Days, outlook 46118 → 25366 (45% less), net −79 ¢. Removed the sim re-derivation tests and kept the visible-value ones. Lead clarification to the implementer: `todayWh` 0 → changePct 0, direction "more". Implementer spawned.
