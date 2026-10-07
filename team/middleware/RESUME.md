@@ -11,7 +11,7 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - Lead chore 59973ab: `.claude` + `next-env.d.ts` excluded from tsc/eslint (lint OOM'd scanning agent worktrees).
   - 2 old lint warnings remain (postcss/prettier anonymous default export); they're for a cleaner pass.
 - **LATEST (session paused at the usage limit). Pick up here:**
-  - **B003 worker:** the implementer was running on tester branch `worktree-agent-aaeee413b005cac97` (c1590c4); the implementer's worktree is `agent-a9825b798a63f8d7a`. If its handoff never arrived, check that branch for a commit, then reviewer → merge.
+  - **B003 worker:** impl f622c41 on `worktree-agent-a9825b798a63f8d7a` (green except 2 test-lint errors, which also fail `next build`). A tester lint-fix was spawned on top (branch unknown: newest `worktree-agent-*` with a commit on f622c41). Then reviewer + docker smoke (`SMOKE_PORT=3100`) → merge.
   - **B010 lease:** lint fixed on `worktree-agent-a059e54a6e5db9483` (6321114, includes the impl e0a31da). A reviewer was spawned; on PASS, merge that branch (migration 0002).
   - **B007 snapshot:** tests on `worktree-agent-aeb9db146542b476d` (f38fc86). The implementer was spawned (branch unknown; look for a commit on f38fc86). Then reviewer → merge.
     - Reviewer note: the tests use synthetic data with no battery flow, so ask the reviewer to check the breakdown/balance with battery Wh.
