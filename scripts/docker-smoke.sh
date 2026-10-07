@@ -39,7 +39,7 @@ fi
 
 # 2b. image size gate (docker image inspect .Size, bytes -> MB)
 MAX_IMAGE_MB="${MAX_IMAGE_MB:-400}"
-img=voltops-smoke-web
+img=voltops:local
 bytes=$(docker image inspect "$img" --format '{{.Size}}') || fail "cannot inspect image $img"
 mb=$((bytes / 1048576))
 echo "web image $img: ${mb} MB (max ${MAX_IMAGE_MB} MB)"
