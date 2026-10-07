@@ -350,4 +350,143 @@ describe("fleet client", () => {
       );
     });
   });
+
+  describe("refresh lease (B010)", () => {
+    const TOKEN = "https://auth.tesla.com/oauth2/v3/token";
+    const setLease = (d: typeof db, ms: number | null) =>
+      d.$client
+        .prepare("UPDATE credentials SET refresh_lock_until = ? WHERE id = 1")
+        .run(ms);
+    const lease = (d: typeof db) =>
+      (
+        d.$client
+          .prepare("SELECT refresh_lock_until AS v FROM credentials WHERE id = 1")
+          .get() as { v: number | null }
+      ).v;
+    const mkOn = (d: typeof db, sleep: (ms: number) => Promise<void>) =>
+      createFleetClient({
+        fetch: fetchMock as unknown as typeof fetch,
+        db: d,
+        now: () => now,
+        baseUrl: BASE,
+        clientId: "cid",
+        clientSecret: "csecret",
+        sleep,
+      } as Parameters<typeof createFleetClient>[0]);
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+
+    it("two connections refresh one at a time and the second uses the rotated token", async () => {
+      seed();
+      const db2 = openDb(db.$client.name);
+      try {
+        let inflight = 0;
+        let maxInflight = 0;
+        const bodies: string[] = [];
+        let releaseFirst!: () => void;
+        const gate = new Promise<void>((r) => (releaseFirst = r));
+        fetchMock.mockImplementation(async (u, init) => {
+          const url = String(u);
+          if (url.startsWith(TOKEN)) {
+            const n = ++tokenN;
+            bodies.push(
+              new URLSearchParams(String(init!.body)).get("refresh_token")!,
+            );
+            maxInflight = Math.max(maxInflight, ++inflight);
+            if (n === 1) await gate;
+            else await tick();
+            inflight--;
+            return json({
+              access_token: `at-${n}`,
+              refresh_token: `rt-${n}`,
+              expires_in: 28800,
+            });
+          }
+          return json(fx("live_status"));
+        });
+        // Sleep yields a macrotask but does not advance the clock.
+        const a = mkOn(db, tick).getLiveStatus(SITE);
+        await vi.waitFor(() => expect(tokenCalls()).toHaveLength(1));
+        const b = mkOn(db2, tick).getLiveStatus(SITE);
+        for (let i = 0; i < 5; i++) await tick();
+        expect(tokenCalls()).toHaveLength(1);
+        releaseFirst();
+        await Promise.all([a, b]);
+        expect(tokenCalls()).toHaveLength(2);
+        expect(maxInflight).toBe(1);
+        expect(bodies).toEqual(["rt-0", "rt-1"]);
+        expect(lease(db)).toBeNull();
+      } finally {
+        db2.$client.close();
+      }
+    });
+
+    it("takes over a stale lease and clears it on success", async () => {
+      seed();
+      setLease(db, now - 1000);
+      await expect(
+        mkOn(db, tick).getLiveStatus(SITE),
+      ).resolves.toBeDefined();
+      expect(tokenCalls()).toHaveLength(1);
+      expect(lease(db)).toBeNull();
+    });
+
+    it("sets a ~30 s lease while the POST is in flight", async () => {
+      seed();
+      let release!: (r: Response) => void;
+      const gate = new Promise<Response>((r) => (release = r));
+      fetchMock.mockImplementation((u) =>
+        String(u).startsWith(TOKEN)
+          ? gate
+          : Promise.resolve(json(fx("live_status"))),
+      );
+      const p = mkOn(db, tick).getLiveStatus(SITE);
+      await vi.waitFor(() => expect(tokenCalls()).toHaveLength(1));
+      expect(lease(db)).toBe(now + 30_000);
+      release(tok());
+      await p;
+    });
+
+    it("a lease that never clears -> SourceUnavailable after ~35 s, no POST", async () => {
+      seed();
+      setLease(db, now + 10 * 86_400_000);
+      const sleeps: number[] = [];
+      const sleep = async (ms: number) => {
+        sleeps.push(ms);
+        now += ms;
+        await tick();
+      };
+      const e = await mkOn(db, sleep)
+        .getLiveStatus(SITE)
+        .catch((x: unknown) => x);
+      expect(e).toBeInstanceOf(SourceUnavailable);
+      expect((e as Error).message).toContain("token refresh lock timeout");
+      expect(tokenCalls()).toHaveLength(0);
+      expect(sleeps[0]).toBe(250);
+      const total = sleeps.reduce((s, x) => s + x, 0);
+      expect(total).toBeGreaterThanOrEqual(35_000);
+      expect(total).toBeLessThan(36_000);
+    });
+
+    it("a failed POST clears the lease", async () => {
+      seed();
+      fetchMock.mockImplementationOnce(() =>
+        Promise.resolve(json({ error: "invalid_grant" }, 400)),
+      );
+      await expect(mkOn(db, tick).getLiveStatus(SITE)).rejects.toBeInstanceOf(
+        AuthExpired,
+      );
+      expect(lease(db)).toBeNull();
+    });
+
+    it("a network failure on the POST clears the lease", async () => {
+      seed();
+      fetchMock.mockImplementationOnce(() =>
+        Promise.reject(new Error("ECONNRESET")),
+      );
+      await expect(mkOn(db, tick).getLiveStatus(SITE)).rejects.toBeInstanceOf(
+        SourceUnavailable,
+      );
+      expect(lease(db)).toBeNull();
+    });
+  });
 });
