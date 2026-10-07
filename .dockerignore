@@ -3,6 +3,5 @@ node_modules
 .git
 data
 .env*
-fixtures
 team
 db.sqlite

@@ -12,5 +12,6 @@ export const server = {
   VOLTOPS_SECRET_KEY: z.string().min(64),
   SITE_LATITUDE: z.coerce.number().min(-90).max(90).optional(),
   SITE_LONGITUDE: z.coerce.number().min(-180).max(180).optional(),
+  VOLTOPS_DEMO: z.enum(["true"], { errorMap: () => ({ message: 'must be "true" or unset' }) }).optional(),
   TEMPERATURE_UNIT: z.enum(["F", "C"]).optional(),
 };

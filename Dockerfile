@@ -21,6 +21,8 @@ COPY --from=build /app/public ./public
 COPY --from=build /app/drizzle ./drizzle
 COPY --from=build /app/dist/worker.mjs ./dist/worker.mjs
 COPY --from=build /app/scripts/migrate.mjs /app/scripts/check-env.mjs ./scripts/
+COPY --from=build /app/fixtures/fleet-api/*.json ./fixtures/fleet-api/
+COPY --from=build /app/fixtures/open-meteo/forecast.json ./fixtures/open-meteo/
 COPY --from=build /app/src/env.schema.js ./src/env.schema.js
 RUN mkdir /data && chown node /data
 USER node
