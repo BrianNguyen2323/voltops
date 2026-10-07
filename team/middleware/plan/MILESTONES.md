@@ -1,6 +1,6 @@
 # Milestones — middleware
 
-## M1: data in
+## M1: data in — DONE 2026-10-06
 Fetch and store real data, never pruned.
 - B001 Fleet API client + mappers (replaces `src/lib/tesla.ts`)
 - B002 Schema: energy_intervals, samples, weather_observed/forecast, sites columns; callback stores name/capacity/reserve
@@ -8,7 +8,7 @@ Fetch and store real data, never pruned.
 - B003 Worker process + compose service (needs B001, B002, B009)
 - B004 `verify:tesla` partial-today probe (PO runs once)
 
-## M2: snapshot out
+## M2: snapshot out — DONE 2026-10-06 (+ follow-ups B010, B011, B012)
 `/home` renders real data; replay works without a Powerwall.
 - B005 Site-local time helpers + tariff module
 - B006 Baseline forecast + SoC projection (needs B005)
