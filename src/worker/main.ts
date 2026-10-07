@@ -1,5 +1,8 @@
 ﻿import { fleetClient } from "~/lib/sources/fleet-api/client";
+import { eq } from "drizzle-orm";
 import { db } from "~/server/db";
+import { sites } from "~/server/db/schema";
+import { seedReplay } from "~/server/replay/seed";
 import {
   applySiteSettings,
   isTeslaIdle,
@@ -44,6 +47,19 @@ async function tick(first = false) {
   }
 }
 
+if (process.argv.includes("--seed-only")) {
+  seedReplay(db, Date.now());
+  console.log("[worker] demo data seeded");
+  process.exit(0);
+}
+// ponytail: demo goes stale after a day; restart refreshes it
+if (
+  process.env.VOLTOPS_DEMO === "true" &&
+  !db.select().from(sites).where(eq(sites.source, "fleet-api")).get()
+) {
+  seedReplay(db, Date.now());
+  console.log("[worker] demo data seeded");
+}
 applySiteSettings(db, settings);
 void tick(true);
 const timer = setInterval(() => void tick(), 60_000);
