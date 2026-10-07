@@ -299,3 +299,30 @@ The questions are in chat; summary here.
 
 ## Confirm the candidate-1 design — ANSWERED 2026-10-06
 - Answer: **confirmed** (PO, 2026-10-06) → SPEC Rev 5, R005, M5 (B010, B011).
+
+## USER INPUT REQUIRED — Review: M5 (architecture candidate 1) (2026-10-06)
+Merged into `front-end-development` at 10f2f7f. Gate: 243 app tests + 58 script tests, typecheck, lint and build all green; `/home` size unchanged (217 / 320 kB).
+
+**What changed (no visible change; the reviewer compared before/after screenshots at 390 and 1440 px: identical, in `data/shots/b011-*.png`)**
+- New `src/lib/dashboard.ts`, one module with a small interface:
+  - **`DashboardSnapshot`**: what a data source supplies. Fully commented: units, signs, and the Live reading = the reading at "Updated".
+  - **`checkSnapshot(snapshot)`**: returns a list of problems and never crashes; it was fuzzed with 21 broken inputs. It checks the power balance, whole-day coverage of today and tomorrow in site-local time (DST-aware: 47/48/49 hours), actual-before-forecast order, the per-hour energy balance, forecast ranges, cost vs grid import (exact), the 6 previous days, the weather date, and valid dates and timezone.
+  - **`toDashboardView(snapshot)`**: derives "Today so far", self-powered %, the "Last 7 days" today bar, and tomorrow-vs-today solar, by **site-local date**, never by row position.
+- The dashboard reads only the view. `/home` runs the check and logs any problem on the server, then renders.
+- The sample data is now just the **sample adapter** (`sampleSnapshot`).
+- **Hand-off:**
+  - `docs/dashboard-snapshot.md`, copied into `team/middleware/research/dashboard-snapshot/README.md`;
+  - `team/middleware/RESUME.md` lists your decisions plus the **Energy history** requirement and its retention conflict (CLAUDE.md §6 90-day raw retention vs ADR 0001).
+- `GLOSSARY.md`: Site, Home use, Live reading, Site-local day, Timeline, Dashboard snapshot, Dashboard view, Energy history.
+
+**Architecture backlog (priority, `plan/MILESTONES.md`):**
+1. #3, a site-local time module + DST tests (next, unblocked);
+2. #2, a tariff module (blocked on the middleware team's tariff format);
+3. #4, a flow-state module;
+4. #5, finish the sample-adapter naming when real data lands.
+
+**Your call:**
+- **a.** "approved": you merge `front-end-development` into `main` (as planned).
+- **b.** changes.
+- **c.** next topic: backlog #3, learning/loading/error states, the light theme, chart table/CSV views, nav + Plan/Trends, or call the **middleware** team.
+- Answer:
