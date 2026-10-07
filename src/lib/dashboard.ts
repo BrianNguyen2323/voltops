@@ -17,6 +17,7 @@ export type TimelineHour = {
   solarWh: number;
   /** Battery state of charge at the start of the hour, 0-100. */
   socPct: number;
+  /** TOU period in effect during this hour. */
   period: TouPeriod;
   /** Forecast hours only: p10/p90 interval of loadWh / solarWh, Wh. */
   loadP10Wh?: number;
@@ -32,10 +33,18 @@ export type TimelineHour = {
 };
 
 export type DashboardSnapshot = {
-  site: { name: string; timezone: string; temperatureUnit: "F" | "C" };
+  site: {
+    name: string;
+    /** IANA timezone, e.g. "America/Los_Angeles"; defines site-local days and TOU boundaries. */
+    timezone: string;
+    /** Display unit only; weather values are always stored in degrees C. */
+    temperatureUnit: "F" | "C";
+  };
+  /** Which DataSource adapter produced this snapshot. */
   source: "fleet-api" | "local-gateway" | "replay";
   /** ISO-8601 UTC. "Today" is the site-local date of this instant. */
   updatedAt: string;
+  /** ISO 4217 currency code, e.g. "USD"; money fields are integer minor units (cents). */
   currency: string;
   /** Instantaneous reading at `updatedAt`. */
   live: {
@@ -49,55 +58,70 @@ export type DashboardSnapshot = {
     gridW: number;
     /** 0-100. */
     socPct: number;
-    /** Wh. */
+    /** Usable battery capacity, Wh. */
     usableCapacityWh: number;
+    /** "islanded" = grid is down. */
     gridStatus: "connected" | "islanded";
   };
   tariffNow: {
     period: TouPeriod;
-    /** Cents per kWh. */
+    /** Import rate, cents per kWh. */
     importCentsPerKwh: number;
+    /** Export (sell-back) rate, cents per kWh. */
     exportCentsPerKwh: number;
-    /** ISO-8601 UTC. */
+    /** ISO-8601 UTC: when the current period ends. */
     endsAt: string;
   };
   recommendation: null | {
+    /** Plain-language action, e.g. "Set backup reserve to 65% from 9 PM". */
     action: string;
-    /** ISO-8601 UTC. */
+    /** ISO-8601 UTC: start of the validity window. */
     validFrom: string;
+    /** ISO-8601 UTC: end of the validity window. */
     validTo: string;
-    /** Wh. */
+    /** Expected energy effect vs. doing nothing, Wh. */
     effectWh: number;
-    /** Integer cents. */
+    /** Expected saving vs. doing nothing, integer cents. */
     savingsCents: number;
+    /** Plain-language reasons built from the inputs. */
     why: string[];
     confidence: "low" | "medium" | "high";
+    /** What would change the advice. */
     wouldChange: string;
   };
   /** Consecutive UTC hours covering the whole site-local today and tomorrow (47-49 rows). */
   timeline: TimelineHour[];
   /** Today's cost so far; import Wh per period must equal today's grid import. */
   costToday: {
+    /** Per TOU period: grid import, Wh, and its cost, integer cents. */
     periods: Array<{ period: TouPeriod; importWh: number; costCents: number }>;
     /** Integer cents. */
     exportCreditCents: number;
     /** Integer cents: sum of costCents minus exportCreditCents. */
     netCents: number;
   };
-  /** The 6 site-local days before today, oldest first. Wh. */
+  /** The 6 site-local days before today, oldest first; `date` is YYYY-MM-DD site-local, energies Wh. */
   previousDays: Array<{ date: string; solarWh: number; loadWh: number }>;
+  /** Forecast accuracy per target, vs. its naive baseline. */
   accuracy: Array<{
     target: "load" | "solar";
+    /** Model id/version, e.g. "load-v1". */
     model: string;
+    /** Baseline name, e.g. "same hour last week". */
     baseline: string;
+    /** Model mean absolute error, percent. */
     maePct: number;
+    /** Baseline mean absolute error, percent. */
     baselineMaePct: number;
+    /** Number of days evaluated. */
     days: number;
   }>;
   health: {
     /** ISO-8601 UTC. */
     lastPollAt: string;
+    /** Estimated source API requests per month at the current poll interval (a count). */
     estRequestsPerMonth: number;
+    /** Human-readable warnings for the Health screen. */
     warnings: string[];
   };
   /** Null hides the tile. */
@@ -105,9 +129,13 @@ export type DashboardSnapshot = {
     /** YYYY-MM-DD, site-local. */
     date: string;
     condition: "clear" | "partly-cloudy" | "cloudy" | "rain";
+    /** Forecast high, degrees C. */
     highC: number;
+    /** Forecast low, degrees C. */
     lowC: number;
+    /** Cloud cover, percent 0-100. */
     cloudCoverPct: number;
+    /** Chance of precipitation, percent 0-100. */
     precipitationChancePct: number;
   };
 };
@@ -138,15 +166,19 @@ const HOUR = 3_600_000;
 const TOLERANCE = 50; // W / Wh
 
 // ponytail: moves to the site-local time module (architecture backlog item 2)
-const localDate = (ms: number, timeZone: string): string =>
-  Number.isNaN(ms)
-    ? ""
-    : new Intl.DateTimeFormat("en-CA", {
-        timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date(ms));
+// Returns "" (never throws) for an unparseable instant or an invalid timezone.
+const localDate = (ms: number, timeZone: string): string => {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(ms));
+  } catch {
+    return "";
+  }
+};
 
 const addDays = (date: string, n: number): string => {
   const [y = 0, m = 1, d = 1] = date.split("-").map(Number);
@@ -193,6 +225,10 @@ export function checkSnapshot(s: DashboardSnapshot): string[] {
   if (!(l.socPct >= 0 && l.socPct <= 100))
     out.push("live.socPct must be 0-100");
 
+  if (localDate(0, tz) === "") {
+    out.push("site.timezone is not a valid IANA timezone");
+    return out; // every remaining rule is site-local
+  }
   const updatedMs = Date.parse(s.updatedAt);
   if (Number.isNaN(updatedMs)) return out; // nothing site-local can be derived
   const today = localDate(updatedMs, tz);
@@ -267,7 +303,7 @@ export function checkSnapshot(s: DashboardSnapshot): string[] {
       .map(({ r }) => r.gridImportWh ?? 0),
   );
   const c = s.costToday;
-  if (Math.abs(sum(c.periods.map((p) => p.importWh)) - todayImport) > TOLERANCE)
+  if (sum(c.periods.map((p) => p.importWh)) !== todayImport)
     out.push("costToday period imports do not sum to today's grid import");
   if (
     c.netCents !==
