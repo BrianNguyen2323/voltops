@@ -68,3 +68,8 @@ Implementer: `Use skill: frontend-design` (the tile and the sentence must fit th
   - Non-owned edit: added the stub `peakEstimate` to the `build()` literal in `src/lib/dashboard.test.ts`, with no assertion changes.
   - No screenshots yet; those are the reviewer's job.
   - Reviewer spawned.
+- Reviewer (689ac9f): **FAIL**, one must-fix: prettier rewrapped about 19 lines of the middleware-owned `build.ts`. Revert to base + the stub line.
+  - Everything else verified: the helpers, check rules, view, sample values, UI copy and docs. Gate green.
+  - Screenshots in `data/shots/b012-{390,1440}.png`.
+  - Nits: "used so far" wraps mid-phrase at 1440; the sample reads "From 9:00 PM until 4:00 PM".
+  - Fix-up implementer spawned on `phase2a/peak-tile-fix` (the must-fix + both nits).
