@@ -33,7 +33,11 @@ Timeline hours and the stored hours are UTC hour starts. "Site-local day" and ho
 - Base URL: env `TESLA_FLEET_BASE_URL`, default `https://fleet-api.prd.na.vn.cloud.tesla.com`.
 - Token handling:
   - cache the access token in memory per process and refresh only when less than 5 min of life is left;
-  - a refresh runs in a SQLite write transaction (`BEGIN IMMEDIATE`): re-read `credentials` id=1, refresh, store the rotated refresh token (AES-256-GCM via `~/lib/crypto`), commit;
+  - a refresh is serialized across processes by a **lease**, `credentials.refresh_lock_until` (B010; this replaces Rev 1's "BEGIN IMMEDIATE held across the fetch", which froze other writers). No transaction is ever held across an `await`:
+    - take the lease in a short synchronous transaction: if `refresh_lock_until` is null or in the past, set it to now + 30 s and read the refresh token; otherwise wait 250 ms and retry, for up to 35 s;
+    - POST;
+    - then, in a short synchronous transaction, store the rotated refresh token (AES-256-GCM via `~/lib/crypto`) and clear the lease;
+    - on error, clear the lease and rethrow;
   - concurrent callers in one process share one in-flight refresh promise.
 - Typed errors: `AuthExpired` (401, or a refresh 400/401), `RateLimited` (429), `SourceUnavailable` (other non-2xx, network). Messages carry the status + Tesla `error` code only, never bodies or tokens.
 - `live_status` → `LiveSample`:
