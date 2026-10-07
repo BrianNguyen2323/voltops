@@ -276,7 +276,7 @@ The questions are in chat; summary here. Answer e.g. "all recommended".
 - **Q7. Where it lives:** one pure module, `src/lib/dashboard.ts` (input type, check, derive), with the sample staying in `home/data.ts` as the sample adapter (rec).
 - Answer: **Q1–Q7 all A (recommended)** (PO, 2026-10-06).
 
-## USER INPUT REQUIRED — Decision round 3: candidate 1 follow-ups (2026-10-06)
+## Decision round 3: candidate 1 follow-ups — ANSWERED 2026-10-06
 The questions are in chat; summary here.
 - **Q8. Timeline coverage:** the timeline must cover the **whole** site-local today and tomorrow (46–50 hourly rows on DST days); the check flags gaps (rec). Or allow partial days and compare "so far".
 - **Q9. Names:**
@@ -290,5 +290,13 @@ The questions are in chat; summary here.
   - new derive tests cover a DST day and a timeline that doesn't start at midnight;
   - the dashboard markup tests stay (rec).
 - **Q12. Middleware hand-off:** full TSDoc on `DashboardSnapshot` (units, signs, the day rule, the live instant) plus a short `docs/dashboard-snapshot.md` for the other team (rec). Or TSDoc only.
+- Answer: (PO, 2026-10-06):
+  - **Q8:** A. **Plus a new requirement:** keep a running record for many years for each Site (the PO said "account"; the glossary term is **Site**) of observed weather and kWh generated, for a future panel/battery degradation feature. This is a storage requirement, so it was handed to the new **middleware** team (`team/middleware/RESUME.md`). It conflicts with the CLAUDE.md §6 90-day raw retention combined with ADR 0001 (no hourly rollup), and that team must resolve it.
+  - **Q9:** yes. `GLOSSARY.md` was created at the repo root.
+  - **Q10:** A.
+  - **Q11:** yes.
+  - **Q12:** A, plus create the `team/middleware/` scope with the doc in it. Done: tree + RESUME hand-off notes; the doc copy lands after M5.
+
+## USER INPUT REQUIRED — Confirm the candidate-1 design (summary in chat), then I write SPEC Rev 5 + briefs
 - Answer:
 
