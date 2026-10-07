@@ -10,7 +10,7 @@ process.env.VOLTOPS_SECRET_KEY = "ab".repeat(32);
 import { AuthExpired, RateLimited, SourceUnavailable } from "~/lib/core/types";
 import { decrypt, encrypt } from "~/lib/crypto";
 import { openDb } from "~/server/db";
-import { credentials } from "~/server/db/schema";
+import { credentials, sites } from "~/server/db/schema";
 import { createFleetClient } from "./client";
 
 const BASE = "https://fleet.test";
@@ -264,6 +264,90 @@ describe("fleet client", () => {
       expect(e.message).not.toContain(SITE);
       expect(e.message).not.toContain("LEAK");
       expect(e.message).not.toContain("rt-0");
+    });
+  });
+
+  describe("hardening (B010)", () => {
+    const TOKEN = "https://auth.tesla.com/oauth2/v3/token";
+    // Hold the token POST on a deferred promise; returns the release fn.
+    const holdRefresh = () => {
+      let release!: (r: Response) => void;
+      const gate = new Promise<Response>((r) => (release = r));
+      fetchMock.mockImplementation((u) => {
+        const url = String(u);
+        if (url.startsWith(TOKEN)) return gate;
+        if (url.includes("/live_status"))
+          return Promise.resolve(json(fx("live_status")));
+        return Promise.resolve(json({}, 404));
+      });
+      return release;
+    };
+    const externalIds = () =>
+      db
+        .select()
+        .from(sites)
+        .all()
+        .map((r) => r.externalId);
+
+    it("a shared-db write during an in-flight refresh survives a failed refresh", async () => {
+      seed();
+      const release = holdRefresh();
+      const p = mk()
+        .getLiveStatus(SITE)
+        .catch((x: unknown) => x);
+      await vi.waitFor(() => expect(tokenCalls()).toHaveLength(1));
+      db.insert(sites)
+        .values({ source: "fleet-api", externalId: "during-refresh" })
+        .run();
+      release(json({ error: "invalid_grant" }, 400));
+      expect(await p).toBeInstanceOf(AuthExpired);
+      expect(externalIds()).toEqual(["during-refresh"]);
+    });
+
+    it("the shared db can run db.transaction() during an in-flight refresh", async () => {
+      seed();
+      const release = holdRefresh();
+      const p = mk().getLiveStatus(SITE);
+      await vi.waitFor(() => expect(tokenCalls()).toHaveLength(1));
+      expect(() =>
+        db.transaction((tx) => {
+          tx.insert(sites)
+            .values({ source: "fleet-api", externalId: "in-tx" })
+            .run();
+        }),
+      ).not.toThrow();
+      release(tok());
+      await p;
+      expect(externalIds()).toEqual(["in-tx"]);
+    });
+
+    it("after an API 401 the next call refreshes again", async () => {
+      seed();
+      let apiN = 0;
+      fetchMock.mockImplementation((u) => {
+        if (String(u).startsWith(TOKEN)) {
+          tokenN++;
+          return Promise.resolve(
+            json({
+              access_token: `at-${tokenN}`,
+              refresh_token: `rt-${tokenN}`,
+              expires_in: 28800,
+            }),
+          );
+        }
+        return Promise.resolve(
+          ++apiN === 1
+            ? json({ error: "token_expired" }, 401)
+            : json(fx("live_status")),
+        );
+      });
+      const c = mk();
+      await expect(c.getLiveStatus(SITE)).rejects.toBeInstanceOf(AuthExpired);
+      await expect(c.getLiveStatus(SITE)).resolves.toBeDefined();
+      expect(tokenCalls()).toHaveLength(2);
+      expect(new Headers(apiCalls()[1]![1]!.headers).get("authorization")).toBe(
+        "Bearer at-2",
+      );
     });
   });
 });
