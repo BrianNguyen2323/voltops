@@ -15,6 +15,17 @@ async function errorCode(res: Response): Promise<string> {
   return typeof error === "string" ? error : "unknown";
 }
 
+// First numeric nameplate_energy_watts anywhere under `components` (Wh despite the name).
+function findNameplate(v: unknown): number | null {
+  if (typeof v !== "object" || !v) return null;
+  for (const [k, x] of Object.entries(v)) {
+    if (k === "nameplate_energy_watts" && typeof x === "number") return x;
+    const r = findNameplate(x);
+    if (r !== null) return r;
+  }
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   const denied = await requireAdminApi();
   if (denied) return denied;
@@ -90,6 +101,9 @@ export async function GET(request: NextRequest) {
   };
   type SiteInfoResponse = {
     response: {
+      site_name?: string;
+      backup_reserve_percent?: number;
+      components?: unknown;
       installation_time_zone?: string;
       tariff_id?: string;
       utility?: string;
@@ -138,18 +152,24 @@ export async function GET(request: NextRequest) {
 
   if (teslaEnergySiteId) {
     const tz = siteInfo?.installation_time_zone ?? null;
+    const facts = {
+      name: siteInfo?.site_name ?? null,
+      usableCapacityWh: findNameplate(siteInfo?.components),
+      backupReservePct: siteInfo?.backup_reserve_percent ?? null,
+    };
     const [siteRow] = await db
       .insert(sites)
       .values({
         source: "fleet-api",
         externalId: teslaEnergySiteId,
         timezone: tz,
+        ...facts,
         createdAt: now,
         updatedAt: now,
       })
       .onConflictDoUpdate({
         target: sites.externalId,
-        set: { timezone: tz, updatedAt: now },
+        set: { timezone: tz, ...facts, updatedAt: now },
       })
       .returning({ id: sites.id });
     siteRowId = siteRow?.id ?? null;
