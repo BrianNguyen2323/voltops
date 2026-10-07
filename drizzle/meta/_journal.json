@@ -8,6 +8,13 @@
       "when": 1791191801237,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791340135110,
+      "tag": "0001_clever_boomer",
+      "breakpoints": true
     }
   ]
 }
