@@ -23,6 +23,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "build:worker": "esbuild src/worker/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/worker.mjs --external:better-sqlite3 --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
+    "seed:replay": "pnpm build:worker && node --env-file-if-exists=.env dist/worker.mjs --seed-only",
     "worker": "pnpm build:worker && node --env-file-if-exists=.env dist/worker.mjs"
   },
   "dependencies": {
