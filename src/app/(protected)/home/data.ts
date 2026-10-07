@@ -1,14 +1,8 @@
 import {
-  toDashboardView,
   type DashboardSnapshot,
-  type DashboardView,
   type TimelineHour,
   type TouPeriod,
 } from "~/lib/dashboard";
-
-// Temporary compatibility (removed in B011): the UI still reads the Rev 4 shape.
-export type DashboardData = DashboardView;
-export type { TouPeriod };
 const HOUR = 3_600_000;
 const UPDATED_AT = "2026-07-16T00:00:00Z"; // 17:00 PDT
 const MIDNIGHT = Date.parse("2026-07-15T07:00:00Z"); // local midnight PDT
@@ -194,5 +188,3 @@ export const sampleSnapshot: DashboardSnapshot = {
     precipitationChancePct: 20,
   },
 };
-
-export const sampleDashboard: DashboardData = toDashboardView(sampleSnapshot);

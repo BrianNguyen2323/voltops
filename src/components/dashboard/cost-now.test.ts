@@ -1,24 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  sampleDashboard,
-  type DashboardData,
-} from "~/app/(protected)/home/data";
+import { sampleSnapshot } from "~/app/(protected)/home/data";
 import { costNow } from "~/components/dashboard/cost-now";
+import type { DashboardView } from "~/lib/dashboard";
 
-const live = (p: Partial<DashboardData["live"]>): DashboardData["live"] => ({
-  ...sampleDashboard.live,
+const live = (p: Partial<DashboardView["live"]>): DashboardView["live"] => ({
+  ...sampleSnapshot.live,
   ...p,
 });
 const rates = {
-  ...sampleDashboard.tariffNow,
+  ...sampleSnapshot.tariffNow,
   importCentsPerKwh: 48,
   exportCentsPerKwh: 8,
 };
 
 describe("costNow", () => {
   it("matches the sample: not buying, saving 99, earning 13", () => {
-    expect(costNow(sampleDashboard.live, sampleDashboard.tariffNow)).toEqual({
+    expect(costNow(sampleSnapshot.live, sampleSnapshot.tariffNow)).toEqual({
       spendingCentsPerHour: 0,
       savingCentsPerHour: 99,
       earningCentsPerHour: 13,

@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 
-import type { DashboardData } from "~/app/(protected)/home/data";
+import type { DashboardView } from "~/lib/dashboard";
 import {
   ChartContainer,
   ChartLegend,
@@ -129,7 +129,7 @@ export function TimelineChart({
   timeline,
   timezone,
 }: {
-  timeline: DashboardData["timeline"];
+  timeline: DashboardView["timeline"];
   timezone: string;
 }) {
   const firstForecast = timeline.findIndex((r) => r.kind === "forecast");
@@ -290,7 +290,7 @@ const weekConfig = {
   loadKwh: { label: "Home use (kWh)", color: "var(--chart-3)" },
 } satisfies ChartConfig;
 
-export function WeekChart({ days }: { days: DashboardData["last7Days"] }) {
+export function WeekChart({ days }: { days: DashboardView["last7Days"] }) {
   const rows = days.map((d) => ({
     day: new Date(`${d.date}T12:00:00Z`).toLocaleDateString("en-US", {
       weekday: "short",
