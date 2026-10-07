@@ -12,15 +12,16 @@
   - M5 10f2f7f: architecture candidate 1 (B010, B011): `src/lib/dashboard.ts` (`DashboardSnapshot`, `checkSnapshot`, `toDashboardView`), UI reads the view, page logs check problems, `docs/dashboard-snapshot.md`, `GLOSSARY.md`, `team/middleware/` created. Rev 5 / R005.
   - M4 d27022d: the PO's M3 asks (B008): pink Spending label, `predev`; plus optimization round 1 (B009 cleaner, perf/size). Rev 4 / R004.
 - **Gate on `front-end-development`:** vitest 243/243, test:scripts 58/58, typecheck, lint clean, build OK; `/home` 217 kB route / 320 kB First Load; docker image 304 MB (M4).
-- **Last action:** B011 PASS → merged 10f2f7f, gate green, doc copied to `team/middleware/`, Review M5 written.
-- **Next action:**
-  - record the PO's M5 review;
-  - next from the architecture backlog: #3, the site-local time module;
-  - the next optimization round is due after M7.
+- **Last action:** the PO approved M5 and is merging to main; the architecture backlog is parked until the PO prompts again.
+- **Next action (on "continue"):**
+  1. read TODO.md and MILESTONES.md "Architecture backlog";
+  2. candidate #3 (site-local time module: `clock`, `hourLabel`, `localHour`, the week-label UTC trick, the private `localDate` in `src/lib/dashboard.ts`, plus DST tests): a research/decision round only if the PO needs to choose something, otherwise SPEC Rev 6 + a brief;
+  3. then #2 (tariff, blocked on middleware's `tariffSchedule.content` shape), #4 (flow state), #5 (finish with real data).
+  - Next optimization round after M7.
   - Open nits:
     - the Tomorrow-tile indent;
-    - B010: NaN on actual hours passes the balance check; `site.name` doc done;
-    - B009 nits (unused exports/tokens);
+    - NaN on actual hours passes the balance check;
+    - B009 unused exports/tokens;
     - the doc doesn't mention the `selfPoweredPct` clamp.
 - **Integration branch:** `front-end-development` (Q1 A; the PO merges it into main). Records are committed there.
 - **Open branches / worktrees:** none from this scope. `worktree-agent-a85ac516cb7dc60dd` predates it (db-docker) and is left to the PO. Lint: use `rtk proxy pnpm lint` (the RTK filter prints false errors). Agents stalled 3 times (watchdog): give them bounded commands, and check worktrees for leftover junctions / dev servers on 3100 before re-spawning. Reviewers can leave an agent-browser daemon holding a worktree: run `agent-browser close` before removing it.
