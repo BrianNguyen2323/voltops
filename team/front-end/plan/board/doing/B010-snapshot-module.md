@@ -97,3 +97,4 @@ Implementer: `Use skill: codebase-design` (one deep module: a small interface â€
 
 ### Judged by
 The same command as round 1, all green; the new tests fail on base `phase2a/ui-snapshot-impl` for the right reason.
+- Round 2 tests 95e109b on `phase2a/ui-snapshot-test2`: 2 FAIL for the right reason (invalid timezone throws; rule 3 not exact). Each rule test now asserts its message substring, and the ordering test is a clean swap. Round-2 implementer spawned.
