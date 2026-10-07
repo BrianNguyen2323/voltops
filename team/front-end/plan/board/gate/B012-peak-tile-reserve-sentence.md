@@ -73,3 +73,4 @@ Implementer: `Use skill: frontend-design` (the tile and the sentence must fit th
   - Screenshots in `data/shots/b012-{390,1440}.png`.
   - Nits: "used so far" wraps mid-phrase at 1440; the sample reads "From 9:00 PM until 4:00 PM".
   - Fix-up implementer spawned on `phase2a/peak-tile-fix` (the must-fix + both nits).
+- Fix-up b6d290e on `phase2a/peak-tile-fix`: `build.ts` = base + 1 stub line; "used so far" is on its own line; sample `validTo` is 9 PM tomorrow. Gate green (484/70/tsc/lint/build). Re-review spawned.
