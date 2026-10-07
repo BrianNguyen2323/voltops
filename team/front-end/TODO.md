@@ -300,7 +300,7 @@ The questions are in chat; summary here.
 ## Confirm the candidate-1 design — ANSWERED 2026-10-06
 - Answer: **confirmed** (PO, 2026-10-06) → SPEC Rev 5, R005, M5 (B010, B011).
 
-## USER INPUT REQUIRED — Review: M5 (architecture candidate 1) (2026-10-06)
+## Review: M5 (architecture candidate 1) — ANSWERED 2026-10-06
 Merged into `front-end-development` at 10f2f7f. Gate: 243 app tests + 58 script tests, typecheck, lint and build all green; `/home` size unchanged (217 / 320 kB).
 
 **What changed (no visible change; the reviewer compared before/after screenshots at 390 and 1440 px: identical, in `data/shots/b011-*.png`)**
@@ -325,4 +325,4 @@ Merged into `front-end-development` at 10f2f7f. Gate: 243 app tests + 58 script 
 - **a.** "approved": you merge `front-end-development` into `main` (as planned).
 - **b.** changes.
 - **c.** next topic: backlog #3, learning/loading/error states, the light theme, chart table/CSV views, nav + Plan/Trends, or call the **middleware** team.
-- Answer:
+- Answer: **a, approved** (PO, 2026-10-06). The PO merges `front-end-development` → `main` now. The remaining architecture backlog waits until the PO prompts this team again ("continue" → read RESUME.md).
