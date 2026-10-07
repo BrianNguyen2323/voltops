@@ -1,0 +1,478 @@
+import { describe, expect, it } from "vitest";
+import { sampleSnapshot } from "../app/(protected)/home/data";
+import {
+  checkSnapshot,
+  toDashboardView,
+  type DashboardSnapshot,
+} from "./dashboard";
+
+const HOUR = 3_600_000;
+const TZ = "America/Los_Angeles";
+
+// --- synthetic snapshot builder -------------------------------------------
+
+const localDate = (ms: number, tz: string) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(ms));
+
+const addDays = (date: string, n: number) => {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+};
+
+/** First UTC instant whose site-local date is `date` (= local midnight). */
+const midnight = (date: string, tz: string) => {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  let t = Date.UTC(y, m - 1, d) - 14 * HOUR;
+  while (localDate(t, tz) !== date) t += HOUR;
+  return t;
+};
+
+/**
+ * Valid snapshot for `today` in `tz`: whole today + tomorrow, actual until
+ * midnight + 12 h (UTC), flat 500 Wh solar per hour. Satisfies every rule so
+ * only what a test changes differs.
+ */
+function build(today: string, tz = TZ, actualLoadWh = 800): DashboardSnapshot {
+  const start = midnight(today, tz);
+  const end = midnight(addDays(today, 2), tz);
+  const updatedMs = start + 12 * HOUR;
+  const timeline: DashboardSnapshot["timeline"] = [];
+  for (let t = start; t < end; t += HOUR) {
+    const hour = new Date(t).toISOString();
+    timeline.push(
+      t < updatedMs
+        ? {
+            hour,
+            kind: "actual",
+            loadWh: actualLoadWh,
+            solarWh: 500,
+            socPct: 50,
+            period: "off-peak",
+            gridImportWh: actualLoadWh - 500,
+            gridExportWh: 0,
+            batteryChargeWh: 0,
+            batteryDischargeWh: 0,
+          }
+        : {
+            hour,
+            kind: "forecast",
+            loadWh: 1000,
+            solarWh: 500,
+            socPct: 50,
+            period: "off-peak",
+            loadP10Wh: 900,
+            loadP90Wh: 1100,
+            solarP10Wh: 400,
+            solarP90Wh: 600,
+          },
+    );
+  }
+  const importWh = (actualLoadWh - 500) * 12;
+  const iso = new Date(updatedMs).toISOString();
+  return {
+    site: { name: "Home", timezone: tz, temperatureUnit: "F" },
+    source: "replay",
+    updatedAt: iso,
+    currency: "USD",
+    live: {
+      solarW: 500,
+      loadW: actualLoadWh,
+      batteryW: 0,
+      gridW: actualLoadWh - 500,
+      socPct: 50,
+      usableCapacityWh: 13500,
+      gridStatus: "connected",
+    },
+    tariffNow: {
+      period: "off-peak",
+      importCentsPerKwh: 30,
+      exportCentsPerKwh: 8,
+      endsAt: iso,
+    },
+    recommendation: null,
+    timeline,
+    costToday: {
+      periods: [{ period: "off-peak", importWh, costCents: 0 }],
+      exportCreditCents: 0,
+      netCents: 0,
+    },
+    previousDays: [6, 5, 4, 3, 2, 1].map((n) => ({
+      date: addDays(today, -n),
+      solarWh: 6000,
+      loadWh: 9000,
+    })),
+    accuracy: [],
+    health: { lastPollAt: iso, estRequestsPerMonth: 8640, warnings: [] },
+    weatherTomorrow: {
+      date: addDays(today, 1),
+      condition: "clear",
+      highC: 20,
+      lowC: 10,
+      cloudCoverPct: 10,
+      precipitationChancePct: 0,
+    },
+  };
+}
+
+/** Clone `base`, apply `mut`, return the check messages. */
+const problems = (
+  mut: (s: DashboardSnapshot) => void,
+  base: DashboardSnapshot = sampleSnapshot,
+) => {
+  const s = structuredClone(base);
+  mut(s);
+  return checkSnapshot(s);
+};
+
+const row = (s: DashboardSnapshot, i: number) => {
+  const r = s.timeline[i];
+  if (!r) throw new Error(`no timeline row ${i}`);
+  return r;
+};
+
+// --- checkSnapshot ---------------------------------------------------------
+
+describe("checkSnapshot", () => {
+  it("accepts the sample snapshot", () => {
+    expect(checkSnapshot(sampleSnapshot)).toEqual([]);
+  });
+
+  it("neither mutates nor throws", () => {
+    const s = structuredClone(sampleSnapshot);
+    s.updatedAt = "garbage";
+    const before = structuredClone(s);
+    expect(() => checkSnapshot(s)).not.toThrow();
+    expect(s).toEqual(before);
+  });
+
+  describe("rule 1: live", () => {
+    it.each([
+      ["negative solarW", (s: DashboardSnapshot) => (s.live.solarW = -1)],
+      ["negative loadW", (s: DashboardSnapshot) => (s.live.loadW = -5)],
+      ["non-integer W", (s: DashboardSnapshot) => (s.live.loadW += 0.5)],
+      ["unbalanced flows", (s: DashboardSnapshot) => (s.live.gridW += 100)],
+      ["socPct above 100", (s: DashboardSnapshot) => (s.live.socPct = 101)],
+      ["socPct below 0", (s: DashboardSnapshot) => (s.live.socPct = -1)],
+    ])("reports %s", (_n, mut) => {
+      expect(problems(mut).length).toBeGreaterThan(0);
+    });
+    it("tolerates a 50 W imbalance", () => {
+      expect(problems((s) => (s.live.gridW += 50))).toEqual([]);
+    });
+  });
+
+  describe("rule 2: timeline", () => {
+    it("reports a dropped hour", () => {
+      expect(problems((s) => s.timeline.splice(20, 1)).length).toBeGreaterThan(
+        0,
+      );
+    });
+    it("reports hours not 1 h apart", () => {
+      expect(
+        problems((s) => {
+          const r = row(s, 10);
+          r.hour = new Date(Date.parse(r.hour) + 30 * 60_000).toISOString();
+        }).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports a timeline starting at 06:00 local instead of midnight", () => {
+      expect(
+        problems((s) => (s.timeline = s.timeline.slice(6))).length,
+      ).toBeGreaterThan(0);
+      expect(
+        problems((s) => (s.timeline = s.timeline.slice(6)), build("2026-07-15"))
+          .length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports tomorrow not fully covered", () => {
+      expect(
+        problems((s) => (s.timeline = s.timeline.slice(0, -1))).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports a forecast hour before an actual hour", () => {
+      expect(
+        problems((s) => (row(s, 3).kind = "forecast")).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports an actual hour not before updatedAt", () => {
+      expect(
+        problems(
+          (s) =>
+            (s.updatedAt = new Date(
+              Date.parse(s.updatedAt) - 2 * HOUR,
+            ).toISOString()),
+        ).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports an unbalanced actual hour", () => {
+      expect(
+        problems((s) => {
+          const r = row(s, 5);
+          r.gridImportWh = (r.gridImportWh ?? 0) + 500;
+        }).length,
+      ).toBeGreaterThan(0);
+    });
+    it("tolerates a 50 Wh actual imbalance", () => {
+      expect(
+        problems((s) => {
+          const r = row(s, 5);
+          r.gridImportWh = (r.gridImportWh ?? 0) + 50;
+        }),
+      ).toEqual([]);
+    });
+    it("reports an actual hour missing a breakdown field", () => {
+      expect(
+        problems((s) => delete row(s, 5).batteryChargeWh).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports a negative or non-integer breakdown field", () => {
+      expect(
+        problems((s) => (row(s, 5).gridExportWh = -1)).length,
+      ).toBeGreaterThan(0);
+      expect(
+        problems((s) => (row(s, 5).batteryDischargeWh = 0.5)).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports a forecast hour with a breakdown field", () => {
+      expect(
+        problems((s) => (row(s, 20).gridImportWh = 0)).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports loadP10 > load on a forecast hour", () => {
+      expect(
+        problems((s) => (row(s, 20).loadP10Wh = row(s, 20).loadWh + 1)).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports solarP90 < solar on a forecast hour", () => {
+      expect(
+        problems((s) => (row(s, 36).solarP90Wh = row(s, 36).solarWh - 1))
+          .length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports a missing forecast band", () => {
+      expect(
+        problems((s) => delete row(s, 20).loadP90Wh).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports p10/p90 on an actual hour", () => {
+      expect(
+        problems((s) => (row(s, 3).solarP10Wh = 0)).length,
+      ).toBeGreaterThan(0);
+    });
+  });
+
+  describe("rule 3: costToday", () => {
+    it("reports period import not summing to today's grid import", () => {
+      expect(
+        problems((s) => {
+          const p = s.costToday.periods[0];
+          if (!p) throw new Error("no period");
+          p.importWh += 1000;
+        }).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports netCents != sum(costCents) - exportCreditCents", () => {
+      expect(
+        problems((s) => (s.costToday.netCents += 1)).length,
+      ).toBeGreaterThan(0);
+    });
+  });
+
+  describe("rule 4: previousDays", () => {
+    it("reports 5 entries", () => {
+      expect(problems((s) => s.previousDays.pop()).length).toBeGreaterThan(0);
+    });
+    it("reports a gap in the dates", () => {
+      expect(
+        problems((s) => {
+          const p = s.previousDays[2];
+          if (!p) throw new Error("no day");
+          p.date = "2026-07-01";
+        }).length,
+      ).toBeGreaterThan(0);
+    });
+    it("reports descending order", () => {
+      expect(problems((s) => s.previousDays.reverse()).length).toBeGreaterThan(
+        0,
+      );
+    });
+    it("reports a last entry that is not the day before today", () => {
+      expect(
+        problems((s) => {
+          const p = s.previousDays[5];
+          if (!p) throw new Error("no day");
+          p.date = "2026-07-15";
+        }).length,
+      ).toBeGreaterThan(0);
+    });
+  });
+
+  describe("rule 5: weatherTomorrow", () => {
+    it("reports a wrong date", () => {
+      expect(
+        problems((s) => {
+          if (s.weatherTomorrow) s.weatherTomorrow.date = "2026-07-17";
+        }).length,
+      ).toBeGreaterThan(0);
+    });
+    it("accepts null", () => {
+      expect(problems((s) => (s.weatherTomorrow = null))).toEqual([]);
+    });
+  });
+
+  describe("rule 6: ISO strings", () => {
+    it.each([
+      ["updatedAt", (s: DashboardSnapshot) => (s.updatedAt = "nope")],
+      [
+        "tariffNow.endsAt",
+        (s: DashboardSnapshot) => (s.tariffNow.endsAt = "x"),
+      ],
+      [
+        "health.lastPollAt",
+        (s: DashboardSnapshot) => (s.health.lastPollAt = "x"),
+      ],
+      ["timeline hour", (s: DashboardSnapshot) => (row(s, 4).hour = "x")],
+      [
+        "recommendation.validFrom",
+        (s: DashboardSnapshot) => {
+          if (s.recommendation) s.recommendation.validFrom = "x";
+        },
+      ],
+    ])("reports an unparseable %s", (_n, mut) => {
+      expect(problems(mut).length).toBeGreaterThan(0);
+    });
+  });
+});
+
+// --- toDashboardView: sample numbers pinned from sampleDashboard at the base
+
+describe("toDashboardView(sampleSnapshot)", () => {
+  const v = toDashboardView(sampleSnapshot);
+
+  it("reproduces today's totals", () => {
+    expect(v.today).toEqual({
+      solarWh: 42176,
+      loadWh: 18286,
+      gridImportWh: 2901,
+      gridExportWh: 20716,
+      batteryChargeWh: 10800,
+      batteryDischargeWh: 4725,
+      selfPoweredPct: 84,
+    });
+  });
+
+  it("reproduces last7Days", () => {
+    expect(v.last7Days).toEqual([
+      { date: "2026-07-09", solarWh: 47500, loadWh: 24500 },
+      { date: "2026-07-10", solarWh: 47000, loadWh: 24800 },
+      { date: "2026-07-11", solarWh: 46500, loadWh: 25100 },
+      { date: "2026-07-12", solarWh: 46000, loadWh: 25400 },
+      { date: "2026-07-13", solarWh: 45500, loadWh: 25700 },
+      { date: "2026-07-14", solarWh: 45000, loadWh: 26000 },
+      { date: "2026-07-15", solarWh: 42176, loadWh: 18286 },
+    ]);
+  });
+
+  it("reproduces the solar outlook (45% less, 25.4 kWh tomorrow)", () => {
+    expect(v.solarOutlook).toEqual({
+      todayWh: 46118,
+      tomorrowWh: 25366,
+      changePct: 45,
+      direction: "less",
+    });
+    expect((v.solarOutlook.tomorrowWh / 1000).toFixed(1)).toBe("25.4");
+  });
+
+  it("reproduces cost, live and the tariff unchanged", () => {
+    expect(v.costToday.netCents).toBe(-79);
+    expect(v.costToday.exportCreditCents).toBe(166);
+    expect(v.live).toMatchObject({
+      solarW: 3713,
+      loadW: 2066,
+      batteryW: 0,
+      gridW: -1647,
+      socPct: 100,
+    });
+  });
+
+  it("drops previousDays", () => {
+    expect("previousDays" in v).toBe(false);
+  });
+
+  it("does not mutate the snapshot", () => {
+    const s = structuredClone(sampleSnapshot);
+    toDashboardView(s);
+    expect(s).toEqual(sampleSnapshot);
+  });
+});
+
+describe("toDashboardView edge cases", () => {
+  const noNaN = (x: unknown): boolean =>
+    typeof x === "number"
+      ? Number.isFinite(x)
+      : x !== null && typeof x === "object"
+        ? Object.values(x).every(noNaN)
+        : true;
+
+  it("loadWh 0 gives selfPoweredPct 0 and no NaN", () => {
+    const v = toDashboardView(build("2026-07-15", TZ, 0));
+    expect(v.today.loadWh).toBe(0);
+    expect(v.today.selfPoweredPct).toBe(0);
+    expect(noNaN(v)).toBe(true);
+  });
+
+  it("clamps selfPoweredPct to 0..100", () => {
+    const s = build("2026-07-15");
+    for (const r of s.timeline) if (r.kind === "actual") r.gridImportWh = 5000;
+    expect(toDashboardView(s).today.selfPoweredPct).toBe(0);
+  });
+
+  it("direction is 'more' when tomorrow has more solar", () => {
+    const s = build("2026-07-15");
+    for (const r of s.timeline.slice(24)) r.solarWh = 1000; // tomorrow doubles
+    expect(toDashboardView(s).solarOutlook).toMatchObject({
+      changePct: 100,
+      direction: "more",
+    });
+  });
+});
+
+// --- DST -------------------------------------------------------------------
+
+describe("DST days in America/Los_Angeles", () => {
+  it("fall-back 2026-11-01 (25 h): 49 rows, valid, 25 hours grouped into today", () => {
+    const s = build("2026-11-01");
+    expect(s.timeline).toHaveLength(49);
+    expect(checkSnapshot(s)).toEqual([]);
+    // Tomorrow is a plain 24 h day: 25 x 500 vs 24 x 500.
+    expect(toDashboardView(s).solarOutlook).toEqual({
+      todayWh: 12500,
+      tomorrowWh: 12000,
+      changePct: 4,
+      direction: "less",
+    });
+  });
+
+  it("spring-forward 2026-03-08 (23 h): 47 rows, valid, 23 hours grouped into today", () => {
+    const s = build("2026-03-08");
+    expect(s.timeline).toHaveLength(47);
+    expect(checkSnapshot(s)).toEqual([]);
+    expect(toDashboardView(s).solarOutlook).toEqual({
+      todayWh: 11500,
+      tomorrowWh: 12000,
+      changePct: 4,
+      direction: "more",
+    });
+  });
+
+  it("a DST timeline missing its last hour is reported", () => {
+    expect(
+      problems((s) => s.timeline.pop(), build("2026-11-01")).length,
+    ).toBeGreaterThan(0);
+  });
+});
