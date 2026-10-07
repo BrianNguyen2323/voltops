@@ -349,6 +349,22 @@ describe("buildSnapshot", () => {
     expect(edge.health.warnings).toEqual(["Energy history is 2 h behind"]);
   });
 
+  it("history lag is measured from latestIntervalStart: 1 h 55 min none, 2 h 30 min warns", () => {
+    const at = (iso: string) => Date.parse(iso);
+    // hour bucket 09:00 would say 3 h; the interval start 10:00 says 2 h 30 min.
+    const behind = buildSnapshot({
+      ...input(at("2026-05-20T12:30:00Z"), { dataUntil: at("2026-05-20T09:00:00Z") }),
+      latestIntervalStart: at("2026-05-20T10:00:00Z"),
+    });
+    expect(behind.health.warnings).toEqual(["Energy history is 2 h behind"]);
+    // hour bucket 10:00 would say 2 h 50 min; the interval start 10:55 says 1 h 55 min.
+    const fine = buildSnapshot({
+      ...input(at("2026-05-20T12:50:00Z"), { dataUntil: at("2026-05-20T10:00:00Z") }),
+      latestIntervalStart: at("2026-05-20T10:55:00Z"),
+    });
+    expect(fine.health.warnings).toEqual([]);
+  });
+
   it("warnings come in the documented order", () => {
     const s = buildSnapshot(
       input(NORMAL, {
