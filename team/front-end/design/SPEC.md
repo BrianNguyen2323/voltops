@@ -70,7 +70,7 @@ Terms are as in `GLOSSARY.md`. Everything lives in one pure module, **`src/lib/d
 - `costToday` stays an input until the tariff module exists (architecture backlog item 3).
 
 **Timeline rule:**
-- the Timeline covers the **whole** site-local today and tomorrow: from local midnight of `updatedAt`'s site-local date to the last hour of the next site-local date, in consecutive UTC hours (46, 48 or 50 rows on DST days);
+- the Timeline covers the **whole** site-local today and tomorrow: from local midnight of `updatedAt`'s site-local date to the last hour of the next site-local date, in consecutive UTC hours (48 rows; 47 or 49 when a DST change falls in the two days);
 - "today" and "tomorrow" are always found by each hour's **site-local date** (`hour` + `site.timezone`), never by row index.
 
 **`checkSnapshot(snapshot): string[]`** returns one plain message per problem (empty = OK). It never throws and never fixes data. It checks:

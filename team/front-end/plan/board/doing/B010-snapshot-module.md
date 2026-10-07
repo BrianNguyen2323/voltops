@@ -15,7 +15,7 @@ Implementer: `Use skill: codebase-design` (one deep module: a small interface โ€
     - `TimelineHour` adds optional `gridImportWh`, `gridExportWh`, `batteryChargeWh` and `batteryDischargeWh` (present on actual hours only).
     - TSDoc on every field: units (W, Wh, integer cents, ISO-8601 UTC) and signs (CLAUDE.md ยง5: `batteryW` > 0 discharging, `gridW` > 0 importing). `live` = the instantaneous Live reading at `updatedAt`.
   - **Timeline rule:**
-    - consecutive UTC hours covering the **whole** site-local today and tomorrow, where today = the site-local date of `updatedAt`. That is 48 rows, or 46/50 on DST days;
+    - consecutive UTC hours covering the **whole** site-local today and tomorrow, where today = the site-local date of `updatedAt`. That is 48 rows, or 47/49 when a DST change falls in the two days;
     - today/tomorrow are found by each hour's **site-local date** (`hour` + `site.timezone`), never by index.
     - A private helper for the site-local date is fine (`Intl.DateTimeFormat("en-CA", { timeZone, year, month, day })`). Mark it `// ponytail: moves to the site-local time module (architecture backlog item 2)`.
   - **`checkSnapshot(s): string[]`** returns one message per problem; it never throws and never mutates. Rules:

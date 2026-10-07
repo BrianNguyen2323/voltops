@@ -12,7 +12,7 @@ Scope created by the front-end team lead on 2026-10-06 at the PO's request. No r
   6. `team/db-docker/design/SPEC.md` (current schema).
 - **Contract decisions already made by the PO** (front-end Decision rounds 2–3, 2026-10-06):
   - today/tomorrow = **site-local days**, derived from each Timeline hour + the Site timezone;
-  - the Timeline covers the **whole** of today and tomorrow (46–50 rows on DST days);
+  - the Timeline covers the **whole** of today and tomorrow (48 rows; 47 or 49 across a DST change);
   - actual Timeline hours carry grid import/export and battery charge/discharge Wh;
   - "Cost today" is supplied by the adapter (until a tariff module exists) and must agree with the derived grid import;
   - "Last 7 days": the adapter supplies the 6 previous days;
