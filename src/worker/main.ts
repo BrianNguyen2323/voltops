@@ -32,9 +32,7 @@ async function tick(first = false) {
         await runTesla(deps);
       } else if (!idleLogged) {
         idleLogged = true;
-        console.log(
-          "[worker] tesla idle (no credentials or no fleet-api site)",
-        );
+        console.log("[worker] no fleet-api site; idle");
       }
     }
     if (weatherDue) {

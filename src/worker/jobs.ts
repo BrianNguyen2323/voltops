@@ -91,6 +91,7 @@ export async function syncEnergy({ db, source, now }: Deps, site: Site) {
       first ??= e;
     }
   }
+  // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrow the original caught value
   if (first) throw first;
 }
 
