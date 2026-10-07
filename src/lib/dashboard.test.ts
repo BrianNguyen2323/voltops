@@ -2,6 +2,8 @@
 import { sampleSnapshot } from "../app/(protected)/home/data";
 import {
   checkSnapshot,
+  peakEstimateWh,
+  reservePlan,
   toDashboardView,
   type DashboardSnapshot,
 } from "./dashboard";
@@ -95,6 +97,7 @@ function build(today: string, tz = TZ, actualLoadWh = 800): DashboardSnapshot {
       endsAt: iso,
     },
     recommendation: null,
+    peakEstimate: { historyDays: 0, today: null, tomorrow: null },
     timeline,
     costToday: {
       periods: [{ period: "off-peak", importWh, costCents: 0 }],
@@ -511,5 +514,176 @@ describe("DST days in America/Los_Angeles", () => {
     expect(
       problems((s) => s.timeline.pop(), build("2026-11-01")).length,
     ).toBeGreaterThan(0);
+  });
+});
+
+// --- Rev 6: peak estimate and reserve advice --------------------------------
+
+const hist = {
+  historyAvgWh: 10200,
+  highC: 33,
+  similarTempDays: 8,
+  similarTempAvgWh: 11600,
+};
+
+describe("peakEstimateWh", () => {
+  it("is the mean of the two averages", () => {
+    expect(peakEstimateWh(hist)).toBe(10900);
+  });
+  it("falls back to historyAvgWh when similarTempAvgWh is null", () => {
+    expect(
+      peakEstimateWh({ ...hist, similarTempDays: 2, similarTempAvgWh: null }),
+    ).toBe(10200);
+  });
+  it("rounds to an integer", () => {
+    expect(
+      peakEstimateWh({ ...hist, historyAvgWh: 10001, similarTempAvgWh: 10002 }),
+    ).toBe(10002);
+    expect(
+      peakEstimateWh({ ...hist, historyAvgWh: 10000, similarTempAvgWh: 10001 }),
+    ).toBe(10001);
+  });
+});
+
+describe("reservePlan", () => {
+  it("27 kWh battery, 11 kWh peak: extra 41, target 61", () => {
+    expect(reservePlan(11000, 27000)).toEqual({
+      emergencyPct: 20,
+      extraPct: 41,
+      targetPct: 61,
+      peakWh: 11000,
+      coveredWh: 11000,
+    });
+  });
+  it("sample: 9.3 kWh on 13.5 kWh gives extra 69, target 89", () => {
+    expect(reservePlan(9300, 13500)).toEqual({
+      emergencyPct: 20,
+      extraPct: 69,
+      targetPct: 89,
+      peakWh: 9300,
+      coveredWh: 9300,
+    });
+  });
+  it("caps at 100% and covers only what fits", () => {
+    expect(reservePlan(15000, 13500)).toEqual({
+      emergencyPct: 20,
+      extraPct: 80,
+      targetPct: 100,
+      peakWh: 15000,
+      coveredWh: 10800,
+    });
+  });
+  it("does not round exact multiples up", () => {
+    expect(reservePlan(2700, 13500)).toMatchObject({
+      extraPct: 20,
+      targetPct: 40,
+    });
+  });
+  it("honours a custom emergency floor", () => {
+    expect(reservePlan(5000, 10000, 30)).toMatchObject({
+      emergencyPct: 30,
+      extraPct: 50,
+      targetPct: 80,
+    });
+  });
+});
+
+describe("checkSnapshot: peak estimate rules", () => {
+  const bad = (mut: (s: DashboardSnapshot) => void) =>
+    expect(problems(mut).length).toBeGreaterThan(0);
+  const peak = (s: DashboardSnapshot) => {
+    if (!s.peakEstimate.today || !s.peakEstimate.tomorrow)
+      throw new Error("sample needs both peak days");
+    return { today: s.peakEstimate.today, tomorrow: s.peakEstimate.tomorrow };
+  };
+  const rec = (s: DashboardSnapshot) => {
+    if (!s.recommendation?.reserve) throw new Error("sample needs a reserve");
+    return s.recommendation.reserve;
+  };
+
+  it("accepts the sample snapshot", () => {
+    expect(checkSnapshot(sampleSnapshot)).toEqual([]);
+  });
+  it("reports a negative or non-integer historyDays", () => {
+    bad((s) => (s.peakEstimate.historyDays = -1));
+    bad((s) => (s.peakEstimate.historyDays = 30.5));
+  });
+  it("reports a non-integer or negative peak Wh", () => {
+    bad((s) => (peak(s).today.historyAvgWh = 10200.5));
+    bad((s) => (peak(s).tomorrow.historyAvgWh = -1));
+  });
+  it("reports similarTempDays above historyDays", () =>
+    bad((s) => (peak(s).today.similarTempDays = 31)));
+  it("reports similarTempAvgWh present with fewer than 3 days", () =>
+    bad((s) => (peak(s).today.similarTempDays = 2)));
+  it("reports similarTempAvgWh null with 3 or more days", () =>
+    bad((s) => (peak(s).tomorrow.similarTempAvgWh = null)));
+  it("reports a non-null day that has no peak hours", () =>
+    bad((s) => {
+      for (const r of s.timeline.slice(24)) r.period = "off-peak";
+    }));
+  it("reports a reserve that does not match reservePlan", () =>
+    bad((s) => (rec(s).extraPct += 1)));
+  it("reports a reserve with fewer than 7 days of history", () =>
+    bad((s) => {
+      s.peakEstimate.historyDays = 6;
+      peak(s).today.similarTempDays = 5;
+      peak(s).tomorrow.similarTempDays = 5;
+    }));
+  it("reports an emergencyPct below 20", () =>
+    bad((s) => {
+      s.recommendation!.reserve = reservePlan(9300, 13500, 10);
+    }));
+});
+
+describe("toDashboardView: peakUsage", () => {
+  const at = (iso: string) => Date.parse(iso);
+  const v = toDashboardView(sampleSnapshot);
+
+  it("derives the window from the Timeline peak hours (16:00-21:00 local)", () => {
+    const { today, tomorrow } = v.peakUsage;
+    expect(at(today!.windowStart)).toBe(at("2026-07-15T23:00:00Z"));
+    expect(at(today!.windowEnd)).toBe(at("2026-07-16T04:00:00Z"));
+    expect(at(tomorrow!.windowStart)).toBe(at("2026-07-16T23:00:00Z"));
+    expect(at(tomorrow!.windowEnd)).toBe(at("2026-07-17T04:00:00Z"));
+  });
+  it("adds estimateWh and keeps the history fields", () => {
+    expect(v.peakUsage.historyDays).toBe(30);
+    expect(v.peakUsage.today).toMatchObject({ ...hist, estimateWh: 10900 });
+    expect(v.peakUsage.tomorrow?.estimateWh).toBe(9300);
+  });
+  it("usedSoFarWh is the sample's 16:00 actual load; null for tomorrow", () => {
+    const h16 = sampleSnapshot.timeline.find(
+      (r) => at(r.hour) === at("2026-07-15T23:00:00Z"),
+    );
+    expect(h16?.kind).toBe("actual");
+    expect(v.peakUsage.today?.usedSoFarWh).toBe(h16?.loadWh);
+    expect(v.peakUsage.tomorrow?.usedSoFarWh).toBeNull();
+  });
+  it("usedSoFarWh is null when no peak hour is actual yet", () => {
+    const s = build("2026-07-15");
+    for (const r of s.timeline) {
+      const h = Number(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: TZ,
+          hour: "numeric",
+          hourCycle: "h23",
+        }).format(new Date(r.hour)),
+      );
+      if (h >= 16 && h < 21) r.period = "peak";
+    }
+    s.peakEstimate = { historyDays: 30, today: hist, tomorrow: hist };
+    const out = toDashboardView(s).peakUsage;
+    expect(out.today?.usedSoFarWh).toBeNull();
+    expect(out.today?.windowStart).toBeDefined();
+  });
+  it("learning is true at 6 days and false at 7", () => {
+    const at6 = structuredClone(sampleSnapshot);
+    at6.peakEstimate.historyDays = 6;
+    expect(toDashboardView(at6).peakUsage.learning).toBe(true);
+    expect(toDashboardView(at6).peakUsage.historyDays).toBe(6);
+    const at7 = structuredClone(sampleSnapshot);
+    at7.peakEstimate.historyDays = 7;
+    expect(toDashboardView(at7).peakUsage.learning).toBe(false);
   });
 });
