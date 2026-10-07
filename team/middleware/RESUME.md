@@ -9,7 +9,7 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - Wave 2/3 briefs are written when they move to ready (they depend on wave 1's actual exports).
 - **Last action:** SPEC Rev 1, R001, MILESTONES, wave-1 briefs in board/ready. tesla-api-connection marked closed (absorbed).
 - **Next action:** wave 1 testers → implementers → reviewers → gate/merge, one brief at a time per member slot (max 4 members at once).
-- **Open branches / worktrees:** none yet.
+- **Open branches / worktrees:** wave-1 testers running (B001, B002, B005, B009); branches are recorded on handoff.
 - **Read first next session:** `design/SPEC.md`, then the board.
 - **Env lessons** (from db-docker):
   - worktrees need the node_modules junction; remove it with `cmd /c rmdir node_modules` BEFORE `git worktree remove`, and never use `--force` while the junction exists;
