@@ -4,7 +4,7 @@ import {
   type DashboardView,
   type TimelineHour,
   type TouPeriod,
-} from "../../../lib/dashboard";
+} from "~/lib/dashboard";
 
 // Temporary compatibility (removed in B011): the UI still reads the Rev 4 shape.
 export type DashboardData = DashboardView;
