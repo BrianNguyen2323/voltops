@@ -74,3 +74,8 @@ Implementer: `Use skill: frontend-design` (the tile and the sentence must fit th
   - Nits: "used so far" wraps mid-phrase at 1440; the sample reads "From 9:00 PM until 4:00 PM".
   - Fix-up implementer spawned on `phase2a/peak-tile-fix` (the must-fix + both nits).
 - Fix-up b6d290e on `phase2a/peak-tile-fix`: `build.ts` = base + 1 stub line; "used so far" is on its own line; sample `validTo` is 9 PM tomorrow. Gate green (484/70/tsc/lint/build). Re-review spawned.
+- Re-review (b6d290e): **PASS**. The build.ts diff is the single stub line; gate green; `data/shots/b012-fix-1440.png` shows "used so far" on its own line and "From 9:00 PM until 9:00 PM."
+- **Merged b66599f** into `front-end-development`.
+  - Gate there: typecheck, lint clean, build OK, `/home` 217/320 kB (unchanged).
+  - vitest was 478/484. The 6 failures are all fleet-api fixture tests and come from the PO's **uncommitted** edits to `fixtures/fleet-api/*.json`, not B012. The merged code equals b6d290e, which ran 484/484 in a clean worktree. Flagged to the PO.
+- Lead: refreshed `team/middleware/research/dashboard-snapshot/README.md`; worktrees and branches removed.
