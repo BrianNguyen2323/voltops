@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { sampleSnapshot } from "../app/(protected)/home/data";
 import {
   checkSnapshot,
@@ -135,6 +135,19 @@ const row = (s: DashboardSnapshot, i: number) => {
   return r;
 };
 
+/** Messages produced by `mut`, asserted to include one containing `part`. */
+const has = (
+  mut: (s: DashboardSnapshot) => void,
+  part: string,
+  base?: DashboardSnapshot,
+) => expect(problems(mut, base)).toContainEqual(expect.stringContaining(part));
+
+const period0 = (s: DashboardSnapshot) => {
+  const p = s.costToday.periods[0];
+  if (!p) throw new Error("no period");
+  return p;
+};
+
 // --- checkSnapshot ---------------------------------------------------------
 
 describe("checkSnapshot", () => {
@@ -150,17 +163,53 @@ describe("checkSnapshot", () => {
     expect(s).toEqual(before);
   });
 
+  it("an invalid timezone yields one message and skips timezone rules", () => {
+    const s = structuredClone(sampleSnapshot);
+    s.site.timezone = "Nope/Zone";
+    let out: string[] = [];
+    expect(() => (out = checkSnapshot(s))).not.toThrow();
+    expect(out).toEqual(["site.timezone is not a valid IANA timezone"]);
+  });
+
+  it("an unparseable updatedAt yields only its ISO message", () => {
+    expect(problems((s) => (s.updatedAt = "nope"))).toEqual([
+      "updatedAt is not a valid ISO date",
+    ]);
+  });
+
   describe("rule 1: live", () => {
     it.each([
-      ["negative solarW", (s: DashboardSnapshot) => (s.live.solarW = -1)],
-      ["negative loadW", (s: DashboardSnapshot) => (s.live.loadW = -5)],
-      ["non-integer W", (s: DashboardSnapshot) => (s.live.loadW += 0.5)],
-      ["unbalanced flows", (s: DashboardSnapshot) => (s.live.gridW += 100)],
-      ["socPct above 100", (s: DashboardSnapshot) => (s.live.socPct = 101)],
-      ["socPct below 0", (s: DashboardSnapshot) => (s.live.socPct = -1)],
-    ])("reports %s", (_n, mut) => {
-      expect(problems(mut).length).toBeGreaterThan(0);
-    });
+      [
+        "negative solarW",
+        (s: DashboardSnapshot) => (s.live.solarW = -1),
+        "live.solarW must be >= 0",
+      ],
+      [
+        "negative loadW",
+        (s: DashboardSnapshot) => (s.live.loadW = -5),
+        "live.loadW must be >= 0",
+      ],
+      [
+        "non-integer W",
+        (s: DashboardSnapshot) => (s.live.loadW += 0.5),
+        "live.loadW must be an integer",
+      ],
+      [
+        "unbalanced flows",
+        (s: DashboardSnapshot) => (s.live.gridW += 100),
+        "live flows do not balance",
+      ],
+      [
+        "socPct above 100",
+        (s: DashboardSnapshot) => (s.live.socPct = 101),
+        "live.socPct must be 0-100",
+      ],
+      [
+        "socPct below 0",
+        (s: DashboardSnapshot) => (s.live.socPct = -1),
+        "live.socPct must be 0-100",
+      ],
+    ])("reports %s", (_n, mut, part) => has(mut, part));
     it("tolerates a 50 W imbalance", () => {
       expect(problems((s) => (s.live.gridW += 50))).toEqual([]);
     });
@@ -168,158 +217,137 @@ describe("checkSnapshot", () => {
 
   describe("rule 2: timeline", () => {
     it("reports a dropped hour", () => {
-      expect(problems((s) => s.timeline.splice(20, 1)).length).toBeGreaterThan(
-        0,
-      );
+      has((s) => s.timeline.splice(20, 1), "is not 1 h after the previous");
     });
-    it("reports hours not 1 h apart", () => {
-      expect(
-        problems((s) => {
-          const r = row(s, 10);
-          r.hour = new Date(Date.parse(r.hour) + 30 * 60_000).toISOString();
-        }).length,
-      ).toBeGreaterThan(0);
-    });
+    it("reports hours not 1 h apart", () =>
+      has((s) => {
+        const r = row(s, 10);
+        r.hour = new Date(Date.parse(r.hour) + 30 * 60_000).toISOString();
+      }, "is not 1 h after the previous"));
     it("reports a timeline starting at 06:00 local instead of midnight", () => {
-      expect(
-        problems((s) => (s.timeline = s.timeline.slice(6))).length,
-      ).toBeGreaterThan(0);
-      expect(
-        problems((s) => (s.timeline = s.timeline.slice(6)), build("2026-07-15"))
-          .length,
-      ).toBeGreaterThan(0);
+      const cut = (s: DashboardSnapshot) => (s.timeline = s.timeline.slice(6));
+      has(cut, "does not start at local midnight");
+      has(cut, "does not start at local midnight", build("2026-07-15"));
     });
     it("reports tomorrow not fully covered", () => {
-      expect(
-        problems((s) => (s.timeline = s.timeline.slice(0, -1))).length,
-      ).toBeGreaterThan(0);
+      has(
+        (s) => (s.timeline = s.timeline.slice(0, -1)),
+        "does not end at local midnight",
+      );
     });
-    it("reports a forecast hour before an actual hour", () => {
-      expect(
-        problems((s) => (row(s, 3).kind = "forecast")).length,
-      ).toBeGreaterThan(0);
+    it("reports an actual hour after a forecast hour (clean swap, only this rule)", () => {
+      const s = structuredClone(sampleSnapshot);
+      // Swap the contents of the last actual (16) and first forecast (17) rows,
+      // keep each hour, move updatedAt past row 17 and keep cost consistent.
+      const a = row(s, 16);
+      const f = row(s, 17);
+      const { hour: ha, ...ca } = a;
+      const { hour: hf, ...cf } = f;
+      s.timeline[16] = { hour: ha, ...cf };
+      s.timeline[17] = { hour: hf, ...ca };
+      s.updatedAt = new Date(Date.parse(hf) + HOUR).toISOString();
+      period0(s).importWh += (ca.gridImportWh ?? 0) - (a.gridImportWh ?? 0);
+      expect(checkSnapshot(s)).toEqual([
+        expect.stringContaining("is actual after a forecast hour"),
+      ]);
     });
-    it("reports an actual hour not before updatedAt", () => {
-      expect(
-        problems(
-          (s) =>
-            (s.updatedAt = new Date(
-              Date.parse(s.updatedAt) - 2 * HOUR,
-            ).toISOString()),
-        ).length,
-      ).toBeGreaterThan(0);
-    });
-    it("reports an unbalanced actual hour", () => {
-      expect(
-        problems((s) => {
-          const r = row(s, 5);
-          r.gridImportWh = (r.gridImportWh ?? 0) + 500;
-        }).length,
-      ).toBeGreaterThan(0);
-    });
+    it("reports an actual hour not before updatedAt", () =>
+      has(
+        (s) =>
+          (s.updatedAt = new Date(
+            Date.parse(s.updatedAt) - 2 * HOUR,
+          ).toISOString()),
+        "is actual but not before updatedAt",
+      ));
+    it("reports an unbalanced actual hour", () =>
+      has((s) => {
+        const r = row(s, 5);
+        r.gridImportWh = (r.gridImportWh ?? 0) + 500;
+      }, "energy does not balance"));
     it("tolerates a 50 Wh actual imbalance", () => {
       expect(
         problems((s) => {
           const r = row(s, 5);
           r.gridImportWh = (r.gridImportWh ?? 0) + 50;
+          period0(s).importWh += 50; // rule 3 is exact, keep cost consistent
         }),
       ).toEqual([]);
     });
-    it("reports an actual hour missing a breakdown field", () => {
-      expect(
-        problems((s) => delete row(s, 5).batteryChargeWh).length,
-      ).toBeGreaterThan(0);
-    });
+    it("reports an actual hour missing a breakdown field", () =>
+      has(
+        (s) => delete row(s, 5).batteryChargeWh,
+        "needs 4 integer breakdown fields",
+      ));
     it("reports a negative or non-integer breakdown field", () => {
-      expect(
-        problems((s) => (row(s, 5).gridExportWh = -1)).length,
-      ).toBeGreaterThan(0);
-      expect(
-        problems((s) => (row(s, 5).batteryDischargeWh = 0.5)).length,
-      ).toBeGreaterThan(0);
+      has(
+        (s) => (row(s, 5).gridExportWh = -1),
+        "needs 4 integer breakdown fields",
+      );
+      has(
+        (s) => (row(s, 5).batteryDischargeWh = 0.5),
+        "needs 4 integer breakdown fields",
+      );
     });
-    it("reports a forecast hour with a breakdown field", () => {
-      expect(
-        problems((s) => (row(s, 20).gridImportWh = 0)).length,
-      ).toBeGreaterThan(0);
-    });
-    it("reports loadP10 > load on a forecast hour", () => {
-      expect(
-        problems((s) => (row(s, 20).loadP10Wh = row(s, 20).loadWh + 1)).length,
-      ).toBeGreaterThan(0);
-    });
-    it("reports solarP90 < solar on a forecast hour", () => {
-      expect(
-        problems((s) => (row(s, 36).solarP90Wh = row(s, 36).solarWh - 1))
-          .length,
-      ).toBeGreaterThan(0);
-    });
-    it("reports a missing forecast band", () => {
-      expect(
-        problems((s) => delete row(s, 20).loadP90Wh).length,
-      ).toBeGreaterThan(0);
-    });
-    it("reports p10/p90 on an actual hour", () => {
-      expect(
-        problems((s) => (row(s, 3).solarP10Wh = 0)).length,
-      ).toBeGreaterThan(0);
-    });
+    it("reports a forecast hour with a breakdown field", () =>
+      has(
+        (s) => (row(s, 20).gridImportWh = 0),
+        "is forecast but has breakdown fields",
+      ));
+    it("reports loadP10 > load on a forecast hour", () =>
+      has(
+        (s) => (row(s, 20).loadP10Wh = row(s, 20).loadWh + 1),
+        "load needs p10 <= value <= p90",
+      ));
+    it("reports solarP90 < solar on a forecast hour", () =>
+      has(
+        (s) => (row(s, 36).solarP90Wh = row(s, 36).solarWh - 1),
+        "solar needs p10 <= value <= p90",
+      ));
+    it("reports a missing forecast band", () =>
+      has(
+        (s) => delete row(s, 20).loadP90Wh,
+        "load needs p10 <= value <= p90",
+      ));
+    it("reports p10/p90 on an actual hour", () =>
+      has((s) => (row(s, 3).solarP10Wh = 0), "is actual but has p10/p90"));
   });
 
   describe("rule 3: costToday", () => {
-    it("reports period import not summing to today's grid import", () => {
-      expect(
-        problems((s) => {
-          const p = s.costToday.periods[0];
-          if (!p) throw new Error("no period");
-          p.importWh += 1000;
-        }).length,
-      ).toBeGreaterThan(0);
-    });
-    it("reports netCents != sum(costCents) - exportCreditCents", () => {
-      expect(
-        problems((s) => (s.costToday.netCents += 1)).length,
-      ).toBeGreaterThan(0);
-    });
+    it("reports period import not summing to today's grid import", () =>
+      has((s) => (period0(s).importWh += 1000), "period imports do not sum"));
+    it("reports period import off by 1 Wh (exact)", () =>
+      has((s) => (period0(s).importWh += 1), "period imports do not sum"));
+    it("reports netCents != sum(costCents) - exportCreditCents", () =>
+      has((s) => (s.costToday.netCents += 1), "costToday.netCents"));
   });
 
   describe("rule 4: previousDays", () => {
-    it("reports 5 entries", () => {
-      expect(problems((s) => s.previousDays.pop()).length).toBeGreaterThan(0);
-    });
-    it("reports a gap in the dates", () => {
-      expect(
-        problems((s) => {
-          const p = s.previousDays[2];
-          if (!p) throw new Error("no day");
-          p.date = "2026-07-01";
-        }).length,
-      ).toBeGreaterThan(0);
-    });
-    it("reports descending order", () => {
-      expect(problems((s) => s.previousDays.reverse()).length).toBeGreaterThan(
-        0,
-      );
-    });
-    it("reports a last entry that is not the day before today", () => {
-      expect(
-        problems((s) => {
-          const p = s.previousDays[5];
-          if (!p) throw new Error("no day");
-          p.date = "2026-07-15";
-        }).length,
-      ).toBeGreaterThan(0);
-    });
+    it("reports 5 entries", () =>
+      has((s) => s.previousDays.pop(), "previousDays must have 6 entries"));
+    it("reports a gap in the dates", () =>
+      has((s) => {
+        const p = s.previousDays[2];
+        if (!p) throw new Error("no day");
+        p.date = "2026-07-01";
+      }, "previousDays must be the 6 consecutive days"));
+    it("reports descending order", () =>
+      has(
+        (s) => s.previousDays.reverse(),
+        "previousDays must be the 6 consecutive days",
+      ));
+    it("reports a last entry that is not the day before today", () =>
+      has((s) => {
+        const p = s.previousDays[5];
+        if (!p) throw new Error("no day");
+        p.date = "2026-07-15";
+      }, "previousDays must be the 6 consecutive days"));
   });
 
   describe("rule 5: weatherTomorrow", () => {
-    it("reports a wrong date", () => {
-      expect(
-        problems((s) => {
-          if (s.weatherTomorrow) s.weatherTomorrow.date = "2026-07-17";
-        }).length,
-      ).toBeGreaterThan(0);
-    });
+    it("reports a wrong date", () =>
+      has((s) => {
+        if (s.weatherTomorrow) s.weatherTomorrow.date = "2026-07-17";
+      }, "weatherTomorrow.date"));
     it("accepts null", () => {
       expect(problems((s) => (s.weatherTomorrow = null))).toEqual([]);
     });
@@ -327,25 +355,34 @@ describe("checkSnapshot", () => {
 
   describe("rule 6: ISO strings", () => {
     it.each([
-      ["updatedAt", (s: DashboardSnapshot) => (s.updatedAt = "nope")],
+      [
+        "updatedAt",
+        (s: DashboardSnapshot) => (s.updatedAt = "nope"),
+        "updatedAt is not a valid ISO date",
+      ],
       [
         "tariffNow.endsAt",
         (s: DashboardSnapshot) => (s.tariffNow.endsAt = "x"),
+        "tariffNow.endsAt is not a valid ISO date",
       ],
       [
         "health.lastPollAt",
         (s: DashboardSnapshot) => (s.health.lastPollAt = "x"),
+        "health.lastPollAt is not a valid ISO date",
       ],
-      ["timeline hour", (s: DashboardSnapshot) => (row(s, 4).hour = "x")],
+      [
+        "timeline hour",
+        (s: DashboardSnapshot) => (row(s, 4).hour = "x"),
+        "timeline[4].hour is not a valid ISO date",
+      ],
       [
         "recommendation.validFrom",
         (s: DashboardSnapshot) => {
           if (s.recommendation) s.recommendation.validFrom = "x";
         },
+        "recommendation.validFrom is not a valid ISO date",
       ],
-    ])("reports an unparseable %s", (_n, mut) => {
-      expect(problems(mut).length).toBeGreaterThan(0);
-    });
+    ])("reports an unparseable %s", (_n, mut, part) => has(mut, part));
   });
 });
 
