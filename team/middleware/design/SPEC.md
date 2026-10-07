@@ -59,7 +59,7 @@ Timeline hours and the stored hours are UTC hour starts. "Site-local day" and ho
 - ADR 0001 stands. CLAUDE.md §6 gets a note: rows are never pruned; the 90-day rule is dropped for MVP.
 
 ## Worker (B003; Q2 A, Q3 A, Q7 A)
-- `src/worker/main.ts` is a plain Node loop. It is bundled by esbuild (devDependency, already in the pnpm store) to `dist/worker.mjs`, with packages external (the image already ships `better-sqlite3`, `drizzle-orm`, `zod`).
+- `src/worker/main.ts` is a plain Node loop. It is bundled by esbuild (devDependency, already in the pnpm store) to `dist/worker.mjs`. Everything is bundled except `better-sqlite3`, which is native and already in the standalone image. (Rev 1 erratum: "packages external" would miss `@t3-oss/env-nextjs`, which the runtime image doesn't ship.)
   - Scripts: `pnpm worker` (build + run).
   - Compose service `worker`: same image, `command: node dist/worker.mjs`, `depends_on: web: service_healthy`, the same volume/env.
 - Every hour, at minute 2, for each `fleet-api` site:
