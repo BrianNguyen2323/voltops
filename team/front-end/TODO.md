@@ -326,3 +326,55 @@ Merged into `front-end-development` at 10f2f7f. Gate: 243 app tests + 58 script 
 - **b.** changes.
 - **c.** next topic: backlog #3, learning/loading/error states, the light theme, chart table/CSV views, nav + Plan/Trends, or call the **middleware** team.
 - Answer: **a, approved** (PO, 2026-10-06). The PO merges `front-end-development` → `main` now. The remaining architecture backlog waits until the PO prompts this team again ("continue" → read RESUME.md).
+
+## USER INPUT REQUIRED — Decision round 4: peak-hours estimate + reserve advice (2026-10-07)
+Research: `research/peak-estimate/README.md`. Answer e.g. "all recommended" or "Q3 B, rest recommended". After your answers, I write SPEC Rev 6. The front-end then builds the placeholder tile and the advice sentence on sample data, and I hand the middleware team a brief: the two SQL averages, the reserve rule, and filling the new fields.
+
+**Q1. What the tile shows** (3rd cell next to "Your home now"; on a phone it stacks under it).
+- **A (recommended):** heading **"Peak hours"**, then one row per day:
+  - "**Today** 4–9 PM · **12.4 kWh** expected · 5.1 kWh used so far" (the "so far" part only once the window has started; it's derived from the timeline);
+  - "**Tomorrow** 4–9 PM · **13.8 kWh** expected";
+  - one small line under them: "Usual: 11.2 kWh (30 days). On days near 95°F: 15.4 kWh (8 days)", so you can see both averages.
+- B: only the two estimates, no breakdown line.
+
+**Q2. Combining the two averages.**
+- **A (recommended):** estimate = the plain mean of (all-history average, similar-temperature average).
+  - With fewer than 3 similar-temperature days, use the all-history average alone, and the tile says "not enough days near 95°F yet".
+- B: weight each average by its number of days. More days → more say, but the temperature average would almost never win against the full history, which defeats the point.
+- C: use the similar-temperature average whenever it exists (history only as fallback).
+
+**Q3. What counts as "similar temperature".**
+- **A (recommended):** the day's **high** is within **±3 °C (≈ ±5 °F)** of the target day's forecast high. That's the same high the Tomorrow weather tile shows.
+- B: the average temperature **during the peak window** (closer to when the AC actually runs, but harder to explain).
+- C: another band width (say it).
+
+**Q4. Backfill past temperatures** (today only 1 day of observed weather is stored, so query 2 has nothing to match for weeks).
+- **A (recommended):** the middleware fetches up to 92 days of past hourly weather from Open-Meteo, once at first run and for any gap. It's free and keyless; nothing to Tesla.
+- B: no backfill. The temperature average fills in naturally as days pass (about 3+ weeks before it's useful).
+
+**Q5. Learning state.**
+- **A (recommended):** under 7 complete days of history, the tile shows "Learning your usage: N of 7 days" instead of numbers, and the Tonight advice falls back to "No changes needed tonight" (CLAUDE.md §7 cold start).
+- B: show numbers from day 1.
+
+**Q6. The reserve number.**
+- **A (recommended):**
+  - extra % = tomorrow's peak estimate ÷ usable battery capacity, rounded **up** to a whole %;
+  - reserve = **20%** (fixed emergency floor) + extra, capped at 100%;
+  - if capped, the sentence says it covers only part of the peak.
+  - Example: 27 kWh battery, 11 kWh peak → 20% + 41% = **61%**.
+- B: also round to the nearest 5% (61% → 65%; easier to set in the Tesla app).
+- C: make the 20% a per-site setting (needs a settings screen; later).
+
+**Q7. The "$x" saving.**
+- **A (recommended):** covered kWh × (peak rate − off-peak rate). Holding energy for peak means buying it off-peak instead; this is the real difference. Example: 11 kWh × ($0.48 − $0.25) ≈ **$2.53**.
+- B: covered kWh × the full peak rate (≈ $5.28). Bigger number, but it ignores what you pay to buy that energy off-peak.
+
+**Q8. Who writes the sentence.**
+- **A (recommended):**
+  - the snapshot gets structured fields: `recommendation.reserve = { targetPct, emergencyPct, extraPct, peakWh, savingsCents }` plus the new `peakEstimate`;
+  - the middleware computes the numbers (pure function, CLAUDE.md §8 advisor);
+  - the front-end renders your exact wording from them: *"Raise your backup reserve to 61%. With 20% as reserve for emergencies, an additional 41% will help you save $2.53 for tomorrow's estimated 11.0 kWh usage during peak hours."*
+  - the why-list and confidence stay under it.
+- B: the middleware sends the whole sentence as free text in `action` (wording changes then need the middleware team).
+
+**Note (no decision needed):** the 48 h chart's forecast for 4–9 PM won't match the tile exactly. The chart uses a 7-day median with no temperature term. Adding temperature to the chart forecast is a later round (CLAUDE.md §7 "load model v1").
