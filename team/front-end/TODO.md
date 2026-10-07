@@ -265,7 +265,7 @@ The report is at `C:\Users\nguye\AppData\Local\Temp\architecture-review-20261006
 Which would you like to explore? (We then walk through it together and it becomes SPEC Rev 5.)
 - Answer: **1** (PO, 2026-10-06): do the suggested fix, and keep a priority list for the others (see `plan/MILESTONES.md` "Architecture backlog").
 
-## USER INPUT REQUIRED — Decision round 2: candidate 1, deepen the `DashboardData` seam (2026-10-06)
+## Decision round 2: candidate 1, deepen the `DashboardData` seam — ANSWERED 2026-10-06
 The questions are in chat; summary here. Answer e.g. "all recommended".
 - **Q1. Day rule:** derive today/tomorrow by grouping `timeline` rows by **site-local date** from `hour` + `site.timezone` (rec). Or document the "row 24" index rule, or add a `day` field.
 - **Q2. Per-hour energy breakdown:** add `gridImportWh`, `gridExportWh`, `batteryChargeWh` and `batteryDischargeWh` to **actual** timeline rows, so today's totals are derived (rec). Or keep the grid/battery totals as inputs.
@@ -274,5 +274,21 @@ The questions are in chat; summary here. Answer e.g. "all recommended".
 - **Q5. `live`:** documented as the instantaneous reading at `updatedAt` (rec).
 - **Q6. Invariant suite:** an exported pure check that returns a list of problems, used by our tests and handed to the middleware team for theirs (rec). Or a test-only helper.
 - **Q7. Where it lives:** one pure module, `src/lib/dashboard.ts` (input type, check, derive), with the sample staying in `home/data.ts` as the sample adapter (rec).
+- Answer: **Q1–Q7 all A (recommended)** (PO, 2026-10-06).
+
+## USER INPUT REQUIRED — Decision round 3: candidate 1 follow-ups (2026-10-06)
+The questions are in chat; summary here.
+- **Q8. Timeline coverage:** the timeline must cover the **whole** site-local today and tomorrow (46–50 hourly rows on DST days); the check flags gaps (rec). Or allow partial days and compare "so far".
+- **Q9. Names:**
+  - the adapter-supplied input is a **"Dashboard snapshot"** (type `DashboardSnapshot`);
+  - the derived screen data is the **"Dashboard view"** (`DashboardView`);
+  - the functions are `checkSnapshot(snapshot) → string[]` and `toDashboardView(snapshot) → DashboardView`;
+  - the terms go into a new `GLOSSARY.md` (rec).
+- **Q10. When the check finds problems on a real snapshot:** the page logs each one server-side and still renders (rec). Or show them in the status-line warnings, or refuse to render.
+- **Q11. Tests that survive:**
+  - `data.test.ts`'s sim re-derivation tests (about 80 lines that restate the simulation) are replaced by `checkSnapshot(sample)` returning `[]`, plus a few pinned sample facts;
+  - new derive tests cover a DST day and a timeline that doesn't start at midnight;
+  - the dashboard markup tests stay (rec).
+- **Q12. Middleware hand-off:** full TSDoc on `DashboardSnapshot` (units, signs, the day rule, the live instant) plus a short `docs/dashboard-snapshot.md` for the other team (rec). Or TSDoc only.
 - Answer:
 
