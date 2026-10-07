@@ -64,7 +64,7 @@ B002 (9c69ba1) and B003 (d4bd5c8, extra redaction hardening) are merged. Gate: 3
 
 _Storage/hosting moved to `team/db-docker/TODO.md` on 2026-10-05._
 
-## USER INPUT REQUIRED — Decision round 2 (fleet-api adapter)
+## Decision round 2 (fleet-api adapter) — ABSORBED by team/middleware 2026-10-06 (middleware Q1 A: answers 1A 2A 4A 5A; budget 3A as middleware Q2)
 
 Research: `research/fleet-api-adapter/README.md`. Tesla's signs match VoltOps' 1:1, and the 5-minute calendar_history data balances exactly (residual 0 Wh in all 288 intervals).
 
