@@ -472,6 +472,10 @@ const isTodayCall = (u) => new URL(u).searchParams.get("end_date")?.startsWith("
 const todayRoutes = (series) => ({
   "/calendar_history": (u) => [200, isTodayCall(u) ? { response: { time_series: series, serial_number: "SN-TODAY" } } : CAL],
 });
+// today call = the one whose start_date is local midnight (dates vary with the faked now)
+const emptyTodayRoutes = {
+  "/calendar_history": (u) => [200, /T00:00:00-0[78]:00$/.test(new URL(u).searchParams.get("start_date")) ? { response: { time_series: [] } } : CAL],
+};
 const todayLine = (logs) => logs.filter((l) => l.includes("today intervals"));
 
 test("run: calendar_history_today is the 5th Fleet GET with todayRange query", async () => {
@@ -519,7 +523,7 @@ test("run: missing time_series counts as 0", async () => {
 
 test("run: expected count is DST-aware (fall-back day = 13h since midnight, spring-forward = 12h)", async () => {
   for (const [iso, m] of [["2026-11-01T20:00:00Z", 156], ["2026-03-08T20:00:00Z", 144]]) {
-    const s = setup();
+    const s = setup({ routes: emptyTodayRoutes });
     s.deps.now = new Date(iso);
     await run(s.deps);
     assert.deepEqual(todayLine(s.logs), [`today intervals: 0 (expected about ${m} so far)`], iso);
@@ -527,7 +531,7 @@ test("run: expected count is DST-aware (fall-back day = 13h since midnight, spri
 });
 
 test("run: expected count floors partial 5-minute slots", async () => {
-  const s = setup();
+  const s = setup({ routes: emptyTodayRoutes });
   s.deps.now = new Date("2026-11-02T08:07:59Z"); // 7m59s after LA midnight -> 1
   await run(s.deps);
   assert.deepEqual(todayLine(s.logs), ["today intervals: 0 (expected about 1 so far)"]);
