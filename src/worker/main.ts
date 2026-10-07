@@ -1,18 +1,14 @@
-﻿import { z } from "zod";
-import { server } from "~/env.schema.js";
-import { fleetClient } from "~/lib/sources/fleet-api/client";
+﻿import { fleetClient } from "~/lib/sources/fleet-api/client";
 import { db } from "~/server/db";
-import { sites } from "~/server/db/schema";
-import { eq } from "drizzle-orm";
-import { applySiteSettings, runTesla, runWeather } from "./jobs";
+import {
+  applySiteSettings,
+  isTeslaIdle,
+  parseSiteSettings,
+  runTesla,
+  runWeather,
+} from "./jobs";
 
-const settings = z
-  .object({
-    SITE_LATITUDE: server.SITE_LATITUDE,
-    SITE_LONGITUDE: server.SITE_LONGITUDE,
-    TEMPERATURE_UNIT: server.TEMPERATURE_UNIT,
-  })
-  .parse(process.env);
+const settings = parseSiteSettings(process.env);
 
 const HOUR = 3_600_000;
 let idleLogged = false;
@@ -26,11 +22,12 @@ async function tick(first = false) {
   try {
     const now = Date.now();
     const deps = { db, source: fleetClient, fetch, now };
-    const teslaDue = first || (Math.floor(now / HOUR) > lastTesla && now % HOUR >= 120_000);
+    const teslaDue =
+      first || (Math.floor(now / HOUR) > lastTesla && now % HOUR >= 120_000);
     const weatherDue = first || now - lastWeather >= 3 * HOUR;
     if (teslaDue) {
       lastTesla = Math.floor(now / HOUR);
-      if (db.select().from(sites).where(eq(sites.source, "fleet-api")).all().length) {
+      if (!isTeslaIdle(db)) {
         idleLogged = false;
         await runTesla(deps);
       } else if (!idleLogged) {
