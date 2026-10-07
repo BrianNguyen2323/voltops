@@ -27,7 +27,7 @@
 - B011 UI reads the view (`view` prop, `solarOutlook` instead of Timeline slicing), the page runs the check + logs, remove the alias, `docs/dashboard-snapshot.md`. Starts after B010 merges. Tester → implementer → reviewer with before/after screenshots (must be identical).
 - Then: the lead copies the doc into `team/middleware/`; a PO review; **the PO merges `front-end-development` → `main`**.
 
-## M6 — Peak-hours tile + reserve advice sentence (placeholders) — SPEC Rev 6
+## M6 — Peak-hours tile + reserve advice sentence (placeholders) — SPEC Rev 6 — DONE 2026-10-07 (b66599f on `front-end-development`)
 - B012 contract (`peakEstimate`, `recommendation.reserve`, `peakEstimateWh`, `reservePlan`, check rules, `peakUsage` view), sample values, the tile + the Tonight sentence, the `build.ts` stub, the doc section. Tester → implementer → reviewer with screenshots.
 - Then: the lead refreshes the middleware's doc copy; middleware B013 (in their backlog) fills the real numbers; a PO review.
 

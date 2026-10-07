@@ -385,3 +385,37 @@ Research: `research/peak-estimate/README.md`. Answer e.g. "all recommended" or "
     - Average 2 covers every complete stored day whose high is within ±3 °C of the target day's forecast high.
     - Today is excluded until it is complete.
   - **Q4:** A, with a condition: backfill past weather **only for days that have stored energy data but no observed weather**. It's a gap-fill, up to 92 days back; nothing beyond the energy history.
+
+## USER INPUT REQUIRED — Review: M6 peak-hours tile + reserve advice (2026-10-07)
+Merged into `front-end-development` at b66599f. Typecheck, lint and build are green, and the reviewer passed it with phone and desktop screenshots. The page size is unchanged (217 / 320 kB). No new dependencies.
+
+**How to run it**
+- Local: `pnpm dev`, then open http://localhost:3000/home. The new tile and sentence show with the **sample data**, so use a DB with no Tesla site, or look at the screenshots `data/shots/b012-390.png`, `b012-1440.png` and `b012-fix-1440.png`.
+- On your real instance (Docker), the tile reads **"Learning your usage: 0 of 7 days"** and Tonight shows no reserve advice. That is expected until the middleware team does its B013 (the two SQL averages + the advice).
+
+**What to look at**
+1. **The "Peak hours" tile**, the 3rd item next to "Grid price now" and "Your home now" (on a phone it stacks under them):
+   - Today 4:00 PM–9:00 PM: **10.9 kWh** expected, with "2.1 kWh used so far" on its own line;
+   - Tomorrow: **9.3 kWh** expected;
+   - under each, the two averages: "Usual 10.2 kWh (30 days). On days near 91°F: 11.6 kWh (8 days)."
+2. **Tonight**, your wording: "Raise your backup reserve to 89%." then "With 20% as reserve for emergencies, an additional 69% will help you save $1.67 for tomorrow's estimated 9.3 kWh usage during peak hours." then "From 9:00 PM until 9:00 PM." The why list and the weather tile stay below.
+   - The sample tells a story: today is hot (91°F), so it uses more than usual; tomorrow is cooler and cloudy (75°F), so it uses less.
+   - The sample battery is 13.5 kWh, so 9.3 kWh is 69% of it.
+3. If the 20% + extra would go over 100%, the sentence says 100% and adds "That covers about X kWh of it."
+
+**Middleware hand-off:** `team/middleware/plan/board/backlog/B013-peak-estimate.md`.
+- The exact SQL plan: each day's 4–9 PM window is computed in code (SQLite has no time zones), then
+  - query 1 averages over all complete days;
+  - query 2 over days whose high is within ±5°F of the forecast high.
+- The reserve/savings advice, which stays advice only.
+- The weather gap-fill for days that have energy data but no weather.
+- Ask the middleware team to start it ("continue" in a middleware session).
+
+**Please check, not part of this work:** your checkout has **uncommitted changes to `fixtures/fleet-api/*.json`** (about 4,900 lines in `calendar_history_energy.json`). With them, 6 fleet-api tests fail; on the committed files all 484 pass.
+- If these are newly recorded data from your system, make sure site IDs, addresses and coordinates are anonymized (CLAUDE.md §12) before committing.
+- Tell me whether the tests should follow the new fixtures (that's a middleware task), or whether you'll revert them.
+
+**Your call:**
+- **a.** "approved": you merge `front-end-development` into `main`;
+- **b.** changes;
+- **c.** the next topic, or hand B013 to the middleware team.
