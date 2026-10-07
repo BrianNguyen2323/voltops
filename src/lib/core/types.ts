@@ -1,4 +1,4 @@
-﻿export type LiveSample = {
+export type LiveSample = {
   ts: string;
   solarW: number;
   loadW: number;

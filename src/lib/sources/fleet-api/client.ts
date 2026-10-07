@@ -1,4 +1,4 @@
-﻿import { eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { env } from "~/env";
 import {
   AuthExpired,
@@ -18,6 +18,7 @@ type Deps = {
   baseUrl: string;
   clientId: string;
   clientSecret: string;
+  sleep?: (ms: number) => Promise<void>;
 };
 
 const TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token";
@@ -25,6 +26,7 @@ const MIN_LIFE_MS = 5 * 60_000;
 
 export function createFleetClient(deps: Deps): DataSource {
   const { db, now } = deps;
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   let token: { value: string; expiresAt: number } | undefined;
   let inflight: Promise<string> | undefined;
 
@@ -45,21 +47,40 @@ export function createFleetClient(deps: Deps): DataSource {
       // non-JSON body: ignore
     }
     const msg = `${path} ${res.status}${reason}`;
+    if (res.status === 401 && url !== TOKEN_URL) token = undefined;
     if (res.status === 401 || (res.status === 400 && url === TOKEN_URL))
       throw new AuthExpired(msg);
     if (res.status === 429) throw new RateLimited(msg);
     throw new SourceUnavailable(msg);
   }
 
-  async function refresh(): Promise<string> {
-    db.$client.exec("BEGIN IMMEDIATE");
-    try {
-      const row = db
-        .select()
-        .from(credentials)
-        .where(eq(credentials.id, 1))
-        .get();
+  const LEASE_MS = 30_000;
+  const WAIT_STEP_MS = 250;
+  const WAIT_MAX_MS = 35_000;
+
+  // Lease instead of a transaction held across the POST: each DB step is one sync transaction.
+  function acquireLease(): string | undefined {
+    return db.transaction((tx) => {
+      const row = tx.select().from(credentials).where(eq(credentials.id, 1)).get();
       if (!row) throw new AuthExpired("No Tesla credentials stored");
+      if (row.refreshLockUntil && row.refreshLockUntil.getTime() > now()) return undefined;
+      tx.update(credentials)
+        .set({ refreshLockUntil: new Date(now() + LEASE_MS) })
+        .where(eq(credentials.id, 1))
+        .run();
+      return decrypt(row.encryptedRefreshToken, row.iv);
+    });
+  }
+
+  async function refresh(): Promise<string> {
+    let refreshToken: string | undefined;
+    for (let waited = 0; ; waited += WAIT_STEP_MS) {
+      refreshToken = acquireLease();
+      if (refreshToken) break;
+      if (waited >= WAIT_MAX_MS) throw new SourceUnavailable("token refresh lock timeout");
+      await sleep(WAIT_STEP_MS);
+    }
+    try {
       const basic = Buffer.from(`${deps.clientId}:${deps.clientSecret}`).toString("base64");
       const t = (await call("/oauth2/v3/token", TOKEN_URL, {
         method: "POST",
@@ -69,7 +90,7 @@ export function createFleetClient(deps: Deps): DataSource {
         },
         body: new URLSearchParams({
           grant_type: "refresh_token",
-          refresh_token: decrypt(row.encryptedRefreshToken, row.iv),
+          refresh_token: refreshToken,
           client_id: deps.clientId,
         }),
       })) as { access_token: string; refresh_token: string; expires_in: number };
@@ -81,14 +102,17 @@ export function createFleetClient(deps: Deps): DataSource {
           iv,
           accessTokenExpiresAt: new Date(expiresAt),
           updatedAt: new Date(now()),
+          refreshLockUntil: null,
         })
         .where(eq(credentials.id, 1))
         .run();
-      db.$client.exec("COMMIT");
       token = { value: t.access_token, expiresAt };
       return t.access_token;
     } catch (e) {
-      db.$client.exec("ROLLBACK");
+      db.update(credentials)
+        .set({ refreshLockUntil: null })
+        .where(eq(credentials.id, 1))
+        .run();
       throw e;
     }
   }
@@ -97,7 +121,6 @@ export function createFleetClient(deps: Deps): DataSource {
     if (token && token.expiresAt - now() >= MIN_LIFE_MS) return token.value;
     return (inflight ??= refresh().finally(() => (inflight = undefined)));
   }
-
   async function get(site: string, suffix: string, query = "") {
     const tpl = `/api/1/energy_sites/{siteId}/${suffix}`;
     return call(tpl, `${deps.baseUrl}/api/1/energy_sites/${site}/${suffix}${query}`, {
