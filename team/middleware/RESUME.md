@@ -7,9 +7,15 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - wave 2 = B003 worker, B006 forecast, B004 probe;
   - wave 3 = B008 replay, B007 snapshot + `/home`.
   - Wave 2/3 briefs are written when they move to ready (they depend on wave 1's actual exports).
-- **Last action:** SPEC Rev 1, R001, MILESTONES, wave-1 briefs in board/ready. tesla-api-connection marked closed (absorbed).
-- **Next action:** wave 1 testers → implementers → reviewers → gate/merge, one brief at a time per member slot (max 4 members at once).
-- **Open branches / worktrees:** wave-1 testers running (B001, B002, B005, B009); branches are recorded on handoff.
+- **Done:** B002 (6a8afaf), B005 (f45dc61), B009 (1bbcf84). Main gate after the merges: vitest 305/305, tsc, lint exit 0, build green.
+  - Lead chore 59973ab: `.claude` + `next-env.d.ts` excluded from tsc/eslint (lint OOM'd scanning agent worktrees).
+  - 2 old lint warnings remain (postcss/prettier anonymous default export); they're for a cleaner pass.
+- **In flight:**
+  - B001: the implementer is green (branch `worktree-agent-aab4391a32ab05f74`). A tester is fixing a lint error in client.test.ts on top, then it goes to the reviewer.
+    - Deviation to review: `src/env.js` runtimeEnv = `process.env`.
+  - B006 and B004 testers are running.
+- **Next action:** gate B001 → write the B003 worker brief (needs B001 + the B002/B009 exports) → B006/B004 implementers → wave 3 (B008, B007).
+- **Open branches / worktrees:** B001 tester `worktree-agent-a8dded76b564f91a5`, B001 impl `worktree-agent-aab4391a32ab05f74`, the B001 lint-fix tester, the B006 and B004 testers. Remove the junction before `git worktree remove`.
 - **Read first next session:** `design/SPEC.md`, then the board.
 - **Env lessons** (from db-docker):
   - worktrees need the node_modules junction; remove it with `cmd /c rmdir node_modules` BEFORE `git worktree remove`, and never use `--force` while the junction exists;
