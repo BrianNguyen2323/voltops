@@ -20,7 +20,7 @@ Implementer: `Use skill: frontend-design` (no visual change allowed; use it to c
   5. **`docs/dashboard-snapshot.md`**: a one-page guide for the middleware team. Cover:
      - what a Dashboard snapshot is (GLOSSARY terms);
      - units and signs;
-     - the Timeline coverage and site-local-day rule, including DST (46/48/50 rows);
+     - the Timeline coverage and site-local-day rule, including DST (48 rows; 47 or 49 across a clock change);
      - the per-hour breakdown on actual hours;
      - the Live reading being instantaneous at `updatedAt`;
      - `costToday` being an input for now;
