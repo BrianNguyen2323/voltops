@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 export const server = {
   DATABASE_PATH: z.string().min(1).optional(),
@@ -7,6 +7,7 @@ export const server = {
   TESLA_CLIENT_ID: z.string().min(1),
   TESLA_CLIENT_SECRET: z.string().min(1),
   TESLA_REDIRECT_URI: z.string().url(),
+  TESLA_FLEET_BASE_URL: z.string().url().optional(),
   SESSION_SECRET: z.string().min(32),
   VOLTOPS_SECRET_KEY: z.string().min(64),
 };
