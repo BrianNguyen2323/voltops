@@ -67,3 +67,6 @@ Implementer: `Use skill: codebase-design` (one deep module: a small interface �
 
 ## Gate log
 - Tests 0344124 on `phase2a/ui-snapshot-test`: both files fail at import (module missing), the right reason. Pinned today 42176/18286/2901/20716/10800/4725/84%, last7Days, outlook 46118 → 25366 (45% less), net −79 ¢. Removed the sim re-derivation tests and kept the visible-value ones. Lead clarification to the implementer: `todayWh` 0 → changePct 0, direction "more". Implementer spawned.
+- Impl 89eb085 on `phase2a/ui-snapshot-impl`: vitest 237/237, scripts 58, typecheck, lint clean, build OK. The UI and its tests are unchanged via the temporary alias.
+  - Deviations: (a) rule 3 cost-import sum tolerates ±50 Wh, to match a tester test; (b) `data.ts` imports `../../../lib/dashboard` relatively (the `~` alias exists, so the reviewer checks).
+  - Reviewer spawned.
