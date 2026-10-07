@@ -76,3 +76,38 @@ Research: `research/mvp-scope/README.md`. **Headline:** the DB has no energy, we
 - **front-end:** an empty/"learning" state for `accuracy: []`, plus a check that `recommendation: null` renders well.
 
 Answer inline or in chat, e.g. "all recommended" or "Q6 B, rest recommended".
+
+## USER INPUT REQUIRED — Review: M1 + M2, real data on `/home` (2026-10-06)
+
+All of it is on `main` (last merge 0166a1b). Gate on main: vitest 448/448, typecheck, lint, test:scripts 70/70, `build:worker`, `build`. Docker smoke PASS (image 305 MB, ≤ 400). Every brief had a tester, an implementer and a reviewer PASS.
+
+**What's new**
+- `/home` builds a real Dashboard snapshot. The Live reading comes from Tesla, cached 60 s; the Timeline comes from stored 5-min energy plus a baseline forecast; cost comes from your Tesla tariff (SCE TOU-D-4-9PM); the weather tile comes from Open-Meteo. With no site in the DB it still shows the sample data.
+- A `worker` service (second compose container). Every hour it pulls today's `calendar_history` (and backfills up to 7 missing days) plus one `live_status`. Every 3 h it pulls weather. Nothing is ever pruned (your Energy history requirement). That's about 1,440 Tesla requests/month plus page views.
+- The Tesla token refresh is safe across the web and worker processes (a lease; the old code rotated the token on every call).
+- Demo mode: `VOLTOPS_DEMO=true` seeds a "Demo home" from the fixtures when no Tesla site exists.
+
+**1. Try the demo (no Tesla needed).** Use a throwaway checkout or volume, because it seeds only when there is no Tesla site:
+`pnpm db:migrate`, then `pnpm seed:replay`, then `pnpm dev`. Log in, and `/home` shows "Demo home" with 7 days of history and tomorrow's forecast.
+
+**2. Try your real system (Docker).**
+1. In `.env`, add `SITE_LATITUDE=` and `SITE_LONGITUDE=` (2 decimals, e.g. your city), plus `TEMPERATURE_UNIT=F`.
+2. Run `docker compose up -d --build`.
+3. **Click "Connect Tesla" once more.** The login now also stores your site name, battery capacity (27 kWh) and backup reserve. Until you do, the capacity defaults to 13.5 kWh.
+4. Watch `docker compose logs -f worker`: the first run backfills 7 days (8 history calls + 1 live call), and errors show as `[worker] <job> site=<n> <ErrorName>: …`.
+5. Open `/home`. Expect "Learning…" in the health warnings until 7 days are stored (the backfill should cover that at once), and a "behind" warning if Tesla's data lags by more than 2 h.
+
+**3. Run the probe once (B004).** It answers whether Tesla returns *today's* partial day.
+- Run `pnpm verify:tesla` against the DB that holds your current Tesla login. That's the local `./data/voltops.db` if you connected through `pnpm dev`.
+- Stop the app/worker that uses that same DB first, because the script refreshes the token without the new lease.
+- Paste the `today intervals: N (expected about M so far)` line here. If N ≈ M, hourly history works as designed. If N = 0, today's actual hours stay empty until midnight, and we'll need a different fetch plan.
+
+**Known limits (by design for MVP)**
+- The recommendation card is empty.
+- Forecast accuracy is `[]` (the front-end needs a "learning" state; see the ask above).
+- The forecast is a 7-day baseline: median load, and solar from irradiance × learned ratio.
+
+**Housekeeping:** remove the 2 locked, empty worktrees (my removal was denied):
+`git worktree unlock .claude/worktrees/agent-acef4e3717147cf8b; git worktree remove --force .claude/worktrees/agent-acef4e3717147cf8b` (the same for `agent-a1fb976491a87f4dd`). Also delete `.claude/worktrees/rv-b001` and the old branch `worktree-agent-a85ac516cb7dc60dd` (it predates this team).
+
+Reply with: (a) approved; (b) changes (list them); or (c) the probe result plus anything you saw.
