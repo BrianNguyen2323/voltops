@@ -5,13 +5,11 @@
   - the Tonight advice sentence: "Raise your backup reserve to x%. With 20% as reserve for emergencies an additional x% will help you save $x for tomorrow's estimated x kWh usage during peak hours".
   - The front-end builds placeholders only (sample data in the snapshot contract). The middleware team computes the numbers from 2 SQL averages: (1) peak usage over all history; (2) peak usage on days with similar temperatures.
   - Research: `research/peak-estimate/README.md`.
-- **Status: Decision round 4 written in TODO.md (8 questions) — waiting on the PO.**
-- **Next action (after answers):**
-  1. record the answers in TODO.md;
-  2. SPEC Rev 6 + R006;
-  3. M6 = B012 (contract `peakEstimate` + `recommendation.reserve` + sample values + `checkSnapshot` rules + view derivation of "used so far"; tester → implementer → reviewer) then B013 (tile + sentence UI, `Use skill: frontend-design`; tester → implementer → reviewer with 390/1440 screenshots);
-  4. update `docs/dashboard-snapshot.md`;
-  5. write the middleware hand-off brief into `team/middleware/plan/board/backlog/` (2 SQL queries via a JS-computed peak-window CTE, Q4 backfill, reserve/savings rule) + a pointer in `team/middleware/TODO.md`.
+- **Status: Decision round 4 ANSWERED (Q1–Q8 A; Q4 gap-fill only where energy data has no weather). SPEC Rev 6 / R006. M6 = B012 (`plan/board/`).**
+- **Middleware hand-off:** `team/middleware/plan/board/backlog/B013-peak-estimate.md` (2 SQL averages, advisor, weather gap-fill) + a pointer in their RESUME.md.
+- **Next action:** B012 tester → implementer → reviewer → gate/merge into `front-end-development`. Then:
+  - refresh `team/middleware/research/dashboard-snapshot/README.md` from `docs/dashboard-snapshot.md`;
+  - add a PO Review item.
 - Previous topic (dashboard v1, M1–M5) is done and on main. The architecture backlog (#3 time module, #2 tariff, #4 flow state, #5) stays parked.
 
 ## Topic 1 record
