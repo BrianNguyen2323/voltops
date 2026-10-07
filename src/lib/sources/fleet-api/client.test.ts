@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+﻿import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
@@ -389,7 +389,7 @@ describe("fleet client", () => {
           if (url.startsWith(TOKEN)) {
             const n = ++tokenN;
             bodies.push(
-              new URLSearchParams(String(init!.body)).get("refresh_token")!,
+              new URLSearchParams((init!.body as URLSearchParams).toString()).get("refresh_token")!,
             );
             maxInflight = Math.max(maxInflight, ++inflight);
             if (n === 1) await gate;
