@@ -64,3 +64,7 @@ Implementer: `Use skill: frontend-design` (the tile and the sentence must fit th
 
 ## Gate log
 - Tests 19f21fe on `phase2a/peak-tile-test`: 34 new tests fail on the base, all for the right reason (missing exports and fields). The lint errors on the base come from types that don't exist yet. One existing assertion moved: the `action` line is now checked only in the "without reserve" test. Implementer spawned.
+- Impl 689ac9f on `phase2a/peak-tile-impl`: vitest 484, scripts 70, typecheck, lint clean, build OK.
+  - Non-owned edit: added the stub `peakEstimate` to the `build()` literal in `src/lib/dashboard.test.ts`, with no assertion changes.
+  - No screenshots yet; those are the reviewer's job.
+  - Reviewer spawned.
