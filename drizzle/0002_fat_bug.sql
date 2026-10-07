@@ -1,0 +1,1 @@
+ALTER TABLE `credentials` ADD `refresh_lock_until` integer;

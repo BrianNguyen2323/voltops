@@ -15,6 +15,13 @@
       "when": 1791340135110,
       "tag": "0001_clever_boomer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791342594850,
+      "tag": "0002_fat_bug",
+      "breakpoints": true
     }
   ]
 }

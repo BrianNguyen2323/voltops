@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+﻿import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
@@ -10,7 +10,7 @@ process.env.VOLTOPS_SECRET_KEY = "ab".repeat(32);
 import { AuthExpired, RateLimited, SourceUnavailable } from "~/lib/core/types";
 import { decrypt, encrypt } from "~/lib/crypto";
 import { openDb } from "~/server/db";
-import { credentials } from "~/server/db/schema";
+import { credentials, sites } from "~/server/db/schema";
 import { createFleetClient } from "./client";
 
 const BASE = "https://fleet.test";
@@ -264,6 +264,229 @@ describe("fleet client", () => {
       expect(e.message).not.toContain(SITE);
       expect(e.message).not.toContain("LEAK");
       expect(e.message).not.toContain("rt-0");
+    });
+  });
+
+  describe("hardening (B010)", () => {
+    const TOKEN = "https://auth.tesla.com/oauth2/v3/token";
+    // Hold the token POST on a deferred promise; returns the release fn.
+    const holdRefresh = () => {
+      let release!: (r: Response) => void;
+      const gate = new Promise<Response>((r) => (release = r));
+      fetchMock.mockImplementation((u) => {
+        const url = String(u);
+        if (url.startsWith(TOKEN)) return gate;
+        if (url.includes("/live_status"))
+          return Promise.resolve(json(fx("live_status")));
+        return Promise.resolve(json({}, 404));
+      });
+      return release;
+    };
+    const externalIds = () =>
+      db
+        .select()
+        .from(sites)
+        .all()
+        .map((r) => r.externalId);
+
+    it("a shared-db write during an in-flight refresh survives a failed refresh", async () => {
+      seed();
+      const release = holdRefresh();
+      const p = mk()
+        .getLiveStatus(SITE)
+        .catch((x: unknown) => x);
+      await vi.waitFor(() => expect(tokenCalls()).toHaveLength(1));
+      db.insert(sites)
+        .values({ source: "fleet-api", externalId: "during-refresh" })
+        .run();
+      release(json({ error: "invalid_grant" }, 400));
+      expect(await p).toBeInstanceOf(AuthExpired);
+      expect(externalIds()).toEqual(["during-refresh"]);
+    });
+
+    it("the shared db can run db.transaction() during an in-flight refresh", async () => {
+      seed();
+      const release = holdRefresh();
+      const p = mk().getLiveStatus(SITE);
+      await vi.waitFor(() => expect(tokenCalls()).toHaveLength(1));
+      expect(() =>
+        db.transaction((tx) => {
+          tx.insert(sites)
+            .values({ source: "fleet-api", externalId: "in-tx" })
+            .run();
+        }),
+      ).not.toThrow();
+      release(tok());
+      await p;
+      expect(externalIds()).toEqual(["in-tx"]);
+    });
+
+    it("after an API 401 the next call refreshes again", async () => {
+      seed();
+      let apiN = 0;
+      fetchMock.mockImplementation((u) => {
+        if (String(u).startsWith(TOKEN)) {
+          tokenN++;
+          return Promise.resolve(
+            json({
+              access_token: `at-${tokenN}`,
+              refresh_token: `rt-${tokenN}`,
+              expires_in: 28800,
+            }),
+          );
+        }
+        return Promise.resolve(
+          ++apiN === 1
+            ? json({ error: "token_expired" }, 401)
+            : json(fx("live_status")),
+        );
+      });
+      const c = mk();
+      await expect(c.getLiveStatus(SITE)).rejects.toBeInstanceOf(AuthExpired);
+      await expect(c.getLiveStatus(SITE)).resolves.toBeDefined();
+      expect(tokenCalls()).toHaveLength(2);
+      expect(new Headers(apiCalls()[1]![1]!.headers).get("authorization")).toBe(
+        "Bearer at-2",
+      );
+    });
+  });
+
+  describe("refresh lease (B010)", () => {
+    const TOKEN = "https://auth.tesla.com/oauth2/v3/token";
+    const setLease = (d: typeof db, ms: number | null) =>
+      d.$client
+        .prepare("UPDATE credentials SET refresh_lock_until = ? WHERE id = 1")
+        .run(ms);
+    const lease = (d: typeof db) =>
+      (
+        d.$client
+          .prepare("SELECT refresh_lock_until AS v FROM credentials WHERE id = 1")
+          .get() as { v: number | null }
+      ).v;
+    const mkOn = (d: typeof db, sleep: (ms: number) => Promise<void>) =>
+      createFleetClient({
+        fetch: fetchMock as unknown as typeof fetch,
+        db: d,
+        now: () => now,
+        baseUrl: BASE,
+        clientId: "cid",
+        clientSecret: "csecret",
+        sleep,
+      } as Parameters<typeof createFleetClient>[0]);
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+
+    it("two connections refresh one at a time and the second uses the rotated token", async () => {
+      seed();
+      const db2 = openDb(db.$client.name);
+      try {
+        let inflight = 0;
+        let maxInflight = 0;
+        const bodies: string[] = [];
+        let releaseFirst!: () => void;
+        const gate = new Promise<void>((r) => (releaseFirst = r));
+        fetchMock.mockImplementation(async (u, init) => {
+          const url = String(u);
+          if (url.startsWith(TOKEN)) {
+            const n = ++tokenN;
+            bodies.push(
+              new URLSearchParams((init!.body as URLSearchParams).toString()).get("refresh_token")!,
+            );
+            maxInflight = Math.max(maxInflight, ++inflight);
+            if (n === 1) await gate;
+            else await tick();
+            inflight--;
+            return json({
+              access_token: `at-${n}`,
+              refresh_token: `rt-${n}`,
+              expires_in: 28800,
+            });
+          }
+          return json(fx("live_status"));
+        });
+        // Sleep yields a macrotask but does not advance the clock.
+        const a = mkOn(db, tick).getLiveStatus(SITE);
+        await vi.waitFor(() => expect(tokenCalls()).toHaveLength(1));
+        const b = mkOn(db2, tick).getLiveStatus(SITE);
+        for (let i = 0; i < 5; i++) await tick();
+        expect(tokenCalls()).toHaveLength(1);
+        releaseFirst();
+        await Promise.all([a, b]);
+        expect(tokenCalls()).toHaveLength(2);
+        expect(maxInflight).toBe(1);
+        expect(bodies).toEqual(["rt-0", "rt-1"]);
+        expect(lease(db)).toBeNull();
+      } finally {
+        db2.$client.close();
+      }
+    });
+
+    it("takes over a stale lease and clears it on success", async () => {
+      seed();
+      setLease(db, now - 1000);
+      await expect(
+        mkOn(db, tick).getLiveStatus(SITE),
+      ).resolves.toBeDefined();
+      expect(tokenCalls()).toHaveLength(1);
+      expect(lease(db)).toBeNull();
+    });
+
+    it("sets a ~30 s lease while the POST is in flight", async () => {
+      seed();
+      let release!: (r: Response) => void;
+      const gate = new Promise<Response>((r) => (release = r));
+      fetchMock.mockImplementation((u) =>
+        String(u).startsWith(TOKEN)
+          ? gate
+          : Promise.resolve(json(fx("live_status"))),
+      );
+      const p = mkOn(db, tick).getLiveStatus(SITE);
+      await vi.waitFor(() => expect(tokenCalls()).toHaveLength(1));
+      expect(lease(db)).toBe(now + 30_000);
+      release(tok());
+      await p;
+    });
+
+    it("a lease that never clears -> SourceUnavailable after ~35 s, no POST", async () => {
+      seed();
+      setLease(db, now + 10 * 86_400_000);
+      const sleeps: number[] = [];
+      const sleep = async (ms: number) => {
+        sleeps.push(ms);
+        now += ms;
+        await tick();
+      };
+      const e = await mkOn(db, sleep)
+        .getLiveStatus(SITE)
+        .catch((x: unknown) => x);
+      expect(e).toBeInstanceOf(SourceUnavailable);
+      expect((e as Error).message).toContain("token refresh lock timeout");
+      expect(tokenCalls()).toHaveLength(0);
+      expect(sleeps[0]).toBe(250);
+      const total = sleeps.reduce((s, x) => s + x, 0);
+      expect(total).toBeGreaterThanOrEqual(35_000);
+      expect(total).toBeLessThan(36_000);
+    });
+
+    it("a failed POST clears the lease", async () => {
+      seed();
+      fetchMock.mockImplementationOnce(() =>
+        Promise.resolve(json({ error: "invalid_grant" }, 400)),
+      );
+      await expect(mkOn(db, tick).getLiveStatus(SITE)).rejects.toBeInstanceOf(
+        AuthExpired,
+      );
+      expect(lease(db)).toBeNull();
+    });
+
+    it("a network failure on the POST clears the lease", async () => {
+      seed();
+      fetchMock.mockImplementationOnce(() =>
+        Promise.reject(new Error("ECONNRESET")),
+      );
+      await expect(mkOn(db, tick).getLiveStatus(SITE)).rejects.toBeInstanceOf(
+        SourceUnavailable,
+      );
+      expect(lease(db)).toBeNull();
     });
   });
 });
