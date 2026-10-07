@@ -74,16 +74,17 @@ const live: LiveSample = {
 type Range = { start_date: string; end_date: string; time_zone: string };
 function fakeSource(over: Partial<DataSource> = {}) {
   const calls: { id: string; range: Range }[] = [];
+  const getLiveStatus = vi.fn((_id: string) => Promise.resolve(live));
   const source: DataSource = {
     id: "fleet-api",
-    getLiveStatus: vi.fn(() => Promise.resolve(live)),
+    getLiveStatus,
     getHistory: vi.fn((id: string, range: Range) => {
       calls.push({ id, range });
       return Promise.resolve([] as EnergyInterval[]);
     }),
     ...over,
   };
-  return { source, calls };
+  return { source, calls, getLiveStatus };
 }
 const okFetch = () => vi.fn(() => Promise.resolve(new Response(FIXTURE))) as unknown as typeof fetch;
 const mkDeps = (source: DataSource, now: number, f: typeof fetch = okFetch()) => ({
@@ -220,10 +221,10 @@ describe("syncEnergy", () => {
 describe("takeSample", () => {
   it("inserts the live sample once (on conflict do nothing)", async () => {
     const site = addSite();
-    const { source } = fakeSource();
+    const { source, getLiveStatus } = fakeSource();
     await takeSample(mkDeps(source, NOW), site);
     await takeSample(mkDeps(source, NOW), site);
-    expect(source.getLiveStatus).toHaveBeenCalledWith("EXT-SECRET-1");
+    expect(getLiveStatus).toHaveBeenCalledWith("EXT-SECRET-1");
     const r = db.select().from(schema.samples).all();
     expect(r).toHaveLength(1);
     expect(r[0]).toMatchObject({
@@ -341,10 +342,10 @@ describe("error isolation", () => {
 
   it("Tesla jobs run only for fleet-api sites", async () => {
     addSite({ source: "replay", externalId: "other" });
-    const { source, calls } = fakeSource();
+    const { source, calls, getLiveStatus } = fakeSource();
     await runTesla(mkDeps(source, NOW));
     expect(calls).toHaveLength(0);
-    expect(source.getLiveStatus).not.toHaveBeenCalled();
+    expect(getLiveStatus).not.toHaveBeenCalled();
   });
 
   it("weather runs for every site with lat/lon; a failing site does not stop the next", async () => {
