@@ -97,6 +97,7 @@ function build(today: string, tz = TZ, actualLoadWh = 800): DashboardSnapshot {
       endsAt: iso,
     },
     recommendation: null,
+    peakEstimate: { historyDays: 0, today: null, tomorrow: null },
     timeline,
     costToday: {
       periods: [{ period: "off-peak", importWh, costCents: 0 }],

@@ -139,7 +139,9 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
         periods: (["off-peak", "mid-peak", "peak"] as const).map((period) => ({
           period,
           importWh:
-            period === "off-peak" ? sum(todayActual.map((h) => h.gridImportWh)) : 0,
+            period === "off-peak"
+              ? sum(todayActual.map((h) => h.gridImportWh))
+              : 0,
           costCents: 0,
         })),
         exportCreditCents: 0,
@@ -166,7 +168,13 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
     weatherTomorrow = {
       date: tomorrow,
       condition:
-        chance >= 50 ? "rain" : cloud < 25 ? "clear" : cloud < 70 ? "partly-cloudy" : "cloudy",
+        chance >= 50
+          ? "rain"
+          : cloud < 25
+            ? "clear"
+            : cloud < 70
+              ? "partly-cloudy"
+              : "cloudy",
       highC: Math.round(Math.max(...wx.map((f) => f.tempC))),
       lowC: Math.round(Math.min(...wx.map((f) => f.tempC))),
       cloudCoverPct: Math.round(cloud),
@@ -176,9 +184,12 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
 
   const warnings: string[] = [];
   const latest =
-    i.latestIntervalStart ?? i.hourly.reduce((m, h) => Math.max(m, h.start), -Infinity);
+    i.latestIntervalStart ??
+    i.hourly.reduce((m, h) => Math.max(m, h.start), -Infinity);
   if (latest !== -Infinity && updatedMs - latest > 2 * HOUR)
-    warnings.push(`Energy history is ${Math.floor((updatedMs - latest) / HOUR)} h behind`);
+    warnings.push(
+      `Energy history is ${Math.floor((updatedMs - latest) / HOUR)} h behind`,
+    );
   if (new Set(history.map((h) => localDate(h.hour, tz))).size < 7)
     warnings.push("Learning: forecasts improve after 7 days of data");
   if (i.site.latitude === null || i.site.longitude === null)
@@ -214,6 +225,7 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
           endsAt: new Date(t1).toISOString(),
         },
     recommendation: null,
+    peakEstimate: { historyDays: 0, today: null, tomorrow: null }, // placeholder until middleware B013
     timeline: [...actual, ...forecast],
     costToday: cost,
     previousDays,
