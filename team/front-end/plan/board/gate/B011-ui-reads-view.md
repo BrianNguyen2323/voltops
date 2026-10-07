@@ -59,3 +59,7 @@ Implementer: `Use skill: frontend-design` (no visual change allowed; use it to c
 
 ## Gate log
 - Tests da666d1 on `phase2a/ui-view-test`: the file fails on base (`Dashboard` has no `view` prop yet), the right reason; lint clean. Added the tomorrow ×0.5/×3 outlook tests and the slice source guard. Implementer spawned (before/after screenshots).
+- Impl 1245731 on `phase2a/ui-view-impl`: vitest 243/243, scripts 58, typecheck, lint clean, build OK. `view` prop, `solarOutlook`, page check + warn, alias removed, `docs/dashboard-snapshot.md`.
+  - Deviations: edited `cost-now.test.ts` and `home/data.test.ts` (not owned) because the alias removal broke their imports; tests still import `sampleSnapshot` from `home/data`; equal solar now reads "0% more".
+  - The 390 screenshots were eyeballed identical; the 1440 pair was not viewed.
+  - Reviewer spawned.
