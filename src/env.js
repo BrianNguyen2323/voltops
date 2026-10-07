@@ -1,19 +1,11 @@
-import { createEnv } from "@t3-oss/env-nextjs";
+﻿import { createEnv } from "@t3-oss/env-nextjs";
 import { server } from "./env.schema.js";
 
 export const env = createEnv({
   server,
   client: {},
-  runtimeEnv: {
-    DATABASE_PATH: process.env.DATABASE_PATH,
-    AUTH_DISABLED: process.env.AUTH_DISABLED,
-    NODE_ENV: process.env.NODE_ENV,
-    TESLA_CLIENT_ID: process.env.TESLA_CLIENT_ID,
-    TESLA_CLIENT_SECRET: process.env.TESLA_CLIENT_SECRET,
-    TESLA_REDIRECT_URI: process.env.TESLA_REDIRECT_URI,
-    SESSION_SECRET: process.env.SESSION_SECRET,
-    VOLTOPS_SECRET_KEY: process.env.VOLTOPS_SECRET_KEY,
-  },
+  // Server vars are read live from process.env (no client vars to inline).
+  runtimeEnv: /** @type {never} */ (process.env),
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,
 });
