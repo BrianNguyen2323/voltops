@@ -10,6 +10,14 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
 - **Done:** B002 (6a8afaf), B005 (f45dc61), B009 (1bbcf84). Main gate after the merges: vitest 305/305, tsc, lint exit 0, build green.
   - Lead chore 59973ab: `.claude` + `next-env.d.ts` excluded from tsc/eslint (lint OOM'd scanning agent worktrees).
   - 2 old lint warnings remain (postcss/prettier anonymous default export); they're for a cleaner pass.
+- **LATEST (session paused at the usage limit). Pick up here:**
+  - **B003 worker:** the implementer was running on tester branch `worktree-agent-aaeee413b005cac97` (c1590c4); the implementer's worktree is `agent-a9825b798a63f8d7a`. If its handoff never arrived, check that branch for a commit, then reviewer → merge.
+  - **B010 lease:** the impl is green except one test-lint error (`worktree-agent-ab5d406a59754c81d`, e0a31da). A tester lint-fix was spawned on top (its branch is unknown: look for a newest `worktree-agent-*` with a commit on e0a31da). Then reviewer → merge (migration 0002).
+  - **B007 snapshot:** tests on `worktree-agent-aeb9db146542b476d` (f38fc86). The implementer was spawned (branch unknown; look for a commit on f38fc86). Then reviewer → merge.
+    - Reviewer note: the tests use synthetic data with no battery flow, so ask the reviewer to check the breakdown/balance with battery Wh.
+  - **B008 replay:** the brief is not written yet (after B003 merges; it hooks `src/worker/main.ts`, `VOLTOPS_DEMO`).
+  - Then: the full gate on main + docker smoke → a PO Review item in TODO.md (M1+M2).
+  - Clean up merged worktrees: junction first, never `--force` with a junction.
 - **Update (later the same day):**
   - B001 (167d93a), B004 (12b39f7) and B006 (7e7015d) are merged too. Main gate: vitest 350, tsc, lint, build, test:scripts 70 all green.
   - In flight: the B003 worker implementer, the B010 fleet-hardening implementer (refresh lease; SPEC revised after the tester's finding).
