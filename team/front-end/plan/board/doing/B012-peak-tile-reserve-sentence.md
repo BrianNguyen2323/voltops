@@ -63,3 +63,4 @@ Implementer: `Use skill: frontend-design` (the tile and the sentence must fit th
 - **Worktree:** junction `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`; `cmd //c rmdir node_modules` before finishing; never `--force`. Keep commands bounded. **COMMIT and give the hash.**
 
 ## Gate log
+- Tests 19f21fe on `phase2a/peak-tile-test`: 34 new tests fail on the base, all for the right reason (missing exports and fields). The lint errors on the base come from types that don't exist yet. One existing assertion moved: the `action` line is now checked only in the "without reserve" test. Implementer spawned.
