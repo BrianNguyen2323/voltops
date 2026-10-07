@@ -15,7 +15,8 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - **B010:** DONE, merged 7f7f1c6. Main gate: vitest 359, tsc, lint, test:scripts 70.
   - **B007:** DONE, merged 3b2abed (vitest 411, tsc, lint, build). Follow-ups (B012, not written yet): `firstSiteId` inside try in page.tsx; log the live error class in load.ts; a fixture-based battery-flow snapshot test; the behind-warning uses the hour bucket (up to 1 h pessimistic).
     - Reviewer note: the tests use synthetic data with no battery flow, so ask the reviewer to check the breakdown/balance with battery Wh.
-  - **B008 replay:** the brief is not written yet (after B003 merges; it hooks `src/worker/main.ts`, `VOLTOPS_DEMO`).
+  - **B008 replay:** tests f593bb2 (`worktree-agent-af37729843df0df1c`); implementer running (base the tests + main). Then reviewer + docker smoke → merge → PO Review item.
+  - **B011:** DONE, merged 3677be0 (vitest 422, smoke image 305 MB).
   - Then: the full gate on main + docker smoke → a PO Review item in TODO.md (M1+M2).
   - Clean up merged worktrees: junction first, never `--force` with a junction.
 - **Update (later the same day):**
@@ -36,6 +37,7 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - run `rm -rf .next` before gating builds;
   - lint needs `SKIP_ENV_VALIDATION=1` in worktrees;
   - vitest flakes under load: re-run once;
+  - `pnpm lint` right after a merge sometimes exits 1 with no findings; re-run once;
   - smoke: `SMOKE_PORT=3100`.
 - **Follow-ups (not MVP):**
   - the callback still hard-codes the NA Fleet base URL (B001 adds `TESLA_FLEET_BASE_URL` for the client only);
