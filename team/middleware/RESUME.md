@@ -10,7 +10,13 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
 - **Done:** B002 (6a8afaf), B005 (f45dc61), B009 (1bbcf84). Main gate after the merges: vitest 305/305, tsc, lint exit 0, build green.
   - Lead chore 59973ab: `.claude` + `next-env.d.ts` excluded from tsc/eslint (lint OOM'd scanning agent worktrees).
   - 2 old lint warnings remain (postcss/prettier anonymous default export); they're for a cleaner pass.
-- **In flight:**
+- **Update (later the same day):**
+  - B001 (167d93a), B004 (12b39f7) and B006 (7e7015d) are merged too. Main gate: vitest 350, tsc, lint, build, test:scripts 70 all green.
+  - In flight: the B003 worker implementer, the B010 fleet-hardening implementer (refresh lease; SPEC revised after the tester's finding).
+  - B007 snapshot brief is in doing; its tester failed to start twice ("isolation worktree … git could not be run"). Retry when fewer members are running.
+  - B008 replay brief to write after B003 merges (it hooks into `src/worker/main.ts`).
+  - Leftover dirs needing the PO's cleanup (removal was denied to the lead): `.claude/worktrees/agent-acef4e3717147cf8b`, `agent-a1fb976491a87f4dd` (locked, empty spawns), `rv-b001` (a reviewer's temp copy).
+- **In flight (older notes):**
   - B001: the implementer is green (branch `worktree-agent-aab4391a32ab05f74`). A tester is fixing a lint error in client.test.ts on top, then it goes to the reviewer.
     - Deviation to review: `src/env.js` runtimeEnv = `process.env`.
   - B006 and B004 testers are running.
