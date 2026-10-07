@@ -12,6 +12,8 @@ import * as schema from "~/server/db/schema";
 import {
   applySiteSettings,
   dayRange,
+  isTeslaIdle,
+  parseSiteSettings,
   runTesla,
   runWeather,
   syncEnergy,
@@ -361,5 +363,103 @@ describe("error isolation", () => {
     const sites = new Set(db.select().from(schema.weatherObserved).all().map((r) => r.siteId));
     expect([...sites]).toEqual([good.id]);
     expect(lines.some((l) => l.includes(`[worker] syncWeather site=${bad.id} Error:`))).toBe(true);
+  });
+});
+
+// Contract (new exports in jobs.ts): parseSiteSettings(env: Record<string, string | undefined>)
+// -> { SITE_LATITUDE?, SITE_LONGITUDE?, TEMPERATURE_UNIT? }, "" treated as unset;
+// isTeslaIdle(db) -> true when no credentials row OR no fleet-api site (main.ts logs the idle line once).
+describe("B011 syncEnergy order and per-day isolation", () => {
+  const rec = (calls: { id: string; range: Range }[], fail: (d: string) => boolean) =>
+    vi.fn((id: string, r: Range) => {
+      calls.push({ id, range: r });
+      return fail(r.start_date.slice(0, 10))
+        ? Promise.reject(new Error(`rate ${r.start_date.slice(0, 10)}`))
+        : Promise.resolve([] as EnergyInterval[]);
+    });
+
+  it("fetches today first, then past days newest to oldest", async () => {
+    const site = addSite();
+    const { source, calls } = fakeSource();
+    await syncEnergy(mkDeps(source, NOW), site);
+    expect(calls.map((c) => c.range.start_date.slice(0, 10))).toEqual(
+      Array.from({ length: 8 }, (_, i) => addDays("2026-10-05", -i)),
+    );
+  });
+
+  it("a failing past day does not stop the others or today; first error rethrown", async () => {
+    const site = addSite();
+    const calls: { id: string; range: Range }[] = [];
+    const { source } = fakeSource({ getHistory: rec(calls, (d) => d === "2026-10-04" || d === "2026-10-02") });
+    await expect(syncEnergy(mkDeps(source, NOW), site)).rejects.toThrow("rate 2026-10-04");
+    expect(calls).toHaveLength(8);
+    expect(days(calls)).toContain("2026-10-05");
+  });
+
+  it("today failing does not skip the backfill days", async () => {
+    const site = addSite();
+    const calls: { id: string; range: Range }[] = [];
+    const { source } = fakeSource({ getHistory: rec(calls, (d) => d === "2026-10-05") });
+    await expect(syncEnergy(mkDeps(source, NOW), site)).rejects.toThrow("rate 2026-10-05");
+    expect(calls).toHaveLength(8);
+  });
+
+  it("runTesla logs the failure once and still fetches today", async () => {
+    const lines: string[] = [];
+    for (const m of ["log", "warn", "error", "info"] as const)
+      vi.spyOn(console, m).mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
+    const site = addSite();
+    const calls: { id: string; range: Range }[] = [];
+    const { source } = fakeSource({ getHistory: rec(calls, (d) => d === "2026-10-04" || d === "2026-10-03") });
+    await runTesla(mkDeps(source, NOW));
+    expect(days(calls)).toContain("2026-10-05");
+    expect(lines.filter((l) => l.includes(`[worker] syncEnergy site=${site.id}`))).toHaveLength(1);
+  });
+});
+
+describe("B011 parseSiteSettings", () => {
+  it("empty strings count as unset, not 0", () => {
+    const r = parseSiteSettings({ SITE_LATITUDE: "", SITE_LONGITUDE: "", TEMPERATURE_UNIT: "" });
+    expect(r.SITE_LATITUDE).toBeUndefined();
+    expect(r.SITE_LONGITUDE).toBeUndefined();
+    expect(r.TEMPERATURE_UNIT).toBeUndefined();
+  });
+  it("parses real values, including a genuine 0", () => {
+    expect(parseSiteSettings({ SITE_LATITUDE: "37.5", SITE_LONGITUDE: "0", TEMPERATURE_UNIT: "C" })).toMatchObject({
+      SITE_LATITUDE: 37.5,
+      SITE_LONGITUDE: 0,
+      TEMPERATURE_UNIT: "C",
+    });
+  });
+  it("blank coords do not overwrite a site's coords", () => {
+    const site = addSite({ latitude: 40, longitude: -100 });
+    applySiteSettings(db, parseSiteSettings({ SITE_LATITUDE: "", SITE_LONGITUDE: "" }));
+    const row = db.select().from(schema.sites).all().find((x) => x.id === site.id)!;
+    expect([row.latitude, row.longitude]).toEqual([40, -100]);
+  });
+});
+
+describe("B011 isTeslaIdle", () => {
+  const cred = () => db.insert(schema.credentials).values({ id: 1, encryptedRefreshToken: "x", iv: "y" }).run();
+  it("idle with a fleet-api site but no credentials row", () => {
+    addSite();
+    expect(isTeslaIdle(db)).toBe(true);
+  });
+  it("idle with credentials but no fleet-api site", () => {
+    cred();
+    addSite({ source: "replay", externalId: "r" });
+    expect(isTeslaIdle(db)).toBe(true);
+  });
+  it("not idle with credentials and a fleet-api site", () => {
+    cred();
+    addSite();
+    expect(isTeslaIdle(db)).toBe(false);
+  });
+  it("weather still runs for sites with lat/lon when idle", async () => {
+    addSite({ latitude: 37, longitude: -122 });
+    expect(isTeslaIdle(db)).toBe(true);
+    const f = okFetch();
+    await runWeather(mkDeps(fakeSource().source, FIXTURE_NOW, f));
+    expect(f).toHaveBeenCalled();
   });
 });
