@@ -1,5 +1,5 @@
 // Reads everything a snapshot needs from the DB (and the live source), then calls buildSnapshot.
-import { and, asc, desc, eq, gte, lt, min, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, max, min, sql } from "drizzle-orm";
 import type { DataSource, LiveSample } from "~/lib/core/types";
 import type { DashboardSnapshot } from "~/lib/dashboard";
 import { parseTariff } from "~/lib/tariff";
@@ -45,7 +45,8 @@ export async function loadSnapshot(
       try {
         live = await source.getLiveStatus(site.externalId);
         liveCache.set(siteId, { at: now, live });
-      } catch {
+      } catch (e) {
+        console.warn(`[snapshot] live unavailable site=${site.id} ${e instanceof Error ? e.name : "Error"}`);
         liveUnavailable = true;
       }
   } else liveUnavailable = true;
@@ -85,6 +86,9 @@ export async function loadSnapshot(
     .where(and(eq(e.siteId, siteId), gte(e.start, from), lt(e.start, t2)))
     .groupBy(hourBucket)
     .all();
+
+  const latestIntervalStart =
+    db.select({ t: max(e.start) }).from(e).where(eq(e.siteId, siteId)).get()?.t?.getTime() ?? null;
 
   const samples = db
     .select({ ts: s.samples.ts, socPct: s.samples.socPct })
@@ -144,6 +148,7 @@ export async function loadSnapshot(
     live,
     liveUnavailable,
     lastSampleTs: lastRow?.ts.getTime() ?? null,
+    latestIntervalStart,
     hourly: hourly.map((h) => ({
       start: Number(h.start),
       solarWh: Number(h.solarWh),

@@ -14,15 +14,16 @@ export default async function HomePage() {
   const connected = !!db.select({ id: credentials.id }).from(credentials).get();
   let snapshot: DashboardSnapshot = sampleSnapshot;
   let isSample = true;
-  const id = firstSiteId(db);
-  if (id !== null)
-    try {
+  try {
+    const id = firstSiteId(db);
+    if (id !== null) {
       snapshot = await loadSnapshot({ db, source: fleetClient, now: Date.now() }, id);
       isSample = false;
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      console.error("[dashboard snapshot]", err.name, err.message);
     }
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error("[dashboard snapshot]", err.name, err.message);
+  }
   // toDashboardView assumes a checked snapshot; log problems rather than render a quietly wrong view.
   for (const p of checkSnapshot(snapshot)) console.warn("[dashboard snapshot]", p);
   return (
