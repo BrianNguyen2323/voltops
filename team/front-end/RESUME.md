@@ -1,5 +1,20 @@
 # Resume board — front-end
 
+- **Topic 2 (PO, 2026-10-07): peak-hours usage estimate + reserve advice.**
+  - A "Peak hours" tile next to "Your home now": estimated kWh in today's and tomorrow's peak window;
+  - the Tonight advice sentence: "Raise your backup reserve to x%. With 20% as reserve for emergencies an additional x% will help you save $x for tomorrow's estimated x kWh usage during peak hours".
+  - The front-end builds placeholders only (sample data in the snapshot contract). The middleware team computes the numbers from 2 SQL averages: (1) peak usage over all history; (2) peak usage on days with similar temperatures.
+  - Research: `research/peak-estimate/README.md`.
+- **Status: Decision round 4 written in TODO.md (8 questions) — waiting on the PO.**
+- **Next action (after answers):**
+  1. record the answers in TODO.md;
+  2. SPEC Rev 6 + R006;
+  3. M6 = B012 (contract `peakEstimate` + `recommendation.reserve` + sample values + `checkSnapshot` rules + view derivation of "used so far"; tester → implementer → reviewer) then B013 (tile + sentence UI, `Use skill: frontend-design`; tester → implementer → reviewer with 390/1440 screenshots);
+  4. update `docs/dashboard-snapshot.md`;
+  5. write the middleware hand-off brief into `team/middleware/plan/board/backlog/` (2 SQL queries via a JS-computed peak-window CTE, Q4 backfill, reserve/savings rule) + a pointer in `team/middleware/TODO.md`.
+- Previous topic (dashboard v1, M1–M5) is done and on main. The architecture backlog (#3 time module, #2 tariff, #4 flow state, #5) stays parked.
+
+## Topic 1 record
 - **Topic (PO, 2026-10-06):** the `/home` route becomes an overview dashboard of the MVP's key features (CLAUDE.md §9 Now/Plan/Trends/Accuracy/Health), using placeholders only.
   - Keep the existing colour theme. Use shadcn where it applies.
   - Use skill `frontend-design` in planning **and** in implementation (put `Use skill: frontend-design` in every UI brief; add `dataviz` for chart briefs).
