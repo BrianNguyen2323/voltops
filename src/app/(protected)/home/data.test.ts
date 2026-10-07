@@ -1,6 +1,7 @@
-﻿import { readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { sampleDashboard as d } from "./data";
+import { checkSnapshot } from "../../../lib/dashboard";
+import { sampleDashboard as d, sampleSnapshot } from "./data";
 
 const isIso = (x: string) => !isNaN(Date.parse(x));
 
@@ -197,134 +198,36 @@ describe("sampleDashboard", () => {
     });
   });
 
-  describe("totals derived per actual row (round 2)", () => {
-    const actuals = d.timeline.filter((r) => r.kind === "actual");
-    const cap = d.live.usableCapacityWh;
-    const RATE = { "off-peak": 30, "mid-peak": 38, peak: 48 } as const;
-    const rows = actuals.map((r, i) => {
-      const next = d.timeline[i + 1]!.socPct;
-      const batteryWh = Math.round(((r.socPct - next) / 100) * cap); // > 0 discharge
-      return {
-        period: r.period,
-        batteryWh,
-        gridWh: r.loadWh - r.solarWh - batteryWh,
-      };
-    });
-    const total = (f: (x: (typeof rows)[number]) => number) =>
-      rows.reduce((a, r) => a + f(r), 0);
-    const near = (actual: number, expected: number) =>
-      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(
-        Math.max(100, 0.03 * Math.abs(expected)),
-      );
-    const imp = total((r) => Math.max(r.gridWh, 0));
-    const exp = total((r) => Math.max(-r.gridWh, 0));
-    const loadSum = actuals.reduce((a, r) => a + r.loadWh, 0);
+  it("sampleSnapshot passes checkSnapshot", () => {
+    expect(checkSnapshot(sampleSnapshot)).toEqual([]);
+  });
 
-    it("grid import/export and battery charge/discharge match the per-row model", () => {
-      near(d.today.gridImportWh, imp);
-      near(d.today.gridExportWh, exp);
-      near(
-        d.today.batteryChargeWh,
-        total((r) => Math.max(-r.batteryWh, 0)),
-      );
-      near(
-        d.today.batteryDischargeWh,
-        total((r) => Math.max(r.batteryWh, 0)),
-      );
-    });
+  describe("visible sample values", () => {
+    const actuals = d.timeline.filter((r) => r.kind === "actual");
     it("battery discharged overnight", () => {
       expect(d.today.batteryDischargeWh).toBeGreaterThan(0);
     });
-    it("selfPoweredPct follows the formula", () => {
-      expect(
-        Math.abs(
-          d.today.selfPoweredPct - Math.round(100 * (1 - imp / loadSum)),
-        ),
-      ).toBeLessThanOrEqual(1);
-    });
-    it("period import sums to today.gridImportWh and matches per-period derivation", () => {
-      expect(d.costToday.periods.reduce((a, p) => a + p.importWh, 0)).toBe(
-        d.today.gridImportWh,
-      );
-      for (const period of new Set(actuals.map((r) => r.period))) {
-        const p = d.costToday.periods.find((x) => x.period === period);
-        expect(p, `period ${period} listed`).toBeDefined();
-        const expected = rows
-          .filter((r) => r.period === period)
-          .reduce((a, r) => a + Math.max(r.gridWh, 0), 0);
-        expect(Math.abs(p!.importWh - expected)).toBeLessThanOrEqual(100);
-      }
-    });
-    it("costs use the constant rates and the export credit follows gridExportWh", () => {
-      expect(d.tariffNow.importCentsPerKwh).toBe(RATE.peak);
-      for (const p of d.costToday.periods) {
-        expect(
-          Math.abs(
-            p.costCents - Math.round((p.importWh * RATE[p.period]) / 1000),
-          ),
-        ).toBeLessThanOrEqual(1);
-      }
-      const credit =
-        (d.today.gridExportWh * d.tariffNow.exportCentsPerKwh) / 1000;
-      expect(
-        Math.abs(d.costToday.exportCreditCents - credit),
-      ).toBeLessThanOrEqual(1);
-    });
-    it("last7Days ends at 2026-07-15 and equals today", () => {
+    it("peak import rate is 48 c/kWh and last7Days ends today", () => {
+      expect(d.tariffNow.importCentsPerKwh).toBe(48);
       const lastDay = d.last7Days[d.last7Days.length - 1]!;
-      expect(lastDay.date).toBe("2026-07-15");
-      expect(lastDay.solarWh).toBe(d.today.solarWh);
-      expect(lastDay.loadWh).toBe(d.today.loadWh);
-    });
-  });
-
-  describe("battery dispatch over all 48 rows (round 3)", () => {
-    const t = d.timeline;
-    const cap = d.live.usableCapacityWh;
-    const derived = t.slice(0, 47).map((r, i) => {
-      const battery = Math.round(((r.socPct - t[i + 1]!.socPct) / 100) * cap); // > 0 discharge
-      return {
-        r,
-        next: t[i + 1]!.socPct,
-        battery,
-        grid: r.loadWh - r.solarWh - battery,
-      };
+      expect(lastDay).toEqual({
+        date: "2026-07-15",
+        solarWh: d.today.solarWh,
+        loadWh: d.today.loadWh,
+      });
     });
     it("every socPct is within 20..100", () => {
-      for (const r of t) {
+      for (const r of d.timeline) {
         expect(r.socPct).toBeGreaterThanOrEqual(20);
         expect(r.socPct).toBeLessThanOrEqual(100);
       }
     });
-    it("surplus rows never import or discharge", () => {
-      for (const x of derived.filter((x) => x.r.solarWh > x.r.loadWh)) {
-        expect(x.grid, x.r.hour).toBeLessThanOrEqual(150);
-        expect(x.battery, x.r.hour).toBeLessThanOrEqual(150);
-      }
-    });
-    it("deficit rows with battery above reserve do not import", () => {
-      for (const x of derived.filter(
-        (x) => x.r.solarWh <= x.r.loadWh && x.next >= 22,
-      )) {
-        expect(x.grid, x.r.hour).toBeLessThanOrEqual(150);
-      }
-    });
-    it("exporting surplus rows have a full or rate-limited battery", () => {
-      for (const x of derived.filter((x) => -x.grid > 150)) {
-        expect(x.next >= 99 || -x.battery >= 4850, x.r.hour).toBe(true);
-      }
-    });
-    it("live battery/grid signs match the last actual row", () => {
-      const k = t.filter((r) => r.kind === "actual").length - 1;
-      const x = derived[k]!;
-      const sign = (v: number) => Math.sign(v);
-      if (Math.abs(x.battery) < 150 && Math.abs(x.grid) < 150) return;
-      expect(sign(d.live.batteryW)).toBe(sign(x.battery));
-      expect(sign(d.live.gridW)).toBe(sign(x.grid));
-    });
     it("tomorrow is cloudy: day-2 solar <= 70% of day 1", () => {
-      const s = (rows: typeof t) => rows.reduce((a, r) => a + r.solarWh, 0);
-      expect(s(t.slice(24))).toBeLessThanOrEqual(0.7 * s(t.slice(0, 24)));
+      const s = (rows: typeof d.timeline) =>
+        rows.reduce((a, r) => a + r.solarWh, 0);
+      expect(s(d.timeline.slice(24))).toBeLessThanOrEqual(
+        0.7 * s(d.timeline.slice(0, 24)),
+      );
     });
     it("last7Days: prior 6 days are full July days and today is not the biggest", () => {
       const prior = d.last7Days.slice(0, 6);
@@ -337,6 +240,7 @@ describe("sampleDashboard", () => {
       expect(d.today.solarWh).toBeLessThanOrEqual(
         Math.max(...prior.map((p) => p.solarWh)),
       );
+      expect(actuals).toHaveLength(17);
     });
   });
   it("source files have no UTF-8 BOM", () => {

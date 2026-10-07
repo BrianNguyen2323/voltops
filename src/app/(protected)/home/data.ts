@@ -1,86 +1,14 @@
-// Contract for the /home dashboard. Canonical units (CLAUDE.md section 5): W, Wh, integer cents, ISO-8601 UTC.
-export type TouPeriod = "off-peak" | "mid-peak" | "peak";
-export type DashboardData = {
-  site: { name: string; timezone: string; temperatureUnit: "F" | "C" };
-  source: "fleet-api" | "local-gateway" | "replay";
-  updatedAt: string;
-  currency: string;
-  live: {
-    solarW: number;
-    loadW: number;
-    batteryW: number;
-    gridW: number;
-    socPct: number;
-    usableCapacityWh: number;
-    gridStatus: "connected" | "islanded";
-  };
-  tariffNow: {
-    period: TouPeriod;
-    importCentsPerKwh: number;
-    exportCentsPerKwh: number;
-    endsAt: string;
-  };
-  recommendation: null | {
-    action: string;
-    validFrom: string;
-    validTo: string;
-    effectWh: number;
-    savingsCents: number;
-    why: string[];
-    confidence: "low" | "medium" | "high";
-    wouldChange: string;
-  };
-  timeline: Array<{
-    hour: string;
-    kind: "actual" | "forecast";
-    loadWh: number;
-    solarWh: number;
-    socPct: number;
-    period: TouPeriod;
-    loadP10Wh?: number;
-    loadP90Wh?: number;
-    solarP10Wh?: number;
-    solarP90Wh?: number;
-  }>;
-  today: {
-    solarWh: number;
-    loadWh: number;
-    gridImportWh: number;
-    gridExportWh: number;
-    batteryChargeWh: number;
-    batteryDischargeWh: number;
-    selfPoweredPct: number;
-  };
-  costToday: {
-    periods: Array<{ period: TouPeriod; importWh: number; costCents: number }>;
-    exportCreditCents: number;
-    netCents: number;
-  };
-  last7Days: Array<{ date: string; solarWh: number; loadWh: number }>;
-  accuracy: Array<{
-    target: "load" | "solar";
-    model: string;
-    baseline: string;
-    maePct: number;
-    baselineMaePct: number;
-    days: number;
-  }>;
-  health: {
-    lastPollAt: string;
-    estRequestsPerMonth: number;
-    warnings: string[];
-  };
-  // Filled by the weather API later; null hides the tile.
-  weatherTomorrow: null | {
-    date: string; // YYYY-MM-DD, site-local
-    condition: "clear" | "partly-cloudy" | "cloudy" | "rain";
-    highC: number;
-    lowC: number;
-    cloudCoverPct: number;
-    precipitationChancePct: number;
-  };
-};
+import {
+  toDashboardView,
+  type DashboardSnapshot,
+  type DashboardView,
+  type TimelineHour,
+  type TouPeriod,
+} from "~/lib/dashboard";
 
+// Temporary compatibility (removed in B011): the UI still reads the Rev 4 shape.
+export type DashboardData = DashboardView;
+export type { TouPeriod };
 const HOUR = 3_600_000;
 const UPDATED_AT = "2026-07-16T00:00:00Z"; // 17:00 PDT
 const MIDNIGHT = Date.parse("2026-07-15T07:00:00Z"); // local midnight PDT
@@ -116,7 +44,7 @@ const cap = 13500;
 const RESERVE_WH = 0.2 * cap;
 const MAX_WH = 5000; // per hour
 let energy = 0.55 * cap;
-const timeline: DashboardData["timeline"] = rows.map((r) => {
+const timeline: TimelineHour[] = rows.map((r) => {
   const socPct = Math.round((energy / cap) * 100);
   const net = r.solarWh - r.loadWh;
   energy +=
@@ -124,7 +52,7 @@ const timeline: DashboardData["timeline"] = rows.map((r) => {
       ? Math.min(net, MAX_WH, cap - energy)
       : -Math.min(-net, MAX_WH, energy - RESERVE_WH);
   const kind = r.t < Date.parse(UPDATED_AT) ? "actual" : "forecast";
-  const row: DashboardData["timeline"][number] = {
+  const row: TimelineHour = {
     hour: new Date(r.t).toISOString(),
     kind,
     loadWh: r.loadWh,
@@ -158,15 +86,19 @@ const flows = actual.map((r, i) => {
     batteryWh,
   };
 });
+// Per-hour breakdown on actual rows (the sim already computes it).
+actual.forEach((r, i) => {
+  const f = flows[i];
+  if (!f) return;
+  r.gridImportWh = Math.max(f.gridWh, 0);
+  r.gridExportWh = Math.max(-f.gridWh, 0);
+  r.batteryChargeWh = Math.max(-f.batteryWh, 0);
+  r.batteryDischargeWh = Math.max(f.batteryWh, 0);
+});
 const lastFlow = flows[flows.length - 1];
 if (!lastFlow) throw new Error("no flows");
 const total = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
-const solarWh = total(actual.map((r) => r.solarWh));
-const loadWh = total(actual.map((r) => r.loadWh));
-const gridImportWh = total(flows.map((f) => Math.max(f.gridWh, 0)));
 const gridExportWh = total(flows.map((f) => Math.max(-f.gridWh, 0)));
-const batteryChargeWh = total(flows.map((f) => Math.max(-f.batteryWh, 0)));
-const batteryDischargeWh = total(flows.map((f) => Math.max(f.batteryWh, 0)));
 const IMPORT_RATE: Record<TouPeriod, number> = {
   "off-peak": 30,
   "mid-peak": 38,
@@ -174,7 +106,7 @@ const IMPORT_RATE: Record<TouPeriod, number> = {
 }; // c/kWh
 const EXPORT_RATE = 8;
 const PERIOD_ORDER: TouPeriod[] = ["off-peak", "mid-peak", "peak"];
-const periods: DashboardData["costToday"]["periods"] = PERIOD_ORDER.filter(
+const periods: DashboardSnapshot["costToday"]["periods"] = PERIOD_ORDER.filter(
   (p) => actual.some((r) => r.period === p),
 ).map((period) => {
   const importWh = total(
@@ -187,7 +119,8 @@ const periods: DashboardData["costToday"]["periods"] = PERIOD_ORDER.filter(
   };
 });
 const exportCreditCents = Math.round((gridExportWh * EXPORT_RATE) / 1000);
-export const sampleDashboard: DashboardData = {
+// live approximates the instantaneous reading: hour-average power of the last completed hour, SoC at 17:00.
+export const sampleSnapshot: DashboardSnapshot = {
   site: { name: "Home", timezone: "America/Los_Angeles", temperatureUnit: "F" },
   source: "fleet-api",
   updatedAt: UPDATED_AT,
@@ -223,27 +156,16 @@ export const sampleDashboard: DashboardData = {
       "A sunnier forecast or a lower evening load would reduce the reserve needed.",
   },
   timeline,
-  today: {
-    solarWh,
-    loadWh,
-    gridImportWh,
-    gridExportWh,
-    batteryChargeWh,
-    batteryDischargeWh,
-    selfPoweredPct: Math.round(100 * (1 - gridImportWh / loadWh)),
-  },
   costToday: {
     periods,
     exportCreditCents,
     netCents: periods.reduce((a, p) => a + p.costCents, 0) - exportCreditCents,
   },
-  last7Days: [9, 10, 11, 12, 13, 14]
-    .map((d, i) => ({
-      date: `2026-07-${String(d).padStart(2, "0")}`,
-      solarWh: 47500 - i * 500,
-      loadWh: 24500 + i * 300,
-    }))
-    .concat([{ date: "2026-07-15", solarWh, loadWh }]),
+  previousDays: [9, 10, 11, 12, 13, 14].map((d, i) => ({
+    date: `2026-07-${String(d).padStart(2, "0")}`,
+    solarWh: 47500 - i * 500,
+    loadWh: 24500 + i * 300,
+  })),
   accuracy: [
     {
       target: "load",
@@ -272,3 +194,5 @@ export const sampleDashboard: DashboardData = {
     precipitationChancePct: 20,
   },
 };
+
+export const sampleDashboard: DashboardData = toDashboardView(sampleSnapshot);
