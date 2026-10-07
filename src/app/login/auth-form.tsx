@@ -25,10 +25,10 @@ export function AuthForm({
     <main className="bg-background flex min-h-screen flex-col items-center justify-center px-4">
       <form
         action={formAction}
-        className="border-border bg-surface flex w-full max-w-sm flex-col gap-4 rounded-xl border p-8"
+        className="border-border bg-card flex w-full max-w-sm flex-col gap-4 rounded-xl border p-8"
       >
         <h1 className="text-foreground text-xl font-semibold">{title}</h1>
-        {hint && <p className="text-muted text-sm">{hint}</p>}
+        {hint && <p className="text-muted-foreground text-sm">{hint}</p>}
         <input
           name="password"
           type="password"

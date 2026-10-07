@@ -1,23 +1,22 @@
+import { Dashboard } from "~/components/dashboard/dashboard";
+import { isAuthDisabled } from "~/lib/auth";
+import { checkSnapshot, toDashboardView } from "~/lib/dashboard";
 import { db } from "~/server/db";
 import { credentials } from "~/server/db/schema";
 
-export default async function HomePage() {
-  const connected = !!db.select({ id: credentials.id }).from(credentials).get();
+import { sampleSnapshot } from "./data";
 
+export default function HomePage() {
+  const connected = !!db.select({ id: credentials.id }).from(credentials).get();
+  // toDashboardView assumes a checked snapshot; log problems rather than render a quietly wrong view.
+  for (const p of checkSnapshot(sampleSnapshot))
+    console.warn("[dashboard snapshot]", p);
   return (
-    <main className="bg-background flex min-h-screen flex-col items-center justify-center gap-4">
-      {connected ? (
-        <p className="text-foreground text-2xl font-semibold">
-          Tesla connected
-        </p>
-      ) : (
-        <a
-          href="/api/auth/tesla"
-          className="bg-primary rounded-lg px-6 py-3 font-semibold text-black transition-opacity hover:opacity-90"
-        >
-          Connect Tesla
-        </a>
-      )}
-    </main>
+    <Dashboard
+      view={toDashboardView(sampleSnapshot)}
+      connected={connected}
+      isSample
+      showLogout={!isAuthDisabled()}
+    />
   );
 }
