@@ -58,3 +58,4 @@ Implementer: `Use skill: frontend-design` (no visual change allowed; use it to c
 - **Worktree:** junction `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`; `cmd //c rmdir node_modules` before finishing; never `--force`. Keep commands bounded.
 
 ## Gate log
+- Tests da666d1 on `phase2a/ui-view-test`: the file fails on base (`Dashboard` has no `view` prop yet), the right reason; lint clean. Added the tomorrow ×0.5/×3 outlook tests and the slice source guard. Implementer spawned (before/after screenshots).
