@@ -6,6 +6,7 @@ import { sampleSnapshot } from "~/app/(protected)/home/data";
 import { TimelineTooltip } from "~/components/dashboard/charts";
 import { Dashboard } from "~/components/dashboard/dashboard";
 import {
+  reservePlan,
   toDashboardView,
   type DashboardSnapshot,
   type DashboardView,
@@ -196,7 +197,6 @@ describe("Tonight panel", () => {
   it("shows the recommendation details", () => {
     if (!recommendation) throw new Error("sample needs a recommendation");
     const t = text(render());
-    expect(t).toContain(recommendation.action);
     for (const line of recommendation.why) expect(t).toContain(line);
     expect(t).toContain(recommendation.wouldChange);
     expect(t).toContain(formatKwh(recommendation.effectWh));
@@ -593,5 +593,100 @@ describe("Dashboard source", () => {
     );
     expect(src).not.toMatch(/\.slice\(\s*0\s*,\s*24\s*\)/);
     expect(src).not.toMatch(/\.slice\(\s*24/);
+  });
+});
+
+// --- Rev 6: Peak hours tile and reserve sentence ----------------------------
+
+const withSnapshot = (mut: (s: DashboardSnapshot) => void) => {
+  const s = structuredClone(sampleSnapshot);
+  mut(s);
+  return toDashboardView(s);
+};
+
+describe("Peak hours tile", () => {
+  const h = hero(render());
+  const t = text(h);
+
+  it("sits in the Right now strip with both days and estimates", () => {
+    for (const s of [
+      "Peak hours",
+      "Today",
+      "Tomorrow",
+      "10.9 kWh",
+      "9.3 kWh",
+      "expected",
+    ])
+      expect(t).toContain(s);
+    expect(t).toMatch(/4:00\sPM\s?[\u2013-]\s?9:00\sPM/);
+  });
+
+  it("shows today's use so far from the 16:00 actual hour", () => {
+    const h16 = sampleSnapshot.timeline.find(
+      (r) => Date.parse(r.hour) === Date.parse("2026-07-15T23:00:00Z"),
+    );
+    expect(t).toContain(`${formatKwh(h16?.loadWh ?? -1)} used so far`);
+    expect(t.match(/used so far/g)).toHaveLength(1);
+  });
+
+  it("shows the usual use and the similar-temperature line", () => {
+    expect(t).toContain("Usual 10.2 kWh (30 days)");
+    expect(t).toContain("On days near 91\u00b0F");
+    expect(t).toContain(formatKwh(11600));
+    expect(t).toContain("On days near 75\u00b0F");
+  });
+
+  it("says not enough days when the similar average is null", () => {
+    const view = withSnapshot((s) => {
+      s.peakEstimate.tomorrow!.similarTempDays = 2;
+      s.peakEstimate.tomorrow!.similarTempAvgWh = null;
+    });
+    const n = text(hero(render({ view })));
+    expect(n).toContain("Not enough days near 75\u00b0F yet.");
+    expect(n).toContain("10.2 kWh");
+  });
+
+  it("reads 'no peak hours' for a null day", () => {
+    const view = withSnapshot((s) => (s.peakEstimate.tomorrow = null));
+    expect(text(hero(render({ view })))).toContain("Tomorrow: no peak hours");
+  });
+
+  it("shows only the learning message under 7 days", () => {
+    const view = withSnapshot((s) => (s.peakEstimate.historyDays = 3));
+    const n = text(hero(render({ view })));
+    expect(n).toContain("Learning your usage: 3 of 7 days");
+    expect(n).not.toContain("Usual");
+    expect(n).not.toContain("used so far");
+  });
+});
+
+describe("Tonight reserve sentence", () => {
+  const t = (view?: DashboardView) => squash(text(tonight(render({ view }))));
+
+  it("shows the raise line and the PO sentence", () => {
+    const out = t();
+    expect(out).toContain(squash("Raise your backup reserve to 89%."));
+    expect(out).toContain(
+      squash(
+        "With 20% as reserve for emergencies, an additional 69% will help you save $1.67 for tomorrow's estimated 9.3 kWh usage during peak hours.",
+      ),
+    );
+    expect(out).not.toContain("That covers about");
+  });
+
+  it("adds 'That covers about' when the target is capped at 100%", () => {
+    const view = withSnapshot((s) => {
+      s.recommendation!.reserve = reservePlan(15000, 13500);
+    });
+    const out = t(view);
+    expect(out).toContain(squash("Raise your backup reserve to 100%."));
+    expect(out).toContain(squash("That covers about 10.8 kWh of it."));
+  });
+
+  it("keeps the old action line without reserve", () => {
+    const view = withSnapshot((s) => delete s.recommendation!.reserve);
+    const out = text(tonight(render({ view })));
+    expect(out).toContain(view.recommendation!.action);
+    expect(out).not.toContain("Raise your backup reserve to");
   });
 });

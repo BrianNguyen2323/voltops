@@ -2,6 +2,8 @@ import {
   type DashboardSnapshot,
   type TimelineHour,
   type TouPeriod,
+  peakEstimateWh,
+  reservePlan,
 } from "~/lib/dashboard";
 const HOUR = 3_600_000;
 const UPDATED_AT = "2026-07-16T00:00:00Z"; // 17:00 PDT
@@ -113,6 +115,26 @@ const periods: DashboardSnapshot["costToday"]["periods"] = PERIOD_ORDER.filter(
   };
 });
 const exportCreditCents = Math.round((gridExportWh * EXPORT_RATE) / 1000);
+// Placeholder usage history: today is hot, tomorrow cloudy and cooler (matches the weather tile's 24 C).
+const peakEstimate: DashboardSnapshot["peakEstimate"] = {
+  historyDays: 30,
+  today: {
+    historyAvgWh: 10200,
+    highC: 33,
+    similarTempDays: 8,
+    similarTempAvgWh: 11600,
+  },
+  tomorrow: {
+    historyAvgWh: 10200,
+    highC: 24,
+    similarTempDays: 6,
+    similarTempAvgWh: 8400,
+  },
+};
+const reserve = reservePlan(
+  peakEstimate.tomorrow ? peakEstimateWh(peakEstimate.tomorrow) : 0,
+  cap,
+);
 // live approximates the instantaneous reading: hour-average power of the last completed hour, SoC at 17:00.
 export const sampleSnapshot: DashboardSnapshot = {
   site: { name: "Home", timezone: "America/Los_Angeles", temperatureUnit: "F" },
@@ -135,20 +157,25 @@ export const sampleSnapshot: DashboardSnapshot = {
     endsAt: "2026-07-16T04:00:00Z",
   },
   recommendation: {
-    action: "Raise backup reserve to 65%",
+    action: `Raise backup reserve to ${reserve.targetPct}%`,
     validFrom: "2026-07-16T04:00:00Z", // 21:00 local
-    validTo: "2026-07-16T23:00:00Z",
-    effectWh: 4000,
-    savingsCents: 120,
+    validTo: "2026-07-17T04:00:00Z",
+    effectWh: reserve.coveredWh,
+    // covered Wh x (peak rate - off-peak rate)
+    savingsCents: Math.round(
+      (reserve.coveredWh * (IMPORT_RATE.peak - IMPORT_RATE["off-peak"])) / 1000,
+    ),
+    reserve,
     why: [
       "Tomorrow is forecast to be cloudy, so solar will cover far less than today.",
-      "Your 4-9 PM peak is expected to need about 11 kWh.",
+      "Your 4-9 PM peak is expected to need about 9.3 kWh.",
       "A higher reserve avoids buying that energy at peak rates.",
     ],
     confidence: "medium",
     wouldChange:
       "A sunnier forecast or a lower evening load would reduce the reserve needed.",
   },
+  peakEstimate,
   timeline,
   costToday: {
     periods,
