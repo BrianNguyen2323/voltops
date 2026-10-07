@@ -156,7 +156,7 @@ export function Dashboard({
         <section className="flex flex-col gap-4 lg:col-span-2">
           <H2>Right now</H2>
           <FlowDiagram live={live} />
-          <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+          <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <h3 className="text-muted-foreground text-sm font-medium">
                 Grid price now
@@ -196,6 +196,64 @@ export function Dashboard({
                 ))}
               </ul>
             </div>
+            <div>
+              <h3 className="text-muted-foreground text-sm font-medium">
+                Peak hours
+              </h3>
+              {view.peakUsage.learning ? (
+                <p className="mt-1">
+                  Learning your usage: {view.peakUsage.historyDays} of 7 days
+                </p>
+              ) : (
+                <ul className="mt-1 flex flex-col gap-3">
+                  {(
+                    [
+                      ["Today", view.peakUsage.today],
+                      ["Tomorrow", view.peakUsage.tomorrow],
+                    ] as const
+                  ).map(([label, day]) => (
+                    <li key={label}>
+                      {day ? (
+                        <>
+                          <p>
+                            <span className="mr-1.5 text-sm font-medium">
+                              {label}
+                            </span>
+                            <span className="text-muted-foreground text-sm">
+                              {clock(day.windowStart, tz)}–
+                              {clock(day.windowEnd, tz)}
+                            </span>
+                          </p>
+                          <p>
+                            <span className="reading text-lg">
+                              {formatKwh(day.estimateWh)}
+                            </span>{" "}
+                            <span className="text-muted-foreground">
+                              expected
+                            </span>
+                            {day.usedSoFarWh !== null && (
+                              <span className="text-muted-foreground">
+                                , {formatKwh(day.usedSoFarWh)} used so far
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-muted-foreground text-sm">
+                            {`Usual ${formatKwh(day.historyAvgWh)} (${view.peakUsage.historyDays} days). `}
+                            {day.similarTempAvgWh === null
+                              ? `Not enough days near ${formatTemp(day.highC, site.temperatureUnit)} yet.`
+                              : `On days near ${formatTemp(day.highC, site.temperatureUnit)}: ${formatKwh(day.similarTempAvgWh)} (${day.similarTempDays} days).`}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground">
+                          {label}: no peak hours
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </section>
 
@@ -205,18 +263,45 @@ export function Dashboard({
             <CardContent className="flex flex-col gap-4">
               {rec ? (
                 <>
-                  <p className="text-2xl leading-tight font-bold">
-                    {rec.action}
-                  </p>
-                  <p className="text-muted-foreground">
-                    From {clock(rec.validFrom, tz)} until{" "}
-                    {clock(rec.validTo, tz)}. Stores {formatKwh(rec.effectWh)}{" "}
-                    more and saves about{" "}
-                    <span className="reading text-foreground">
-                      {money(rec.savingsCents)}
-                    </span>
-                    .
-                  </p>
+                  {rec.reserve ? (
+                    <>
+                      <p className="text-2xl leading-tight font-bold">
+                        Raise your backup reserve to {rec.reserve.targetPct}%.
+                      </p>
+                      <p>
+                        With {rec.reserve.emergencyPct}% as reserve for
+                        emergencies, an additional {rec.reserve.extraPct}% will
+                        help you save{" "}
+                        <span className="reading text-foreground">
+                          {money(rec.savingsCents)}
+                        </span>{" "}
+                        for tomorrow&apos;s estimated{" "}
+                        {formatKwh(rec.reserve.peakWh)} usage during peak hours.
+                        {rec.reserve.targetPct === 100 &&
+                          rec.reserve.coveredWh < rec.reserve.peakWh &&
+                          ` That covers about ${formatKwh(rec.reserve.coveredWh)} of it.`}
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        From {clock(rec.validFrom, tz)} until{" "}
+                        {clock(rec.validTo, tz)}.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl leading-tight font-bold">
+                        {rec.action}
+                      </p>
+                      <p className="text-muted-foreground">
+                        From {clock(rec.validFrom, tz)} until{" "}
+                        {clock(rec.validTo, tz)}. Stores{" "}
+                        {formatKwh(rec.effectWh)} more and saves about{" "}
+                        <span className="reading text-foreground">
+                          {money(rec.savingsCents)}
+                        </span>
+                        .
+                      </p>
+                    </>
+                  )}
                   <ul className="flex list-disc flex-col gap-1 pl-5">
                     {rec.why.map((w) => (
                       <li key={w}>{w}</li>

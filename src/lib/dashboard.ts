@@ -32,6 +32,62 @@ export type TimelineHour = {
   batteryDischargeWh?: number;
 };
 
+/** Peak-window home use history for one day. */
+export type PeakHistory = {
+  /** Average home use (Wh, integer >= 0) inside this day's peak window, over every complete stored day. */
+  historyAvgWh: number;
+  /** This day's forecast high, degrees C (the temperature the days are matched on). */
+  highC: number;
+  /** Complete stored days whose high is within +/-3 degrees C of highC. Integer >= 0. */
+  similarTempDays: number;
+  /** Average peak-window home use over those days, Wh; null when similarTempDays < 3. */
+  similarTempAvgWh: number | null;
+};
+
+/** Structured backup-reserve advice. */
+export type ReservePlan = {
+  /** Fixed emergency floor, percent (20). */
+  emergencyPct: number;
+  /** Percent of usable capacity held for the peak: min(100 - emergencyPct, ceil(peakWh * 100 / usableCapacityWh)). */
+  extraPct: number;
+  /** emergencyPct + extraPct (<= 100). */
+  targetPct: number;
+  /** Tomorrow's peak estimate, Wh (= peakEstimateWh(tomorrow)). */
+  peakWh: number;
+  /** Peak Wh the extra reserve covers: peakWh, or less when the target is capped at 100%. */
+  coveredWh: number;
+};
+
+/** Mean of the all-days and similar-temperature averages (all-days alone when the latter is null). */
+export function peakEstimateWh(p: PeakHistory): number {
+  return p.similarTempAvgWh === null
+    ? p.historyAvgWh
+    : Math.round((p.historyAvgWh + p.similarTempAvgWh) / 2);
+}
+
+/** Reserve that covers the peak. Shared by the view and the middleware advisor. */
+export function reservePlan(
+  peakWh: number,
+  usableCapacityWh: number,
+  emergencyPct = 20,
+): ReservePlan {
+  const extraPct = Math.min(
+    100 - emergencyPct,
+    Math.ceil((peakWh * 100) / usableCapacityWh),
+  );
+  const targetPct = emergencyPct + extraPct;
+  return {
+    emergencyPct,
+    extraPct,
+    targetPct,
+    peakWh,
+    coveredWh:
+      targetPct < 100
+        ? peakWh
+        : Math.min(peakWh, Math.floor((extraPct * usableCapacityWh) / 100)),
+  };
+}
+
 export type DashboardSnapshot = {
   site: {
     /** Display name shown as the page heading. */
@@ -89,6 +145,16 @@ export type DashboardSnapshot = {
     confidence: "low" | "medium" | "high";
     /** What would change the advice. */
     wouldChange: string;
+    /** When present, the UI shows the structured reserve sentence instead of the plain action. */
+    reserve?: ReservePlan;
+  };
+  /** Peak-window usage history; feeds the Peak hours tile and the reserve advice. */
+  peakEstimate: {
+    /** Complete site-local days of stored history (integer >= 0). < 7 = learning. */
+    historyDays: number;
+    /** null when that day has no peak hours in the Timeline, or historyDays is 0. */
+    today: PeakHistory | null;
+    tomorrow: PeakHistory | null;
   };
   /** Consecutive UTC hours covering the whole site-local today and tomorrow (47-49 rows). */
   timeline: TimelineHour[];
@@ -141,7 +207,24 @@ export type DashboardSnapshot = {
   };
 };
 
+export type PeakDay = PeakHistory & {
+  estimateWh: number;
+  /** ISO UTC: start of that day's first peak Timeline hour. */
+  windowStart: string;
+  /** ISO UTC: end of its last peak hour. */
+  windowEnd: string;
+  /** Today only: sum of loadWh of actual peak hours; null if none yet, always null for tomorrow. */
+  usedSoFarWh: number | null;
+};
+
 export type DashboardView = Omit<DashboardSnapshot, "previousDays"> & {
+  peakUsage: {
+    /** historyDays < 7. */
+    learning: boolean;
+    historyDays: number;
+    today: PeakDay | null;
+    tomorrow: PeakDay | null;
+  };
   /** Sums over today's actual hours, Wh; selfPoweredPct 0-100. */
   today: {
     solarWh: number;
@@ -324,6 +407,57 @@ export function checkSnapshot(s: DashboardSnapshot): string[] {
   if (s.weatherTomorrow && s.weatherTomorrow.date !== tomorrow)
     out.push("weatherTomorrow.date is not tomorrow's local date");
 
+  // 7. peakEstimate and reserve
+  const pe = s.peakEstimate;
+  if (!isCount(pe.historyDays))
+    out.push("peakEstimate.historyDays must be an integer >= 0");
+  const hasPeak = (date: string) =>
+    rows.some(({ r, ms }) => r.period === "peak" && dateOf(ms) === date);
+  for (const [name, p, date] of [
+    ["today", pe.today, today],
+    ["tomorrow", pe.tomorrow, tomorrow],
+  ] as const) {
+    if (!p) continue;
+    const at = `peakEstimate.${name}`;
+    if (
+      !isCount(p.historyAvgWh) ||
+      (p.similarTempAvgWh !== null && !isCount(p.similarTempAvgWh))
+    )
+      out.push(`${at} Wh must be integers >= 0`);
+    if (!isCount(p.similarTempDays) || p.similarTempDays > pe.historyDays)
+      out.push(`${at}.similarTempDays must be an integer <= historyDays`);
+    if ((p.similarTempAvgWh === null) !== p.similarTempDays < 3)
+      out.push(
+        `${at}.similarTempAvgWh must be null exactly when similarTempDays < 3`,
+      );
+    if (!hasPeak(date))
+      out.push(`${at} must be null: ${date} has no peak hours`);
+  }
+  const rv = s.recommendation?.reserve;
+  if (rv) {
+    if (rv.emergencyPct < 20)
+      out.push("recommendation.reserve.emergencyPct must be >= 20");
+    if (!pe.tomorrow || pe.historyDays < 7)
+      out.push(
+        "recommendation.reserve needs peakEstimate.tomorrow and historyDays >= 7",
+      );
+    else {
+      const want = reservePlan(
+        peakEstimateWh(pe.tomorrow),
+        l.usableCapacityWh,
+        rv.emergencyPct,
+      );
+      if (
+        (Object.keys(want) as Array<keyof ReservePlan>).some(
+          (k) => want[k] !== rv[k],
+        )
+      )
+        out.push(
+          "recommendation.reserve does not match reservePlan(peakEstimateWh(tomorrow), usableCapacityWh)",
+        );
+    }
+  }
+
   return out;
 }
 
@@ -356,8 +490,33 @@ export function toDashboardView(s: DashboardSnapshot): DashboardView {
     sum(rows.filter((x) => x.date === date).map(({ r }) => r.solarWh));
   const todayWh = solarOn(today);
   const tomorrowWh = solarOn(tomorrow);
+  const peakDay = (date: string, p: PeakHistory | null): PeakDay | null => {
+    const peak = rows.filter(
+      ({ r, date: d }) => d === date && r.period === "peak",
+    );
+    const firstP = peak[0];
+    const lastP = peak[peak.length - 1];
+    if (!p || !firstP || !lastP) return null;
+    const done = peak.filter(({ r }) => r.kind === "actual");
+    return {
+      ...p,
+      estimateWh: peakEstimateWh(p),
+      windowStart: firstP.r.hour,
+      windowEnd: new Date(Date.parse(lastP.r.hour) + HOUR).toISOString(),
+      usedSoFarWh:
+        date === today && done.length > 0
+          ? sum(done.map(({ r }) => r.loadWh))
+          : null,
+    };
+  };
   return {
     ...rest,
+    peakUsage: {
+      learning: s.peakEstimate.historyDays < 7,
+      historyDays: s.peakEstimate.historyDays,
+      today: peakDay(today, s.peakEstimate.today),
+      tomorrow: peakDay(tomorrow, s.peakEstimate.tomorrow),
+    },
     today: {
       solarWh,
       loadWh,

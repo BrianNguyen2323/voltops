@@ -46,6 +46,15 @@ it("produces a valid snapshot", async () => {
 
 `checkSnapshot` never throws and never mutates. The `/home` page runs it and `console.warn`s each problem, because `toDashboardView` assumes a checked snapshot (a bad timezone gives a quietly wrong view). Include DST-change days in your tests.
 
+## Peak estimate and reserve advice
+
+- `peakEstimate: { historyDays, today, tomorrow }`. `historyDays` = complete site-local days of stored history (integer >= 0; < 7 means "learning"). `today` / `tomorrow` are `PeakHistory | null`, null when that day has no `peak` hour in the Timeline or `historyDays` is 0.
+- `PeakHistory = { historyAvgWh, highC, similarTempDays, similarTempAvgWh }`: average home use (Wh) inside the peak window over all stored days; the day's forecast high (C); the number of stored days within +/-3 C of it; and their average, null when fewer than 3 such days.
+- `recommendation.reserve?: { emergencyPct, extraPct, targetPct, peakWh, coveredWh }`. When present the UI shows "Raise your backup reserve to {targetPct}%." with the sentence about the extra reserve. `savingsCents` = `round(coveredWh * (peak rate - off-peak rate) / 1000)`.
+- Use the exported helpers so you and the UI agree: `peakEstimateWh(p)` (mean of the two averages, or `historyAvgWh` alone when `similarTempAvgWh` is null) and `reservePlan(peakWh, usableCapacityWh, emergencyPct = 20)` (`extraPct = min(100 - e, ceil(peakWh * 100 / cap))`, `targetPct = e + extraPct`, `coveredWh` = `peakWh`, or `min(peakWh, floor(extraPct * cap / 100))` when the target reaches 100).
+- `checkSnapshot` rules: `historyDays` is an integer >= 0; each non-null `PeakHistory` has integer Wh >= 0, `similarTempDays <= historyDays`, and `similarTempAvgWh` null exactly when `similarTempDays < 3`; a day is null when it has no peak hour; `reserve` equals `reservePlan(peakEstimateWh(tomorrow), usableCapacityWh, reserve.emergencyPct)`, has `emergencyPct >= 20`, and needs `tomorrow` non-null and `historyDays >= 7`.
+- The view adds `peakUsage` (do not supply): `learning`, `historyDays`, and per day the estimate, the window (from the Timeline's peak hours) and `usedSoFarWh` (today only).
+
 ## What the view derives (do not supply)
 
 - `today`: sums over today's actual hours, plus `selfPoweredPct`.
