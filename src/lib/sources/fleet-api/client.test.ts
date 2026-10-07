@@ -98,7 +98,7 @@ describe("fleet client", () => {
     expect(h.get("authorization")).toBe(
       `Basic ${Buffer.from("cid:csecret").toString("base64")}`,
     );
-    const body = new URLSearchParams(String(tInit!.body));
+    const body = new URLSearchParams((tInit!.body as URLSearchParams).toString());
     expect(body.get("grant_type")).toBe("refresh_token");
     expect(body.get("refresh_token")).toBe("rt-0");
     const [aUrl, aInit] = apiCalls()[0]!;
