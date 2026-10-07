@@ -1,37 +1,42 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import {
-  sampleDashboard,
-  type DashboardData,
-} from "~/app/(protected)/home/data";
+import { sampleSnapshot } from "~/app/(protected)/home/data";
 import { TimelineTooltip } from "~/components/dashboard/charts";
 import { Dashboard } from "~/components/dashboard/dashboard";
+import {
+  toDashboardView,
+  type DashboardSnapshot,
+  type DashboardView,
+} from "~/lib/dashboard";
 import { formatKw, formatKwh, formatMoney, formatTemp } from "~/lib/format";
 
 type Props = {
-  data?: DashboardData;
+  view?: DashboardView;
   connected?: boolean;
   isSample?: boolean;
   showLogout?: boolean;
 };
 
+const sampleDashboard = toDashboardView(sampleSnapshot);
+
 const render = ({
-  data = sampleDashboard,
+  view = sampleDashboard,
   connected = true,
   isSample = true,
   showLogout = true,
 }: Props = {}) =>
   renderToStaticMarkup(
     <Dashboard
-      data={data}
+      view={view}
       connected={connected}
       isSample={isSample}
       showLogout={showLogout}
     />,
   );
 
-const withLive = (live: Partial<DashboardData["live"]>): DashboardData => ({
+const withLive = (live: Partial<DashboardView["live"]>): DashboardView => ({
   ...sampleDashboard,
   live: { ...sampleDashboard.live, ...live },
 });
@@ -138,7 +143,7 @@ describe("Right now hero", () => {
 
   it("shows Charging, Discharging and Importing for the matching signs", () => {
     const charging = text(
-      hero(render({ data: withLive({ batteryW: -1500 }) })),
+      hero(render({ view: withLive({ batteryW: -1500 }) })),
     );
     expect(charging).toMatch(/\bCharging\b/);
     expect(charging).not.toMatch(/\bIdle\b/);
@@ -146,21 +151,21 @@ describe("Right now hero", () => {
     expect(charging).not.toMatch(/[-−]\s?\d/);
 
     const discharging = text(
-      hero(render({ data: withLive({ batteryW: 1500 }) })),
+      hero(render({ view: withLive({ batteryW: 1500 }) })),
     );
     expect(discharging).toMatch(/\bDischarging\b/);
     expect(discharging).not.toMatch(/\bIdle\b/);
 
-    const importing = text(hero(render({ data: withLive({ gridW: 2000 }) })));
+    const importing = text(hero(render({ view: withLive({ gridW: 2000 }) })));
     expect(importing).toMatch(/\bImporting\b/);
     expect(importing).not.toMatch(/\bExporting\b/);
   });
 
   it("treats 50 W as discharging and 49 W as idle", () => {
-    expect(text(hero(render({ data: withLive({ batteryW: 50 }) })))).toMatch(
+    expect(text(hero(render({ view: withLive({ batteryW: 50 }) })))).toMatch(
       /\bDischarging\b/,
     );
-    expect(text(hero(render({ data: withLive({ batteryW: -49 }) })))).toMatch(
+    expect(text(hero(render({ view: withLive({ batteryW: -49 }) })))).toMatch(
       /\bIdle\b/,
     );
   });
@@ -201,7 +206,7 @@ describe("Tonight panel", () => {
 
   it("shows the empty state when recommendation is null", () => {
     const t = text(
-      render({ data: { ...sampleDashboard, recommendation: null } }),
+      render({ view: { ...sampleDashboard, recommendation: null } }),
     );
     expect(t).toContain("No changes needed tonight.");
     expect(t).not.toContain("Raise backup reserve");
@@ -251,7 +256,7 @@ describe("Totals, cost, accuracy and status", () => {
   it("shows warnings when present", () => {
     const warned = text(
       render({
-        data: {
+        view: {
           ...sampleDashboard,
           health: {
             ...sampleDashboard.health,
@@ -269,10 +274,20 @@ const tonight = (html: string) => {
   const start = html.indexOf("Tonight");
   return html.slice(start, html.indexOf("Today and tomorrow", start));
 };
-const sum = (rows: DashboardData["timeline"]) =>
+const sum = (rows: DashboardView["timeline"]) =>
   rows.reduce((a, r) => a + r.solarWh, 0);
 const day1 = sum(sampleDashboard.timeline.slice(0, 24));
 const day2 = sum(sampleDashboard.timeline.slice(24, 48));
+const tomorrowRows = (rows: DashboardView["timeline"]) => rows.slice(24, 48);
+const tomorrowSolarTimes = (k: number): DashboardView => {
+  const s: DashboardSnapshot = {
+    ...sampleSnapshot,
+    timeline: sampleSnapshot.timeline.map((r, i) =>
+      i >= 24 ? { ...r, solarWh: Math.round(r.solarWh * k) } : r,
+    ),
+  };
+  return toDashboardView(s);
+};
 const pctLess = Math.round((1 - day2 / day1) * 100);
 
 describe("Flow diagram cross layout", () => {
@@ -397,7 +412,7 @@ describe("Price and cost strip", () => {
 
   it("shows Buying and the spending amount when importing", () => {
     const b = text(
-      hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) })),
+      hero(render({ view: withLive({ gridW: 1500, loadW: 2000 }) })),
     );
     expect(b).toContain("Buying");
     expect(squash(b)).toContain(`${formatMoney(72, currency)}/hour`);
@@ -413,7 +428,7 @@ describe("Price and cost strip", () => {
 
   it("names the spending line before its amount when importing", () => {
     const b = squash(
-      text(hero(render({ data: withLive({ gridW: 1500, loadW: 2000 }) }))),
+      text(hero(render({ view: withLive({ gridW: 1500, loadW: 2000 }) }))),
     );
     expect(b).toMatch(/Spending\$0\.72/);
   });
@@ -422,7 +437,7 @@ describe("Price and cost strip", () => {
     const labelClass = (html: string, word: string) =>
       new RegExp(`<span class="([^"]*)">${word}</span>`).exec(html)?.[1];
     const buying = hero(
-      render({ data: withLive({ gridW: 1500, loadW: 2000 }) }),
+      render({ view: withLive({ gridW: 1500, loadW: 2000 }) }),
     );
     expect(labelClass(buying, "Spending")).toContain("text-grid-import");
     const sample = hero(render());
@@ -485,19 +500,36 @@ describe("Tomorrow weather tile", () => {
   });
 
   it("says more when tomorrow has more sun", () => {
-    const rows = sampleDashboard.timeline.map((r, i) =>
-      i >= 24 ? { ...r, solarWh: r.solarWh * 3 } : r,
-    );
-    const more = text(
-      tonight(render({ data: { ...sampleDashboard, timeline: rows } })),
-    );
+    const more = text(tonight(render({ view: tomorrowSolarTimes(3) })));
     expect(more).toContain("more sun than today");
     expect(more).not.toContain("less sun than today");
   });
 
+  it("reads the tile from the snapshot's forecast hours (less)", () => {
+    const view = tomorrowSolarTimes(0.5);
+    const tomorrowWh = sum(tomorrowRows(view.timeline));
+    const less = text(tonight(render({ view })));
+    expect(tomorrowWh).not.toBe(day2);
+    expect(less).toContain(formatKwh(tomorrowWh));
+    expect(less).toContain(
+      `${Math.round((1 - tomorrowWh / day1) * 100)}% less sun than today`,
+    );
+    expect(less).not.toContain(formatKwh(day2));
+  });
+
+  it("reads the tile from the snapshot's forecast hours (more)", () => {
+    const view = tomorrowSolarTimes(3);
+    const tomorrowWh = sum(tomorrowRows(view.timeline));
+    const more = text(tonight(render({ view })));
+    expect(more).toContain(formatKwh(tomorrowWh));
+    expect(more).toContain(
+      `${Math.round((tomorrowWh / day1 - 1) * 100)}% more sun than today`,
+    );
+    expect(more).not.toContain(formatKwh(day2));
+  });
   it("omits the tile when weatherTomorrow is null", () => {
     const n = text(
-      tonight(render({ data: { ...sampleDashboard, weatherTomorrow: null } })),
+      tonight(render({ view: { ...sampleDashboard, weatherTomorrow: null } })),
     );
     for (const s of [
       "Cloudy",
@@ -542,13 +574,24 @@ describe("Cost today credit wording", () => {
   });
 
   it("shows Net cost for a positive net", () => {
-    const data = {
+    const view = {
       ...sampleDashboard,
       costToday: { ...costToday, netCents: 250 },
     };
-    const t = text(render({ data }));
+    const t = text(render({ view }));
     expect(t).toContain("Net cost");
     expect(t).toContain(formatMoney(250, currency));
     expect(t).not.toContain("Credit earned");
+  });
+});
+
+describe("Dashboard source", () => {
+  it("does not slice the Timeline by position", () => {
+    const src = readFileSync(
+      new URL("./dashboard.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(src).not.toMatch(/\.slice\(\s*0\s*,\s*24\s*\)/);
+    expect(src).not.toMatch(/\.slice\(\s*24/);
   });
 });
