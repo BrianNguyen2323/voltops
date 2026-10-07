@@ -13,7 +13,7 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
 - **LATEST (session paused at the usage limit). Pick up here:**
   - **B003:** DONE, merged 3a601ee. Main gate: vitest 379, tsc, lint, test:scripts 70, build:worker, build. Review findings → B011.
   - **B010:** DONE, merged 7f7f1c6. Main gate: vitest 359, tsc, lint, test:scripts 70.
-  - **B007 snapshot:** impl on `worktree-agent-a50ada8c7f39f5ff6` (7bfb5f2): 381/382. A TEST bug: build.test.ts ~line 209 passes `hour: Date.parse(...)` to costToday, which takes an ISO string; use `hour: r.hour`. Also one consistent-type-imports lint hit in load.test.ts. Next: tester fix → reviewer → merge.
+  - **B007:** DONE, merged 3b2abed (vitest 411, tsc, lint, build). Follow-ups (B012, not written yet): `firstSiteId` inside try in page.tsx; log the live error class in load.ts; a fixture-based battery-flow snapshot test; the behind-warning uses the hour bucket (up to 1 h pessimistic).
     - Reviewer note: the tests use synthetic data with no battery flow, so ask the reviewer to check the breakdown/balance with battery Wh.
   - **B008 replay:** the brief is not written yet (after B003 merges; it hooks `src/worker/main.ts`, `VOLTOPS_DEMO`).
   - Then: the full gate on main + docker smoke → a PO Review item in TODO.md (M1+M2).
