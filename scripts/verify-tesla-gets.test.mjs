@@ -1,4 +1,4 @@
-import { test } from "node:test";
+﻿import { test } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import {
@@ -106,6 +106,35 @@ test("yesterdayRange UTC uses +00:00", () => {
   });
 });
 
+// ---------- todayRange ----------
+test("todayRange: local midnight to now, UTC", () => {
+  assert.deepEqual(mod.todayRange("UTC", NOW), {
+    start_date: "2026-11-02T00:00:00+00:00",
+    end_date: "2026-11-02T12:00:00+00:00",
+  });
+});
+
+test("todayRange: Los Angeles after fall-back day", () => {
+  assert.deepEqual(mod.todayRange("America/Los_Angeles", NOW), {
+    start_date: "2026-11-02T00:00:00-08:00",
+    end_date: "2026-11-02T04:00:00-08:00",
+  });
+});
+
+test("todayRange: spring-forward day 2026-03-08 (midnight PST, now PDT)", () => {
+  assert.deepEqual(mod.todayRange("America/Los_Angeles", new Date("2026-03-08T20:00:00Z")), {
+    start_date: "2026-03-08T00:00:00-08:00",
+    end_date: "2026-03-08T13:00:00-07:00",
+  });
+});
+
+test("todayRange: fall-back day 2026-11-01 (midnight PDT, now PST)", () => {
+  assert.deepEqual(mod.todayRange("America/Los_Angeles", new Date("2026-11-01T20:00:00Z")), {
+    start_date: "2026-11-01T00:00:00-07:00",
+    end_date: "2026-11-01T12:00:00-08:00",
+  });
+});
+
 // ---------- checkInvariant ----------
 test("checkInvariant passes within tolerance", () => {
   const r = checkInvariant({ solar_power: 3000, battery_power: -500, grid_power: 100, load_power: 2600 });
@@ -152,7 +181,7 @@ function setup(over = {}) {
     }
     events.push("fleet");
     const key = Object.keys(routes).find((k) => u.includes(k));
-    const [status, body] = routes[key]();
+    const [status, body] = routes[key](u);
     return new Response(JSON.stringify(body), { status });
   };
   const old = encrypt(OLD_RT, KEY);
@@ -195,11 +224,11 @@ test("run: saves rotated encrypted token before the first Fleet request", async 
   assert.equal(t.accessTokenExpiresAt.getTime(), NOW.getTime() + 28800 * 1000);
 });
 
-test("run: all Fleet requests are GET with Bearer auth, 4 right paths", async () => {
+test("run: all Fleet requests are GET with Bearer auth, 5 right paths", async () => {
   const s = setup();
   const results = await run(s.deps);
   const f = fleetCalls(s.calls);
-  assert.equal(f.length, 4);
+  assert.equal(f.length, 5);
   for (const c of f) {
     assert.ok(!c.init.method || c.init.method === "GET");
     assert.equal(c.init.headers.Authorization, `Bearer ${ACCESS}`);
@@ -207,7 +236,7 @@ test("run: all Fleet requests are GET with Bearer auth, 4 right paths", async ()
   assert.equal(f[0].url, `${FLEET}/api/1/products`);
   assert.equal(f[1].url, `${FLEET}/api/1/energy_sites/${SITE}/site_info`);
   assert.equal(f[2].url, `${FLEET}/api/1/energy_sites/${SITE}/live_status`);
-  assert.deepEqual(results.map((r) => r.name), ["products", "site_info", "live_status", "calendar_history_energy"]);
+  assert.deepEqual(results.map((r) => r.name), ["products", "site_info", "live_status", "calendar_history_energy", "calendar_history_today"]);
   assert.ok(results.every((r) => r.ok && r.status === 200));
   assert.equal(results[3].path, `/api/1/energy_sites/${SITE}/calendar_history`);
 });
@@ -228,7 +257,7 @@ test("run: calendar_history query params", async () => {
 test("run: fixtures are anonymized, no site id or device ids anywhere", async () => {
   const s = setup();
   await run(s.deps);
-  assert.deepEqual(Object.keys(s.written).sort(), ["calendar_history_energy", "live_status", "products", "site_info"]);
+  assert.deepEqual(Object.keys(s.written).sort(), ["calendar_history_energy", "live_status", "products", "site_info"]); // none for calendar_history_today
   const blob = JSON.stringify(s.written);
   for (const secret of [String(SITE), "STE-DIN-001", "GW-9", "SN-77", "5YJ-VIN-1", "veh-1", "My House"]) {
     assert.ok(!blob.includes(secret), `leaked ${secret}`);
@@ -259,7 +288,7 @@ test("run: no battery product stops after products", async () => {
 test("run: site_info 500 still runs live_status and calendar with UTC", async () => {
   const s = setup({ routes: { "/site_info": () => [500, { error: "boom" }] } });
   const results = await run(s.deps);
-  assert.equal(fleetCalls(s.calls).length, 4);
+  assert.equal(fleetCalls(s.calls).length, 5);
   const si = results.find((r) => r.name === "site_info");
   assert.equal(si.ok, false);
   assert.equal(si.status, 500);
@@ -345,7 +374,7 @@ test("run: site selection still works when products has vehicles first (energy i
   ] };
   const s = setup({ routes: { "/api/1/products": () => [200, products] } });
   const results = await run(s.deps);
-  assert.equal(results.length, 4);
+  assert.equal(results.length, 5);
 });
 
 test("run: site id under an unlisted key in products is redacted (secrets collected first)", async () => {
@@ -436,4 +465,90 @@ test("run: non-array products response without count gets no count", async () =>
   const s = setup({ routes: { "/api/1/products": () => [200, { response: { a: 1 } }] } });
   await run(s.deps);
   assert.deepEqual(s.written.products, { response: [] });
+});
+
+// ---------- B004: calendar_history_today probe ----------
+const isTodayCall = (u) => new URL(u).searchParams.get("end_date")?.startsWith("2026-11-02");
+const todayRoutes = (series) => ({
+  "/calendar_history": (u) => [200, isTodayCall(u) ? { response: { time_series: series, serial_number: "SN-TODAY" } } : CAL],
+});
+// today call = the one whose start_date is local midnight (dates vary with the faked now)
+const emptyTodayRoutes = {
+  "/calendar_history": (u) => [200, /T00:00:00-0[78]:00$/.test(new URL(u).searchParams.get("start_date")) ? { response: { time_series: [] } } : CAL],
+};
+const todayLine = (logs) => logs.filter((l) => l.includes("today intervals"));
+
+test("run: calendar_history_today is the 5th Fleet GET with todayRange query", async () => {
+  const s = setup();
+  const results = await run(s.deps);
+  const f = fleetCalls(s.calls);
+  assert.equal(f.length, 5);
+  assert.equal(s.calls.length, 6); // 1 refresh + 5 GETs
+  assert.ok(!f[4].init.method || f[4].init.method === "GET");
+  assert.equal(f[4].init.headers.Authorization, `Bearer ${ACCESS}`);
+  const u = new URL(f[4].url);
+  assert.equal(u.pathname, `/api/1/energy_sites/${SITE}/calendar_history`);
+  assert.equal(u.searchParams.get("kind"), "energy");
+  assert.equal(u.searchParams.get("period"), "day");
+  assert.equal(u.searchParams.get("time_zone"), "America/Los_Angeles");
+  assert.equal(u.searchParams.get("start_date"), "2026-11-02T00:00:00-08:00");
+  assert.equal(u.searchParams.get("end_date"), "2026-11-02T04:00:00-08:00");
+  assert.ok(!u.search.includes("+"), "values URL-encoded");
+  const last = results[4];
+  assert.equal(last.name, "calendar_history_today");
+  assert.equal(last.status, 200);
+  assert.equal(last.ok, true);
+  assert.equal(last.path, `/api/1/energy_sites/${SITE}/calendar_history`);
+});
+
+test("run: no fixture is written for calendar_history_today", async () => {
+  const s = setup({ routes: todayRoutes([{ a: 1 }]) });
+  await run(s.deps);
+  assert.ok(!("calendar_history_today" in s.written));
+  assert.ok(!JSON.stringify(s.written).includes("SN-TODAY"));
+});
+
+test("run: logs `today intervals: N (expected about M so far)`", async () => {
+  const s = setup({ routes: todayRoutes([{ a: 1 }, { a: 2 }, { a: 3 }]) });
+  await run(s.deps);
+  // LA midnight 08:00Z -> now 12:00Z = 4h = 48 five-minute slots
+  assert.deepEqual(todayLine(s.logs), ["today intervals: 3 (expected about 48 so far)"]);
+});
+
+test("run: missing time_series counts as 0", async () => {
+  const s = setup({ routes: { "/calendar_history": (u) => [200, isTodayCall(u) ? { response: {} } : CAL] } });
+  await run(s.deps);
+  assert.deepEqual(todayLine(s.logs), ["today intervals: 0 (expected about 48 so far)"]);
+});
+
+test("run: expected count is DST-aware (fall-back day = 13h since midnight, spring-forward = 12h)", async () => {
+  for (const [iso, m] of [["2026-11-01T20:00:00Z", 156], ["2026-03-08T20:00:00Z", 144]]) {
+    const s = setup({ routes: emptyTodayRoutes });
+    s.deps.now = new Date(iso);
+    await run(s.deps);
+    assert.deepEqual(todayLine(s.logs), [`today intervals: 0 (expected about ${m} so far)`], iso);
+  }
+});
+
+test("run: expected count floors partial 5-minute slots", async () => {
+  const s = setup({ routes: emptyTodayRoutes });
+  s.deps.now = new Date("2026-11-02T08:07:59Z"); // 7m59s after LA midnight -> 1
+  await run(s.deps);
+  assert.deepEqual(todayLine(s.logs), ["today intervals: 0 (expected about 1 so far)"]);
+});
+
+test("run: nothing else from the today response is logged", async () => {
+  const s = setup({ routes: todayRoutes([{ solar_energy_exported: 987654 }]) });
+  await run(s.deps);
+  const all = s.logs.join("\n");
+  assert.ok(!all.includes("987654") && !all.includes("SN-TODAY") && !all.includes("solar_energy_exported"));
+});
+
+test("run: failed today call still appears in results as not ok", async () => {
+  const s = setup({ routes: { "/calendar_history": (u) => (isTodayCall(u) ? [500, { error: "boom" }] : [200, CAL]) } });
+  const results = await run(s.deps);
+  const t = results.find((r) => r.name === "calendar_history_today");
+  assert.equal(t.status, 500);
+  assert.equal(t.ok, false);
+  assert.ok(!("calendar_history_today" in s.written));
 });
