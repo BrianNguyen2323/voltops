@@ -231,12 +231,12 @@ export function Dashboard({
                             <span className="text-muted-foreground">
                               expected
                             </span>
-                            {day.usedSoFarWh !== null && (
-                              <span className="text-muted-foreground">
-                                , {formatKwh(day.usedSoFarWh)} used so far
-                              </span>
-                            )}
                           </p>
+                          {day.usedSoFarWh !== null && (
+                            <p className="text-muted-foreground">
+                              {formatKwh(day.usedSoFarWh)} used so far
+                            </p>
+                          )}
                           <p className="text-muted-foreground text-sm">
                             {`Usual ${formatKwh(day.historyAvgWh)} (${view.peakUsage.historyDays} days). `}
                             {day.similarTempAvgWh === null
