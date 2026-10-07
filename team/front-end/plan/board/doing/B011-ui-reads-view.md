@@ -29,6 +29,7 @@ Implementer: `Use skill: frontend-design` (no visual change allowed; use it to c
      - what the view derives so they don't supply it.
 
      Link `src/lib/dashboard.ts` as the source of truth.
+- **From the B010 review:** `toDashboardView` assumes a checked snapshot. A bad timezone yields a quietly wrong view, so the page's check-and-log in change 3 is **required**, not optional. Add a one-line TSDoc to `site.name` in `src/lib/dashboard.ts` (comment only; that file is owned for this line only).
 - **No visual change:** every number and pixel on `/home` must match the pre-change page.
 
 ## Owned files
@@ -36,7 +37,8 @@ Implementer: `Use skill: frontend-design` (no visual change allowed; use it to c
 - Implementer:
   - `src/components/dashboard/**` (not the test);
   - `src/app/(protected)/home/page.tsx`, `src/app/(protected)/home/data.ts` (alias removal only);
-  - `docs/dashboard-snapshot.md` (new).
+  - `docs/dashboard-snapshot.md` (new);
+  - `src/lib/dashboard.ts` (the `site.name` TSDoc line only).
 
 ## Base
 - Tester: `front-end-development` (after B010 merges) → branch `phase2a/ui-view-test`. The new tests must FAIL on the base.
