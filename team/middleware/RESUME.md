@@ -23,6 +23,8 @@ Scope created by the front-end team lead on 2026-10-06 at the PO's request. No r
   - **Conflict to resolve first.** CLAUDE.md §6 keeps raw samples 90 days and rollups forever, and ADR 0001 says "no hourly rollup table; GROUP BY the 5-minute interval rows". Together, the 5-minute interval rows are the *only* long-term energy record, so they must never be pruned by the 90-day retention. Otherwise add a durable hourly/daily rollup and revise ADR 0001. `weather_observed` (hourly irradiance, cloud, temperature) must be kept forever too.
   - Scale note: 288 five-minute rows/day ≈ 105k rows/year/Site, which is fine for SQLite. This is still to decide with the PO.
 - **Open question for this team:** the `tariffSchedule.content` JSON shape. The front-end's architecture candidate 2 (one tariff module) waits on it.
-- **Status:** not started. The hand-off doc is in place (front-end M5, 10f2f7f). **Next action:** the PO calls this team; its lead runs the research round.
+- **Status (2026-10-06): Decision round 1 open in TODO.md (Q1–Q10 + the proposed MVP task list B001–B008).** Research: `research/mvp-scope/README.md`. Key finding: the DB has no energy/weather tables, so this scope also adds storage + a worker. It overlaps tesla-api-connection's paused round 2 (Q1).
+- **Last action:** research round done by the lead; Decision round 1 written.
+- **Next action:** record the PO's answers → SPEC Revision 1 + `design/revisions/R001.md` → MILESTONES (M1 data in, M2 snapshot out) → briefs in board/ready (tester first). If Q1=A, mark tesla-api-connection round 2 as absorbed in its RESUME/TODO.
 - **Open branches / worktrees:** none.
 - **Env lessons:** see `team/front-end/RESUME.md` and `team/db-docker/RESUME.md`.
