@@ -209,7 +209,7 @@ describe("buildSnapshot", () => {
       costToday(
         tariff!,
         todayActual.map((r) => ({
-          hour: Date.parse(r.hour),
+          hour: r.hour,
           gridImportWh: r.gridImportWh!,
           gridExportWh: r.gridExportWh!,
         })),
