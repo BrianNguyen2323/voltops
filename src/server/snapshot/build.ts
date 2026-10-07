@@ -39,6 +39,8 @@ export type BuildInput = {
   live: LiveSample;
   liveUnavailable: boolean;
   lastSampleTs: number | null;
+  /** max(energy_intervals.start) for the site; falls back to the latest hour bucket when null/absent. */
+  latestIntervalStart?: number | null;
   /** energy_intervals summed per UTC hour: today + the 7 days before. */
   hourly: HourRow[];
   samples: { ts: number; socPct: number }[];
@@ -173,7 +175,8 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
   }
 
   const warnings: string[] = [];
-  const latest = i.hourly.reduce((m, h) => Math.max(m, h.start), -Infinity);
+  const latest =
+    i.latestIntervalStart ?? i.hourly.reduce((m, h) => Math.max(m, h.start), -Infinity);
   if (latest !== -Infinity && updatedMs - latest > 2 * HOUR)
     warnings.push(`Energy history is ${Math.floor((updatedMs - latest) / HOUR)} h behind`);
   if (new Set(history.map((h) => localDate(h.hour, tz))).size < 7)

@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gte } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource, LiveSample } from "~/lib/core/types";
@@ -9,6 +10,8 @@ import { addDays, localDate, localMidnight } from "~/lib/time";
 import { openDb } from "~/server/db";
 import * as schema from "~/server/db/schema";
 import type * as LoadMod from "./load";
+import { mapCalendarHistory } from "~/lib/sources/fleet-api/map";
+import calendarHistory from "../../../fixtures/fleet-api/calendar_history_energy.json";
 import siteInfo from "../../../fixtures/fleet-api/site_info.json";
 
 // Signatures under test (see handoff):
@@ -91,6 +94,7 @@ type Seed = {
   location?: boolean;
   sample?: boolean;
   source?: string;
+  intervals?: boolean; // false: skip the synthetic energy_intervals
 };
 
 // Returns the site id.
@@ -139,7 +143,7 @@ function seed(o: Seed): number {
       precipMm: 0,
     });
   }
-  if (intervals.length) db.insert(schema.energyIntervals).values(intervals).run();
+  if (intervals.length && o.intervals !== false) db.insert(schema.energyIntervals).values(intervals).run();
   if (o.weather !== false) {
     if (observed.length) db.insert(schema.weatherObserved).values(observed).run();
     const forecast = [];
@@ -352,6 +356,71 @@ describe("loadSnapshot", () => {
     expect(s.health.warnings).toContain(
       "Live reading unavailable: showing the last stored reading",
     );
+  });
+
+  it("live failing logs the class name only", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const siteId = seed({ now: NORMAL });
+    const { source } = fakeSource(NORMAL, "fleet-api", true);
+    await run(NORMAL, siteId, source);
+    expect(warn).toHaveBeenCalledWith(`[snapshot] live unavailable site=${siteId} Error`);
+    const all = JSON.stringify(warn.mock.calls);
+    expect(all).not.toContain("EXT-1");
+    expect(all).not.toContain("boom");
+    warn.mockRestore();
+  });
+
+  it("history lag uses the latest interval start, not the hour bucket", async () => {
+    const now = Date.parse("2026-05-20T12:50:00Z");
+    const siteId = seed({ now });
+    db.delete(schema.energyIntervals)
+      .where(gte(schema.energyIntervals.start, new Date("2026-05-20T10:00:00Z")))
+      .run();
+    db.insert(schema.energyIntervals)
+      .values({
+        siteId,
+        start: new Date("2026-05-20T10:55:00Z"),
+        solarWh: 0,
+        loadWh: 0,
+        gridImportWh: 0,
+        gridExportWh: 0,
+        batteryChargeWh: 0,
+        batteryDischargeWh: 0,
+      })
+      .run();
+    const s = await run(now, siteId, fakeSource(now).source);
+    expect(s.health.warnings.filter((w) => w.startsWith("Energy history"))).toEqual([]);
+  });
+
+  it.each([
+    ["normal day", NORMAL],
+    ["2026-03-08", SPRING],
+    ["2026-11-01", FALL],
+  ])("fixture battery flow, %s: checkSnapshot clean", async (_d, now) => {
+    const siteId = seed({ now, intervals: false });
+    const iv = mapCalendarHistory(calendarHistory);
+    const dayMid = Date.parse("2026-10-04T00:00:00-07:00"); // the fixture is one day
+    const today = localDate(now, TZ);
+    const lastFull = Math.floor(now / HOUR) * HOUR - HOUR;
+    const rows = [];
+    for (let k = 0; k <= 7; k++) {
+      const mid = localMidnight(addDays(today, k - 7), TZ);
+      for (const r of iv) {
+        const start = mid + (Date.parse(r.start) - dayMid);
+        if (start >= lastFull + HOUR) continue;
+        rows.push({ ...r, siteId, start: new Date(start) });
+      }
+    }
+    db.insert(schema.energyIntervals).values(rows).run();
+    const s = await run(now, siteId, fakeSource(now).source);
+    expect(checkSnapshot(s)).toEqual([]);
+    expect(
+      s.timeline.some(
+        (r) =>
+          r.kind === "actual" &&
+          ((r.batteryChargeWh ?? 0) > 0 || (r.batteryDischargeWh ?? 0) > 0),
+      ),
+    ).toBe(true);
   });
 
   it("live failing with no stored sample throws", async () => {
