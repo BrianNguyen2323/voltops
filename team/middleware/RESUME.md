@@ -2,6 +2,15 @@
 
 Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).
 
+- **O1 optimization round STARTED 2026-10-08** (PR #11 merged: main = middleware = dec2f9a). Integration branch stays `middleware`; the PO opens the PR to main.
+  - Briefs B022–B026 (MILESTONES O1). Wave 1 cleaners: B023 worker 4f0c5b3, B024 sources 3783e60, B025 tariff c6a6c9a are green and in **gate** (reviewers running); B022 snapshot cleaner still running. Wave 2 = B026 (lint 0/0 + Dockerfile fixtures), still in ready.
+  - Gate per brief: reviewer PASS → `git merge --no-ff` into middleware → full gate (vitest, test:scripts, tsc, lint, build:worker, build) → done; docker smoke once after B026.
+  - **/improve-codebase-architecture run** (PO asked): report at %TEMP%/architecture-review-20261008-middleware.html; TODO **Decision round 3** waits on the PO (pick 1–5 + format:check Q2). The pick → grilling → SPEC Revision 3.
+  - A stray `python -` REPL from a lead command may linger in the background; harmless.
+- **O1 optimization round STARTED 2026-10-08** (PR #11 merged: main = middleware = dec2f9a). Integration branch stays `middleware`; the PO opens the PR to main.
+  - Briefs B022–B026 (MILESTONES O1). Wave 1 cleaners: B023 worker 4f0c5b3, B024 sources 3783e60, B025 tariff c6a6c9a are green and in **gate** (reviewers running); B022 snapshot cleaner still running. Wave 2 = B026 (lint 0/0 + Dockerfile fixtures), still in ready.
+  - Gate per brief: reviewer PASS → `git merge --no-ff` into middleware → full gate (vitest, test:scripts, tsc, lint, build:worker, build) → done; docker smoke once after B026.
+  - **/improve-codebase-architecture run** (PO asked): report at `%TEMP%\architecture-review-20261008-middleware.html`; TODO **Decision round 3** waits on the PO (pick from 1–5, plus Q2 on format:check). The pick → grilling → SPEC Revision 3.
 - **B019 README rewrite merged into `middleware` 2026-10-08** (PO request, Haiku member; reviewer PASS). Stale `scripts/generate-tesla-keypair.mjs` (TESLA_PRIVATE_KEY, Netlify vars) flagged to the PO.
 - **Status (2026-10-08): M3 DONE and APPROVED** (e7f48a9; README B019 e1ce27e). B004 probe answered: partial today works. SPEC Revision 2, R002.
   - **Integration branch: `middleware`** (the PO checked it out at main 8dd31b9). Members branch from it; I merge into it; **the PO opens the PR `middleware` → `main`**.
