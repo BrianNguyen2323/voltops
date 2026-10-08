@@ -10,7 +10,7 @@ import { pathToFileURL } from "node:url";
 
 const FLEET = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 const REDACT_KEYS = new Set(
-  "energy_site_id,id,id_s,asset_site_id,site_name,gateway_id,din,serial_number,vin,device_id,site_id,grid_installation_id,warp_site_number,vehicle_id,display_name,email,user_id,address,address_line1,address_line2,city,state,zip,postal_code,cached_data".split(","),
+  "energy_site_id,id,id_s,asset_site_id,site_name,gateway_id,din,serial_number,vin,device_id,site_id,grid_installation_id,warp_site_number,vehicle_id,display_name,email,user_id,address,address_line1,address_line2,city,state,zip,postal_code,cached_data,installation_date".split(","),
 );
 const COORD_KEYS = new Set(["latitude", "longitude", "lat", "lon", "lng"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
