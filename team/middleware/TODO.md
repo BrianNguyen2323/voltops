@@ -181,7 +181,7 @@ Q1 Site-bound handle; Q2 the operation list, peak averages inside; Q3 `src/serve
 
 ## USER INPUT REQUIRED — Review: M4, Energy history + Site sync (2026-10-08)
 
-Everything is on **`middleware`** (last merge 5b5f119). **You open the PR `middleware` → `main`**; it also carries B027 (repo-wide prettier). Gate on `middleware`: vitest 601/601, test:scripts 71/71, typecheck, lint 0/0, **format:check**, `build:worker`, `build`. Docker smoke PASS (305 MB). Every brief had a tester (where new behavior), an implementer and a reviewer PASS.
+Everything is on **`middleware`** (last merge 5b5f119; **+ B033 31ceb81**: the SITE_* env settings now reach a Site created after the worker started, e.g. at login, without a worker restart). **You open the PR `middleware` → `main`**; it also carries B027 (repo-wide prettier). Gate on `middleware`: vitest 601/601, test:scripts 71/71, typecheck, lint 0/0, **format:check**, `build:worker`, `build`. Docker smoke PASS (305 MB). Every brief had a tester (where new behavior), an implementer and a reviewer PASS.
 
 **What's new**
 - **Energy history** (`src/server/history/`): one module owns every read and write of stored energy and observed weather. "Complete day" is one rule now. `peak.ts` is gone. This is a pure restructure: the dashboard, the worker and the demo show the same numbers as before.
@@ -191,7 +191,7 @@ Everything is on **`middleware`** (last merge 5b5f119). **You open the PR `middl
 
 **How to try it**
 1. **Demo (no Tesla):** in a throwaway checkout, run `pnpm db:migrate`, `pnpm seed:replay`, `pnpm dev`, then open `/home`. It should look exactly as before: 7 days of history, the Peak hours tile and the Tonight advice.
-2. **Your system (Docker):** `docker compose up -d --build`, then `docker compose logs -f worker`. On the first tick you should see no `site-sync` error. `/home` should look as before.
+2. **Your system (Docker):** `docker compose up -d --build --force-recreate` (your containers were still on the pre-M4 image), then `docker compose logs -f worker`. On the first tick you should see no `site-sync` error. `/home` should look as before.
 3. **Site sync for real:** change the backup reserve in the Tesla app, then restart the worker (`docker compose restart worker`; it syncs on its first tick). The reserve on `/home` (Tonight's advice) should follow.
 4. **Optional:** click "Connect Tesla" again. The login should land on `/home` as before.
 
