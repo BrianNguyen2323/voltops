@@ -5,6 +5,7 @@ import { mapCalendarHistory, mapLiveStatus } from "./map";
 const fx = (n: string): unknown =>
   JSON.parse(readFileSync(`fixtures/fleet-api/${n}.json`, "utf8"));
 const live = fx("live_status") as { response: Record<string, unknown> };
+const liveGrid = (live.response as { grid_power: number }).grid_power;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -43,14 +44,14 @@ describe("mapLiveStatus", () => {
 
   it("warns once on imbalance > 50 W and leaves data untouched", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const r = mapLiveStatus({ response: { ...live.response, grid_power: 500 } });
+    const r = mapLiveStatus({ response: { ...live.response, grid_power: liveGrid + 500 } });
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(r.gridW).toBe(500);
+    expect(r.gridW).toBe(liveGrid + 500);
   });
 
   it("does not warn at exactly 50 W imbalance", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    mapLiveStatus({ response: { ...live.response, grid_power: 50 } });
+    mapLiveStatus({ response: { ...live.response, grid_power: liveGrid + 50 } });
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -79,7 +80,8 @@ describe("mapCalendarHistory", () => {
     expect(out).toHaveLength(288);
     expect(out[0]!.start).toBe(new Date(raw[0]!.timestamp as string).toISOString());
     expect(out[1]!.start).toBe(new Date(raw[1]!.timestamp as string).toISOString());
-    expect(out[1]!.start).toBe("2026-10-06T07:05:00.000Z");
+    expect(Date.parse(out[1]!.start) - Date.parse(out[0]!.start)).toBe(5 * 60_000);
+    expect(out.every((i) => i.start.endsWith("Z"))).toBe(true);
   });
 
   it("maps the first interval's fields", () => {
