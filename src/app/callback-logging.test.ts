@@ -270,4 +270,36 @@ it("missing site_info values store null", async () => {
   expect(await siteRow()).toEqual([{ name: null, cap: null, reserve: null }]);
 });
 
+// B031 regression: a failing site sync must not undo or hide a successful login.
+async function login() {
+  const { GET } = await import("~/app/api/auth/callback/route");
+  return GET(
+    new NextRequest("http://0.0.0.0:3000/api/auth/callback?code=abc&state=s"),
+  );
+}
+
+it("stores credentials even when syncSite throws", async () => {
+  stubFetch({
+    products,
+    siteInfo: () => Response.json(leakyBody, { status: 500 }),
+  });
+  await login();
+  const { db } = await import("~/server/db");
+  expect(db.$client.prepare("SELECT id FROM credentials").all()).toEqual([
+    { id: 1 },
+  ]);
+  expect(warns()).toContainEqual([
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
+  ]);
+});
+
+it("a sync failure still redirects to /home", async () => {
+  stubFetch({ products: () => Response.json(leakyBody, { status: 500 }) });
+  const res = await login();
+  expect(res.status).toBe(307);
+  const loc = new URL(res.headers.get("location")!);
+  expect(loc.pathname).toBe("/home");
+  expect(loc.searchParams.has("error")).toBe(false);
+});
 vi.setConfig({ testTimeout: 60000, hookTimeout: 60000 });
