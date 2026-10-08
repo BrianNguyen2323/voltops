@@ -146,7 +146,7 @@ All of it is on the **`middleware`** branch (last merge e7f48a9). It isn't on `m
 Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw, plus the probe result.
 - Answer: **a, approved** (PO, 2026-10-08). The PO opens the PR `middleware` → `main`. B019 (README) is on `middleware` too. `scripts/generate-tesla-keypair.mjs`: leave as is (the PO has plans for it). The fixtures re-recorded by this probe are still uncommitted; the PO decides.
 
-## USER INPUT REQUIRED — Decision round 3: architecture pick (O1, 2026-10-08)
+## Decision round 3: architecture pick (O1, 2026-10-08) — ANSWERED
 
 `/improve-codebase-architecture` report: `C:\Users\nguye\AppData\Local\Temp\architecture-review-20261008-middleware.html` (outside the repo). Candidates:
 1. **Energy history module** owns every `energy_intervals` read and write; "complete day" is defined once (today it's defined twice: worker vs peak SQL). Strong. **My recommendation.**
@@ -179,7 +179,7 @@ Q1 Site-bound handle; Q2 the operation list, peak averages inside; Q3 `src/serve
 
 **FYI (no action needed):** for Q10 I said a failed sync would show "as a Health warning". There's no job-run table, so the worker can't put anything on the dashboard. A failed site-sync is a log line, like every other worker job; the dashboard still says "No tariff from Tesla" when a tariff is missing. Say so if you want a job-run table (a later item).
 
-## USER INPUT REQUIRED — Review: M4, Energy history + Site sync (2026-10-08)
+## Review: M4, Energy history + Site sync (2026-10-08) — APPROVED 2026-10-08
 
 Everything is on **`middleware`** (last merge 5b5f119; **+ B033 31ceb81**: the SITE_* env settings now reach a Site created after the worker started, e.g. at login, without a worker restart). **You open the PR `middleware` → `main`**; it also carries B027 (repo-wide prettier). Gate on `middleware`: vitest 601/601, test:scripts 71/71, typecheck, lint 0/0, **format:check**, `build:worker`, `build`. Docker smoke PASS (305 MB). Every brief had a tester (where new behavior), an implementer and a reviewer PASS.
 
@@ -200,4 +200,4 @@ Everything is on **`middleware`** (last merge 5b5f119; **+ B033 31ceb81**: the S
 - The demo tariff id is now the fixture's real plan name (a public SCE plan id, already in the committed fixtures) instead of `replay`.
 
 Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw.
-- Answer:
+- Answer (PO, 2026-10-08): **a, approved.** The PO opened the PR `middleware` → `main` (M4 + B027 prettier + B033).
