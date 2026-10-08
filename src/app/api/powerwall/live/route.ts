@@ -15,7 +15,10 @@ export async function GET() {
     columns: { externalId: true },
   });
   if (!site) {
-    return NextResponse.json({ error: "No Powerwall energy site found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "No Powerwall energy site found" },
+      { status: 404 },
+    );
   }
 
   try {

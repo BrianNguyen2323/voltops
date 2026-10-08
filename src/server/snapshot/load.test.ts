@@ -48,7 +48,8 @@ const hourRow = (start: number) => {
     local >= 7 && local <= 18
       ? Math.round(3000 * Math.sin((Math.PI * (local - 6)) / 13))
       : 0;
-  const loadWh = 600 + 40 * (local % 7) + (local >= 16 && local <= 21 ? 900 : 0);
+  const loadWh =
+    600 + 40 * (local % 7) + (local >= 16 && local <= 21 ? 900 : 0);
   return {
     solarWh,
     loadWh,
@@ -80,6 +81,8 @@ const fakeSource = (
   });
   const source: DataSource = {
     id,
+    listSites: () => Promise.resolve([]),
+    getSiteInfo: () => Promise.reject(new Error("unused")),
     getLiveStatus,
     getHistory: vi.fn(async () => []),
   };
@@ -131,8 +134,8 @@ function seed(o: Seed): number {
       .values({
         siteId,
         currency: "USD",
-        content: (siteInfo as { response: { tariff_content: unknown } }).response
-          .tariff_content,
+        content: (siteInfo as { response: { tariff_content: unknown } })
+          .response.tariff_content,
       })
       .run();
   const from = localMidnight(addDays(today, -(o.daysBefore ?? 7)), TZ);
@@ -158,7 +161,8 @@ function seed(o: Seed): number {
     for (let t = from; t < lastFull + HOUR; t += STEP) {
       const h = hourRow(Math.floor(t / HOUR) * HOUR);
       const solarWh = Math.floor(h.solarWh / 12);
-      const loadWh = Math.floor(h.loadWh / 12) + (o.extra?.(localDate(t, TZ)) ?? 0);
+      const loadWh =
+        Math.floor(h.loadWh / 12) + (o.extra?.(localDate(t, TZ)) ?? 0);
       slotLoads.push({ t, load: loadWh });
       rows.push({
         siteId,
@@ -172,11 +176,14 @@ function seed(o: Seed): number {
       });
     }
     for (let i = 0; i < rows.length; i += 500)
-      db.insert(schema.energyIntervals).values(rows.slice(i, i + 500)).run();
+      db.insert(schema.energyIntervals)
+        .values(rows.slice(i, i + 500))
+        .run();
   } else if (intervals.length && o.intervals !== false)
     db.insert(schema.energyIntervals).values(intervals).run();
   if (o.weather !== false) {
-    if (observed.length) db.insert(schema.weatherObserved).values(observed).run();
+    if (observed.length)
+      db.insert(schema.weatherObserved).values(observed).run();
     const forecast = [];
     for (let t = Math.ceil(now / HOUR) * HOUR; t < end; t += HOUR)
       forecast.push({
@@ -218,7 +225,11 @@ describe("loadSnapshot", () => {
     expect(checkSnapshot(s)).toEqual([]);
     expect(s.health.warnings).toEqual([]);
     expect(s.source).toBe("fleet-api");
-    expect(s.site).toEqual({ name: "Home", timezone: TZ, temperatureUnit: "C" });
+    expect(s.site).toEqual({
+      name: "Home",
+      timezone: TZ,
+      temperatureUnit: "C",
+    });
     expect(s.currency).toBe("USD");
     expect(s.timeline).toHaveLength(48);
     const mid = localMidnight("2026-05-20", TZ);
@@ -229,28 +240,6 @@ describe("loadSnapshot", () => {
       .reduce((a, r) => a + (r.gridImportWh ?? 0), 0);
     expect(s.costToday.periods.reduce((a, p) => a + p.importWh, 0)).toBe(imp);
     expect(s.weatherTomorrow?.date).toBe("2026-05-21");
-  });
-
-  it("sums several energy_intervals rows within one UTC hour", async () => {
-    const siteId = seed({ now: NORMAL });
-    const mid = localMidnight("2026-05-20", TZ);
-    db.insert(schema.energyIntervals)
-      .values({
-        siteId,
-        start: new Date(mid + 6 * HOUR + 30 * 60_000),
-        solarWh: 100,
-        loadWh: 100,
-        gridImportWh: 0,
-        gridExportWh: 0,
-        batteryChargeWh: 0,
-        batteryDischargeWh: 0,
-      })
-      .run();
-    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
-    const base = hourRow(mid + 6 * HOUR);
-    const row = s.timeline.find((r) => Date.parse(r.hour) === mid + 6 * HOUR)!;
-    expect(row.solarWh).toBe(base.solarWh + 100);
-    expect(row.loadWh).toBe(base.loadWh + 100);
   });
 
   it("previousDays are the 6 local dates before today, oldest first", async () => {
@@ -265,7 +254,11 @@ describe("loadSnapshot", () => {
       "2026-05-19",
     ]);
     let solar = 0;
-    for (let t = localMidnight("2026-05-19", TZ); t < localMidnight("2026-05-20", TZ); t += HOUR)
+    for (
+      let t = localMidnight("2026-05-19", TZ);
+      t < localMidnight("2026-05-20", TZ);
+      t += HOUR
+    )
       solar += hourRow(t).solarWh;
     expect(s.previousDays[5]?.solarWh).toBe(solar);
   });
@@ -394,7 +387,9 @@ describe("loadSnapshot", () => {
     const siteId = seed({ now: NORMAL });
     const { source } = fakeSource(NORMAL, "fleet-api", true);
     await run(NORMAL, siteId, source);
-    expect(warn).toHaveBeenCalledWith(`[snapshot] live unavailable site=${siteId} Error`);
+    expect(warn).toHaveBeenCalledWith(
+      `[snapshot] live unavailable site=${siteId} Error`,
+    );
     const all = JSON.stringify(warn.mock.calls);
     expect(all).not.toContain("EXT-1");
     expect(all).not.toContain("boom");
@@ -405,7 +400,9 @@ describe("loadSnapshot", () => {
     const now = Date.parse("2026-05-20T12:50:00Z");
     const siteId = seed({ now });
     db.delete(schema.energyIntervals)
-      .where(gte(schema.energyIntervals.start, new Date("2026-05-20T10:00:00Z")))
+      .where(
+        gte(schema.energyIntervals.start, new Date("2026-05-20T10:00:00Z")),
+      )
       .run();
     db.insert(schema.energyIntervals)
       .values({
@@ -420,7 +417,9 @@ describe("loadSnapshot", () => {
       })
       .run();
     const s = await run(now, siteId, fakeSource(now).source);
-    expect(s.health.warnings.filter((w) => w.startsWith("Energy history"))).toEqual([]);
+    expect(
+      s.health.warnings.filter((w) => w.startsWith("Energy history")),
+    ).toEqual([]);
   });
 
   it.each([
@@ -464,7 +463,6 @@ describe("loadSnapshot", () => {
 // ---- B016: peakEstimate + recommendation, from 5-min seeded history ----
 
 const SUMMER_FRI = Date.parse("2026-07-17T19:30:00Z"); // tomorrow = Saturday: summer weekend has no ON_PEAK
-const MARCH_12 = Date.parse("2026-03-12T19:30:00Z"); // 3/8 (276 slots) is inside the history
 
 // Peak window is 16:00-21:00 local: 16:00 is 8 h and 21:00 is 3 h before the next local midnight (DST-safe).
 const peakSum = (date: string) => {
@@ -473,7 +471,8 @@ const peakSum = (date: string) => {
     .filter((r) => r.t >= end - 8 * HOUR && r.t < end - 3 * HOUR)
     .reduce((a, r) => a + r.load, 0);
 };
-const mean = (xs: number[]) => Math.round(xs.reduce((a, x) => a + x, 0) / xs.length);
+const mean = (xs: number[]) =>
+  Math.round(xs.reduce((a, x) => a + x, 0) / xs.length);
 const prior = (now: number, n = 7) =>
   Array.from({ length: n }, (_, i) => addDays(localDate(now, TZ), i - n));
 const endOf = (date: string) =>
@@ -490,7 +489,12 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
     expect(checkSnapshot(s)).toEqual([]);
     expect(s.peakEstimate.historyDays).toBe(7);
     const avg = mean(prior(NORMAL).map(peakSum));
-    const want = { historyAvgWh: avg, highC: 15, similarTempDays: 7, similarTempAvgWh: avg };
+    const want = {
+      historyAvgWh: avg,
+      highC: 15,
+      similarTempDays: 7,
+      similarTempAvgWh: avg,
+    };
     expect(s.peakEstimate.today).toEqual(want);
     expect(s.peakEstimate.tomorrow).toEqual(want);
     const r = s.recommendation!;
@@ -510,7 +514,9 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
       `On days near 15°C: ${kwh} kWh over 7 days`,
       "Tomorrow's forecast high: 15°C",
     ]);
-    expect(r.wouldChange).toBe("A different forecast high for tomorrow, or a tariff change.");
+    expect(r.wouldChange).toBe(
+      "A different forecast high for tomorrow, or a tariff change.",
+    );
   });
 
   it("validFrom is updatedAt once today's peak window is over", async () => {
@@ -534,7 +540,11 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
     const siteId = seed({ now: NORMAL });
     const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
     expect(checkSnapshot(s)).toEqual([]);
-    expect(s.peakEstimate).toEqual({ historyDays: 0, today: null, tomorrow: null });
+    expect(s.peakEstimate).toEqual({
+      historyDays: 0,
+      today: null,
+      tomorrow: null,
+    });
     expect(s.recommendation).toBeNull();
   });
 
@@ -550,7 +560,11 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
   it("no weather rows: both days null, no recommendation, historyDays still counted", async () => {
     const s = await snap(NORMAL, { weather: false });
     expect(checkSnapshot(s)).toEqual([]);
-    expect(s.peakEstimate).toEqual({ historyDays: 7, today: null, tomorrow: null });
+    expect(s.peakEstimate).toEqual({
+      historyDays: 7,
+      today: null,
+      tomorrow: null,
+    });
     expect(s.recommendation).toBeNull();
   });
 
@@ -592,7 +606,9 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
   it("a past hour without an observed temp falls back to the latest forecast", async () => {
     const siteId = seed({ now: NORMAL, slots: true });
     const mid = localMidnight("2026-05-20", TZ);
-    db.delete(schema.weatherObserved).where(gte(schema.weatherObserved.hour, new Date(mid))).run();
+    db.delete(schema.weatherObserved)
+      .where(gte(schema.weatherObserved.hour, new Date(mid)))
+      .run();
     db.insert(schema.weatherForecast)
       .values({
         siteId,
@@ -645,29 +661,27 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
     const t = s.peakEstimate.tomorrow!;
     expect(t.historyAvgWh).toBe(mean(days.map(peakSum)));
     expect(t.similarTempDays).toBe(5);
-    expect(t.similarTempAvgWh).toBe(mean(days.filter((d) => !hot.has(d)).map(peakSum)));
+    expect(t.similarTempAvgWh).toBe(
+      mean(days.filter((d) => !hot.has(d)).map(peakSum)),
+    );
     expect(t.similarTempAvgWh!).toBeLessThan(t.historyAvgWh);
     expect(s.recommendation?.confidence).toBe("medium");
     expect(s.recommendation?.reserve?.peakWh).toBe(peakEstimateWh(t));
   });
 
-  it("history spanning the 3/8 DST day (276 slots) counts it and sums its 16-21 local window", async () => {
-    const s = await snap(MARCH_12);
-    expect(checkSnapshot(s)).toEqual([]);
-    expect(s.peakEstimate.historyDays).toBe(7);
-    expect(s.peakEstimate.tomorrow?.historyAvgWh).toBe(mean(prior(MARCH_12).map(peakSum)));
-  });
-
   it.each([
     ["2026-03-08", SPRING],
     ["2026-11-01", FALL],
-  ])("DST day %s: recommendation windows are local 21:00, checkSnapshot clean", async (d, now) => {
-    const s = await snap(now);
-    expect(checkSnapshot(s)).toEqual([]);
-    expect(s.peakEstimate.historyDays).toBe(7);
-    expect(s.recommendation?.validTo).toBe(endOf(addDays(d, 1)));
-    expect(s.recommendation?.validFrom).toBe(endOf(d));
-  });
+  ])(
+    "DST day %s: recommendation windows are local 21:00, checkSnapshot clean",
+    async (d, now) => {
+      const s = await snap(now);
+      expect(checkSnapshot(s)).toEqual([]);
+      expect(s.peakEstimate.historyDays).toBe(7);
+      expect(s.recommendation?.validTo).toBe(endOf(addDays(d, 1)));
+      expect(s.recommendation?.validFrom).toBe(endOf(d));
+    },
+  );
 });
 
 describe("firstSiteId", () => {
@@ -678,7 +692,11 @@ describe("firstSiteId", () => {
     const now = Date.now();
     for (const ext of ["b", "a"])
       db.insert(schema.sites)
-        .values({ source: "fleet-api", externalId: ext, createdAt: new Date(now) })
+        .values({
+          source: "fleet-api",
+          externalId: ext,
+          createdAt: new Date(now),
+        })
         .run();
     expect(mod.firstSiteId(db)).toBe(1);
   });

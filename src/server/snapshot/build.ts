@@ -10,19 +10,10 @@ import type {
 import { forecastHours } from "~/lib/forecast/baseline";
 import { costToday, tariffAt, type Tariff } from "~/lib/tariff";
 import { addDays, localDate, localMidnight } from "~/lib/time";
+import type { HourEnergy } from "~/server/history";
 
 const HOUR = 3_600_000;
 const SAMPLE_TOLERANCE = 30 * 60_000;
-
-export type HourRow = {
-  start: number;
-  solarWh: number;
-  loadWh: number;
-  gridImportWh: number;
-  gridExportWh: number;
-  batteryChargeWh: number;
-  batteryDischargeWh: number;
-};
 
 export type BuildInput = {
   now: number;
@@ -41,10 +32,10 @@ export type BuildInput = {
   live: LiveSample;
   liveUnavailable: boolean;
   lastSampleTs: number | null;
-  /** max(energy_intervals.start) for the site; falls back to the latest hour bucket when null/absent. */
+  /** latest interval start for the site; falls back to the latest hour bucket when null/absent. */
   latestIntervalStart?: number | null;
-  /** energy_intervals summed per UTC hour: today + the 7 days before. */
-  hourly: HourRow[];
+  /** Energy summed per UTC hour: today + the 7 days before. */
+  hourly: HourEnergy[];
   samples: { ts: number; socPct: number }[];
   observed: { hour: number; ghiWm2: number }[];
   /** Latest-issued row per target hour. */
@@ -56,7 +47,11 @@ export type BuildInput = {
     precipProbPct: number;
   }[];
   /** Computed by load.ts (peak.ts queries); the recommendation is derived from it here. */
-  peakEstimate: { historyDays: number; today: PeakHistory | null; tomorrow: PeakHistory | null };
+  peakEstimate: {
+    historyDays: number;
+    today: PeakHistory | null;
+    tomorrow: PeakHistory | null;
+  };
 };
 
 const sum = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
@@ -144,7 +139,9 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
         periods: (["off-peak", "mid-peak", "peak"] as const).map((period) => ({
           period,
           importWh:
-            period === "off-peak" ? sum(todayActual.map((h) => h.gridImportWh)) : 0,
+            period === "off-peak"
+              ? sum(todayActual.map((h) => h.gridImportWh))
+              : 0,
           costCents: 0,
         })),
         exportCreditCents: 0,
@@ -171,7 +168,13 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
     weatherTomorrow = {
       date: tomorrow,
       condition:
-        chance >= 50 ? "rain" : cloud < 25 ? "clear" : cloud < 70 ? "partly-cloudy" : "cloudy",
+        chance >= 50
+          ? "rain"
+          : cloud < 25
+            ? "clear"
+            : cloud < 70
+              ? "partly-cloudy"
+              : "cloudy",
       highC: Math.round(Math.max(...wx.map((f) => f.tempC))),
       lowC: Math.round(Math.min(...wx.map((f) => f.tempC))),
       cloudCoverPct: Math.round(cloud),
@@ -181,9 +184,12 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
 
   const warnings: string[] = [];
   const latest =
-    i.latestIntervalStart ?? i.hourly.reduce((m, h) => Math.max(m, h.start), -Infinity);
+    i.latestIntervalStart ??
+    i.hourly.reduce((m, h) => Math.max(m, h.start), -Infinity);
   if (latest !== -Infinity && updatedMs - latest > 2 * HOUR)
-    warnings.push(`Energy history is ${Math.floor((updatedMs - latest) / HOUR)} h behind`);
+    warnings.push(
+      `Energy history is ${Math.floor((updatedMs - latest) / HOUR)} h behind`,
+    );
   if (new Set(history.map((h) => localDate(h.hour, tz))).size < 7)
     warnings.push("Learning: forecasts improve after 7 days of data");
   if (i.site.latitude === null || i.site.longitude === null)

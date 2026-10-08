@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { server } from "~/env.schema.js";
-import { and, count, eq, gte, lt, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { DataSource } from "~/lib/core/types";
 import { addDays, localDate, localMidnight, localParts } from "~/lib/time";
 import { fetchWeather } from "~/lib/weather/open-meteo";
 import type { openDb } from "~/server/db";
 import * as s from "~/server/db/schema";
+import { energyHistory } from "~/server/history";
+import { syncSite } from "~/server/site-sync";
 
 type Db = ReturnType<typeof openDb>;
 type Site = typeof s.sites.$inferSelect;
@@ -16,7 +18,6 @@ export type Deps = {
   now: number;
 };
 
-const FIVE_MIN = 300_000;
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** Local RFC3339 with offset for the instant `ms`. */
@@ -43,50 +44,19 @@ export function dayRange(date: string, tz: string, endMs?: number) {
 export async function syncEnergy({ db, source, now }: Deps, site: Site) {
   const tz = site.timezone ?? "UTC";
   const today = localDate(now, tz);
+  const history = energyHistory(db, site);
   let first: unknown;
   // today first, then newest to oldest; a failing day must not skip the rest
   for (const i of [0, 1, 2, 3, 4, 5, 6, 7]) {
     try {
       const d = addDays(today, -i);
-      const start = localMidnight(d, tz);
-      const next = localMidnight(addDays(d, 1), tz);
-      if (i > 0) {
-        const have = db
-          .select({ n: count() })
-          .from(s.energyIntervals)
-          .where(
-            and(
-              eq(s.energyIntervals.siteId, site.id),
-              gte(s.energyIntervals.start, new Date(start)),
-              lt(s.energyIntervals.start, new Date(next)),
-            ),
-          )
-          .get()!.n;
-        if (have >= (next - start) / FIVE_MIN) continue;
-      }
-      const rows = await source.getHistory(
-        site.externalId,
-        dayRange(d, tz, i === 0 ? now : undefined),
+      if (i > 0 && history.isComplete(d)) continue;
+      history.putIntervals(
+        await source.getHistory(
+          site.externalId,
+          dayRange(d, tz, i === 0 ? now : undefined),
+        ),
       );
-      for (const r of rows) {
-        const v = {
-          siteId: site.id,
-          start: new Date(r.start),
-          solarWh: r.solarWh,
-          loadWh: r.loadWh,
-          gridImportWh: r.gridImportWh,
-          gridExportWh: r.gridExportWh,
-          batteryChargeWh: r.batteryChargeWh,
-          batteryDischargeWh: r.batteryDischargeWh,
-        };
-        db.insert(s.energyIntervals)
-          .values(v)
-          .onConflictDoUpdate({
-            target: [s.energyIntervals.siteId, s.energyIntervals.start],
-            set: v,
-          })
-          .run();
-      }
     } catch (e) {
       first ??= e;
     }
@@ -120,24 +90,8 @@ export async function syncWeather({ db, fetch, now }: Deps, site: Site) {
     lon: site.longitude,
     now,
   });
+  energyHistory(db, site).putObserved(w.observed);
   db.transaction((tx) => {
-    for (const r of w.observed) {
-      const v = {
-        siteId: site.id,
-        hour: new Date(r.hour),
-        tempC: r.tempC,
-        cloudPct: r.cloudPct,
-        ghiWm2: r.ghiWm2,
-        precipMm: r.precipMm,
-      };
-      tx.insert(s.weatherObserved)
-        .values(v)
-        .onConflictDoUpdate({
-          target: [s.weatherObserved.siteId, s.weatherObserved.hour],
-          set: v,
-        })
-        .run();
-    }
     for (const r of w.forecast)
       tx.insert(s.weatherForecast)
         .values({
@@ -156,57 +110,15 @@ export async function syncWeather({ db, fetch, now }: Deps, site: Site) {
 }
 
 const GAP_DAYS = 92;
-const HOUR = 3_600_000;
-const DAY_MS = 24 * HOUR;
+const DAY_MS = 24 * 3_600_000;
 
 /** Backfill observed weather for past site-local days that have energy but incomplete weather. */
 export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
   if (site.latitude == null || site.longitude == null) return;
   const tz = site.timezone ?? "UTC";
   const today = localDate(now, tz);
-  const from = localMidnight(addDays(today, -GAP_DAYS), tz);
-  const to = localMidnight(today, tz);
-  // distinct UTC hour buckets (<= 2,208 rows) instead of every 5-min interval;
-  // same local-date set for whole-hour time zones
-  const energyDays = new Set(
-    db
-      .selectDistinct({
-        hour: sql<number>`(${s.energyIntervals.start} / ${HOUR}) * ${HOUR}`,
-      })
-      .from(s.energyIntervals)
-      .where(
-        and(
-          eq(s.energyIntervals.siteId, site.id),
-          gte(s.energyIntervals.start, new Date(from)),
-          lt(s.energyIntervals.start, new Date(to)),
-        ),
-      )
-      .all()
-      .map((r) => localDate(r.hour, tz)),
-  );
-  if (!energyDays.size) return;
-  const have = new Map<string, number>();
-  for (const r of db
-    .select({ hour: s.weatherObserved.hour })
-    .from(s.weatherObserved)
-    .where(
-      and(
-        eq(s.weatherObserved.siteId, site.id),
-        gte(s.weatherObserved.hour, new Date(from)),
-        lt(s.weatherObserved.hour, new Date(to)),
-      ),
-    )
-    .all()) {
-    const d = localDate(r.hour.getTime(), tz);
-    have.set(d, (have.get(d) ?? 0) + 1);
-  }
-  const gaps = [...energyDays]
-    .filter(
-      (d) =>
-        (have.get(d) ?? 0) <
-        (localMidnight(addDays(d, 1), tz) - localMidnight(d, tz)) / HOUR,
-    )
-    .sort();
+  const history = energyHistory(db, site);
+  const gaps = history.weatherGaps(today);
   if (!gaps.length) return;
   const w = await fetchWeather({
     fetch,
@@ -225,27 +137,11 @@ export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
     forecastDays: 1,
   });
   const gapSet = new Set(gaps);
-  db.transaction((tx) => {
-    for (const r of w.observed) {
-      if (!gapSet.has(localDate(r.hour, tz))) continue;
-      const v = {
-        siteId: site.id,
-        hour: new Date(r.hour),
-        tempC: r.tempC,
-        cloudPct: r.cloudPct,
-        ghiWm2: r.ghiWm2,
-        precipMm: r.precipMm,
-      };
-      tx.insert(s.weatherObserved)
-        .values(v)
-        .onConflictDoUpdate({
-          target: [s.weatherObserved.siteId, s.weatherObserved.hour],
-          set: v,
-        })
-        .run();
-    }
-  });
+  history.putObserved(
+    w.observed.filter((r) => gapSet.has(localDate(r.hour, tz))),
+  );
 }
+
 /** "" counts as unset; "0" is a real 0. */
 export function parseSiteSettings(env: Record<string, string | undefined>) {
   const pick = (k: string) => (env[k] === "" ? undefined : env[k]);
@@ -285,6 +181,14 @@ export function applySiteSettings(
   if (Object.keys(set).length) db.update(s.sites).set(set).run();
 }
 
+/** Runs at the start of every worker tick, so Sites created since the last tick get the env settings. */
+export function prepareTick(
+  db: Db,
+  settings: Parameters<typeof applySiteSettings>[1],
+) {
+  applySiteSettings(db, settings);
+}
+
 /** Never logs externalId, tokens or bodies: only job, internal site id, error name and message. */
 async function guarded(job: string, site: Site, f: () => Promise<void>) {
   try {
@@ -313,4 +217,15 @@ export async function runWeather(deps: Deps) {
     await guarded("syncWeather", site, () => syncWeather(deps, site));
     await guarded("fillWeatherGaps", site, () => fillWeatherGaps(deps, site));
   }
+}
+
+export async function runSiteSync(deps: Deps) {
+  for (const site of deps.db
+    .select()
+    .from(s.sites)
+    .where(eq(s.sites.source, "fleet-api"))
+    .all())
+    await guarded("site-sync", site, async () => {
+      await syncSite(deps.db, deps.source, site.externalId);
+    });
 }

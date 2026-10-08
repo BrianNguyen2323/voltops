@@ -4,9 +4,10 @@ import { db } from "~/server/db";
 import { sites } from "~/server/db/schema";
 import { seedReplay } from "~/server/replay/seed";
 import {
-  applySiteSettings,
   isTeslaIdle,
   parseSiteSettings,
+  prepareTick,
+  runSiteSync,
   runTesla,
   runWeather,
 } from "./jobs";
@@ -18,11 +19,13 @@ let idleLogged = false;
 let busy = false;
 let lastTesla = Math.floor(Date.now() / HOUR);
 let lastWeather = 0;
+let lastSiteSync = 0;
 
 async function tick(first = false) {
   if (busy) return;
   busy = true;
   try {
+    prepareTick(db, settings);
     const now = Date.now();
     const deps = { db, source: fleetClient, fetch, now };
     const teslaDue =
@@ -32,6 +35,10 @@ async function tick(first = false) {
       lastTesla = Math.floor(now / HOUR);
       if (!isTeslaIdle(db)) {
         idleLogged = false;
+        if (now - lastSiteSync >= 24 * HOUR) {
+          lastSiteSync = now;
+          await runSiteSync(deps);
+        }
         await runTesla(deps);
       } else if (!idleLogged) {
         idleLogged = true;
@@ -42,6 +49,9 @@ async function tick(first = false) {
       lastWeather = now;
       await runWeather(deps);
     }
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error(`[worker] tick ${err.name}: ${err.message}`);
   } finally {
     busy = false;
   }
@@ -60,7 +70,6 @@ if (
   seedReplay(db, Date.now());
   console.log("[worker] demo data seeded");
 }
-applySiteSettings(db, settings);
 void tick(true);
 const timer = setInterval(() => void tick(), 60_000);
 for (const sig of ["SIGTERM", "SIGINT"] as const)
