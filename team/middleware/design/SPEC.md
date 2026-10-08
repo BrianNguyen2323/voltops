@@ -1,9 +1,10 @@
 # SPEC — Middleware: real data into the dashboard
 
-Revision 2
+Revision 3
 
 Decision round 1 (2026-10-06): all recommended (Q1–Q10 A). See `revisions/R001.md`, `research/mvp-scope/README.md`.
 Rev 2 (2026-10-07): peak estimate, reserve advice and weather gap-fill from the front-end's Decision round 4 (`team/front-end/TODO.md`, front-end R006). See `revisions/R002.md`.
+Rev 3 (2026-10-08): the Energy history module and Site sync, from O1's `/improve-codebase-architecture` (Decision round 3 Q1: "1, then 2"; grilling rounds 1–2 all recommended). See `revisions/R003.md`.
 
 ## Goal
 `/home` shows a real `DashboardSnapshot` (contract: `src/lib/dashboard.ts`, `docs/dashboard-snapshot.md`) built from the DB plus one live Tesla call. With no site in the DB, `/home` keeps `sampleSnapshot` (`isSample`).
@@ -173,3 +174,36 @@ Contract: `src/lib/dashboard.ts` (`PeakHistory`, `ReservePlan`, `peakEstimateWh`
 - Only gap days within the last 92 days count (Open-Meteo `past_days` max). Never fetch for days without energy.
 - One Open-Meteo call with `past_days` = the number of days back to the oldest gap day (≤ 92) and `forecast_days=1`. `fetchWeather` gains a `pastDays`/`forecastDays` option; the defaults stay 1/3. Upsert only the observed rows that fall on gap days. No forecast rows are written by the gap-fill.
 - No gap day → no call.
+
+## Energy history (Rev 3; grilling #1 Q1–Q5 + round 2 Q1–Q5, all A)
+One module owns every read and write of `energy_intervals` and `weather_observed` (the glossary's Energy history). No other module touches those two tables. `samples` and `weather_forecast` stay with their callers.
+- `src/server/history/index.ts` + one test file `index.test.ts` (a temp-file DB + drizzle migrations, the setup in `peak.test.ts`).
+- `energyHistory(db, site: { id: number; timezone: string | null })` returns a Site-bound handle; tz `null` → `"UTC"`. Callers pass Site-local dates `YYYY-MM-DD`; all UTC/midnight/DST maths is inside. Times returned are UTC ms.
+  ```ts
+  putIntervals(rows: EnergyInterval[]): void            // upsert on (site_id, start)
+  putObserved(rows: ObservedHour[]): void               // upsert on (site_id, hour)
+  hours(from: string, to: string): HourEnergy[]         // [local midnight(from), local midnight(to)), Σ per UTC hour, ascending
+  observed(from: string, to: string): ObservedHour[]    // same range, ascending
+  isComplete(date: string): boolean                     // count = the day's 5-min slots (288 / 276 / 300)
+  completeDays(before: string): string[]                // complete days < before, oldest first
+  weatherGaps(today: string): string[]                  // days in [today−92, today) with ≥ 1 interval and fewer observed hours than the day has; ascending
+  peakAverage(o: { days: string[]; fromMin: number; toMin: number; highC: number }): PeakHistory | null  // today's peakHistory, unchanged
+  latestStart(): number | null                          // max(start) ms
+  ```
+  `HourEnergy = { start: number; solarWh; loadWh; gridImportWh; gridExportWh; batteryChargeWh; batteryDischargeWh }` (today's `HourRow`). `ObservedHour = { hour: number; tempC; cloudPct; ghiWm2; precipMm }`.
+- **No behavior change** for the worker, the snapshot or the replay seed. Known limits stay: non-whole-hour time zones; the 92-day gap edge.
+- Callers: the worker (`syncEnergy`, `syncWeather` observed rows, `fillWeatherGaps`), the snapshot loader, the replay seed. `src/server/snapshot/peak.ts` and its test are deleted. The worker writes observed weather through the module and forecast rows itself, as two separate writes (no shared transaction).
+
+## Site sync (Rev 3; grilling #2 Q6–Q11, all A)
+- `DataSource` gains (CLAUDE.md §5 `listSites`):
+  ```ts
+  listSites(): Promise<string[]>                        // external ids of energy sites with a battery (products, resource_type "battery")
+  getSiteInfo(siteId: string): Promise<SiteInfo>
+  type SiteInfo = { name: string | null; timezone: string | null; usableCapacityWh: number | null; backupReservePct: number | null;
+                    tariff: { id: string; name: string | null; utility: string | null; currency: string | null; content: unknown } | null }
+  ```
+  fleet-api: `GET /api/1/products` and `GET /api/1/energy_sites/{id}/site_info` through the client (its base URL, token, typed errors). `mapSiteInfo` in `map.ts`: `site_name`, `installation_time_zone`, `nameplate_energy` via today's `findNameplate` (Wh), `backup_reserve_percent`, `tariff_id` + `tariff_content` (`name`, `currency`) + `utility`. Fixture-tested on `site_info.json`.
+- `src/server/site-sync.ts`: `syncSite(db, source, externalId): Promise<number>` → `getSiteInfo`, then upsert the `sites` row (keyed on `external_id`; source = `source.id`; name, timezone, usable capacity, backup reserve) and replace `tariff_schedule` for it (only when `tariff` is non-null). Returns the site id. Lat/lon and temperature unit are never touched (env-owned).
+- **Login** (`/api/auth/callback`): token exchange → store credentials → `primeToken(access, expiresAt)` on the fleet client (so no extra refresh) → `listSites()` → `syncSite` for the first one. A sync failure is logged (`[Tesla OAuth] site sync <ErrorName>`) and the login still redirects to `/home`. The callback's own fetches, `FLEET_BASE` and `findNameplate` are deleted.
+- **Worker:** a daily `site-sync` job (first tick, then every 24 h) for each `fleet-api` site, ~30 requests/month. Errors log like the other jobs (`[worker] site-sync site=<n> <ErrorName>`). No `job_runs` table exists, so there's no dashboard warning beyond today's "No tariff from Tesla".
+- **Replay:** `seedReplay` takes timezone, capacity, backup reserve and tariff from `mapSiteInfo(site_info.json)`; the name stays "Demo home" and lat/lon stay fixed.
