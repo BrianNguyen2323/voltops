@@ -31,6 +31,10 @@
 - B012 contract (`peakEstimate`, `recommendation.reserve`, `peakEstimateWh`, `reservePlan`, check rules, `peakUsage` view), sample values, the tile + the Tonight sentence, the `build.ts` stub, the doc section. Tester → implementer → reviewer with screenshots.
 - Then: the lead refreshes the middleware's doc copy; middleware B013 (in their backlog) fills the real numbers; a PO review.
 
+## M7 — Tonight card clarity (window fix, two-step line, ⓘ popover) — SPEC Rev 7
+- B034 advisor `validTo` = peak start, the two-step line with day words, the ⓘ popover (shadcn Popover) with confidence and scenario copy, sample `validTo`. Tester → implementer → reviewer with screenshots.
+- Then: the lead updates middleware SPEC L166 and their RESUME, then a PO review. **The optimization round is due after M7.**
+
 ## Architecture backlog (from the 2026-10-06 review, `research/architecture/README.md`; priority order set by the lead)
 1. **Candidate 1, deepen the `DashboardData` seam:** DONE in M5 (10f2f7f).
 2. **Candidate 3, one site-local time module + DST tests:** next. Unblocked, cheap, and lands the DST tests CLAUDE.md §5 requires. Do it before or with the Plan/Trends time axes.
