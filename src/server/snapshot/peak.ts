@@ -14,6 +14,11 @@ const lit = (n: number) => {
   return String(n);
 };
 
+const day = (d: string) => {
+  if (!/^\d{4}-\d\d-\d\d$/.test(d)) throw new Error(`bad day ${d}`);
+  return d;
+};
+
 /** Complete site-local days before `today`, oldest first (YYYY-MM-DD). */
 export function completeDays(db: Db, siteId: number, tz: string, today: string): string[] {
   const first = db.select({ m: min(s.energyIntervals.start) }).from(s.energyIntervals)
@@ -22,7 +27,7 @@ export function completeDays(db: Db, siteId: number, tz: string, today: string):
   const rows: string[] = [];
   for (let d = localDate(first.getTime(), tz); d < today; d = addDays(d, 1)) {
     const a = localMidnight(d, tz), b = localMidnight(addDays(d, 1), tz);
-    rows.push(`('${d}',${lit(a)},${lit(b)},${lit((b - a) / FIVE)})`);
+    rows.push(`('${day(d)}',${lit(a)},${lit(b)},${lit((b - a) / FIVE)})`);
   }
   if (!rows.length) return [];
   return db.all<{ day: string }>(sql`
@@ -39,7 +44,7 @@ export function peakHistory(
 ): PeakHistory | null {
   if (!o.days.length) return null;
   const rows = o.days.map((d) =>
-    `('${d}',${lit(localTime(d, o.fromMin, o.tz))},${lit(localTime(d, o.toMin, o.tz))},${lit(localMidnight(d, o.tz))},${lit(localMidnight(addDays(d, 1), o.tz))})`);
+    `('${day(d)}',${lit(localTime(d, o.fromMin, o.tz))},${lit(localTime(d, o.toMin, o.tz))},${lit(localMidnight(d, o.tz))},${lit(localMidnight(addDays(d, 1), o.tz))})`);
   const q = (similar: boolean) => db.get<{ n: number; avg: number | null }>(sql`
     WITH days(day, f, t, d0, d1) AS (VALUES ${sql.raw(rows.join(","))}),
     per AS (
@@ -48,7 +53,7 @@ export function peakHistory(
       GROUP BY day
     )
     SELECT COUNT(*) AS n, AVG(wh) AS avg FROM per
-    WHERE ${similar ? sql`(SELECT MAX(w.temp_c) FROM weather_observed w WHERE w.site_id = ${siteId} AND w.hour >= d0 AND w.hour < d1) BETWEEN ${o.highC - 3} AND ${o.highC + 3}` : sql`1`}`);
+    WHERE ${similar ? sql`ABS((SELECT MAX(w.temp_c) FROM weather_observed w WHERE w.site_id = ${siteId} AND w.hour >= d0 AND w.hour < d1) - ${o.highC}) <= 3` : sql`1`}`);
   const all = q(false), sim = q(true);
   const similarTempDays = sim?.n ?? 0;
   return {
