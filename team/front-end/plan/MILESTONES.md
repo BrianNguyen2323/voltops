@@ -35,6 +35,11 @@
 - B034 advisor `validTo` = peak start, the two-step line with day words, the ⓘ popover (shadcn Popover) with confidence and scenario copy, sample `validTo`. Tester → implementer → reviewer with screenshots.
 - Then: the lead updates middleware SPEC L166 and their RESUME, then a PO review. **The optimization round is due after M7.**
 
+## M8 — Your system + Equipment health (placeholders) — SPEC Rev 8
+- B035 contract (`system`, `equipmentHealth`), the view statuses, the section with 3 tiles + ⓘ + details/change log, sample values, the `build.ts` stub, `.env.example` panel vars, and the doc. Tester → implementer → reviewer with screenshots.
+- Middleware backlog (their board): B036 site_info fields + panel env + best hour + change log; B037 health measurements; B038 one-time backfill within the request budget.
+- Then: a PO review, then the **optimization round** (overdue since M7, by PO request).
+
 ## Architecture backlog (from the 2026-10-06 review, `research/architecture/README.md`; priority order set by the lead)
 1. **Candidate 1, deepen the `DashboardData` seam:** DONE in M5 (10f2f7f).
 2. **Candidate 3, one site-local time module + DST tests:** next. Unblocked, cheap, and lands the DST tests CLAUDE.md §5 requires. Do it before or with the Plan/Trends time axes.

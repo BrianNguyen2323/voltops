@@ -3,16 +3,13 @@
 - **Topic 4 (PO, 2026-10-08, before the optimization round): a "Your system" section.**
   - It covers battery count, storage, panel count, panel rating and other details. Placeholders only; the middleware connects the real data.
   - Research `research/system-info/README.md`: Fleet API has battery count, model, storage, power, reserve, plan, firmware and install date. It has **no** panel count, rating or solar size (user-entered per CLAUDE.md section 6).
-  - Decision round 4 ANSWERED: all A, "the outline looks good".
-  - **The PO added Equipment health** (spot declining panel output and battery storage). Research: `research/system-info/HEALTH.md`.
-  - **Status: Decision round 5 (Q5-Q9) in TODO.md, waiting on the PO.** M7's review item is also still open.
-  - Plan once answered: one milestone M8 holds "Your system" + the equipmentHealth placeholders (front-end), plus middleware backlog briefs (site_info fields + panel env, then the health functions, the site_info log and the backfill).
-  - **Next:**
-    - record the answers;
-    - SPEC Rev 8 + R008;
-    - M8 brief B035 (front-end) + a middleware backlog brief;
-    - tester -> implementer -> reviewer;
-    - then the optimization round.
+  - Rounds 4 + 5 ANSWERED (all A). For Q6 the PO conditions: a one-time backfill of all existing data, within Tesla's request limits, leaving enough for normal use.
+    - Tesla (official): 500 Data requests per $1, $10 credit ≈ 5,000 free/month, 60/min.
+    - Rule: backfill ≤ 2,500/month, monthly total ≤ 4,500, 1 per tick.
+  - SPEC Rev 8 + R008.
+  - Middleware backlog: B036 (system info), B037 (health measurements), B038 (backfill) + a pointer in their RESUME.
+  - **Status: M8 / B035 in doing; tester spawned on `phase2b/your-system-test`.** M7's review item is still open for the PO.
+  - **Next:** tester → implementer → reviewer → merge → a PO review; then the optimization round.
 
 ## Topic 3 record
 - **Topic 3 (PO, 2026-10-08): Tonight card clarity.**
