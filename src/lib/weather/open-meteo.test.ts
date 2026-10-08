@@ -39,9 +39,30 @@ describe("mapForecast", () => {
     const { observed, forecast } = mapForecast(small(), 10 * HOUR);
     const rows = [...observed, ...forecast];
     expect(rows).toEqual([
-      { hour: 0, tempC: 10, cloudPct: 20, ghiWm2: 200, precipMm: 0, precipProbPct: 5 },
-      { hour: HOUR, tempC: 11, cloudPct: 30, ghiWm2: 300, precipMm: 0.5, precipProbPct: 10 },
-      { hour: 2 * HOUR, tempC: 12, cloudPct: 40, ghiWm2: 400, precipMm: 1, precipProbPct: 15 },
+      {
+        hour: 0,
+        tempC: 10,
+        cloudPct: 20,
+        ghiWm2: 200,
+        precipMm: 0,
+        precipProbPct: 5,
+      },
+      {
+        hour: HOUR,
+        tempC: 11,
+        cloudPct: 30,
+        ghiWm2: 300,
+        precipMm: 0.5,
+        precipProbPct: 10,
+      },
+      {
+        hour: 2 * HOUR,
+        tempC: 12,
+        cloudPct: 40,
+        ghiWm2: 400,
+        precipMm: 1,
+        precipProbPct: 15,
+      },
     ]);
   });
 
@@ -58,7 +79,10 @@ describe("mapForecast", () => {
 
   it("turns null precip and probability into 0", () => {
     const { observed } = mapForecast(
-      small({ precipitation: [null, 0, 0, 0], precipitation_probability: [null, 0, 0, 0] }),
+      small({
+        precipitation: [null, 0, 0, 0],
+        precipitation_probability: [null, 0, 0, 0],
+      }),
       10 * HOUR,
     );
     expect(observed[0]).toMatchObject({ precipMm: 0, precipProbPct: 0 });
@@ -70,10 +94,16 @@ describe("mapForecast", () => {
       10 * HOUR,
     );
     expect(observed.map((r) => r.hour)).toEqual([0, 2 * HOUR]);
-    const c = mapForecast(small({ cloud_cover: [20, 30, null, 50] }), 10 * HOUR);
+    const c = mapForecast(
+      small({ cloud_cover: [20, 30, null, 50] }),
+      10 * HOUR,
+    );
     expect(c.observed.map((r) => r.hour)).toEqual([0, HOUR]);
     // ghi for hour H comes from H+1, so a null at index 2 drops hour 1.
-    const g = mapForecast(small({ shortwave_radiation: [100, 200, null, 400] }), 10 * HOUR);
+    const g = mapForecast(
+      small({ shortwave_radiation: [100, 200, null, 400] }),
+      10 * HOUR,
+    );
     expect(g.observed.map((r) => r.hour)).toEqual([0, 2 * HOUR]);
   });
 
@@ -104,9 +134,16 @@ describe("mapForecast", () => {
 describe("fetchWeather", () => {
   it("builds the URL with 2-decimal coords and the expected params", async () => {
     const fetch = okFetch();
-    await fetchWeather({ fetch, lat: 34.0522342, lon: -118.2436849, now: FETCHED_AT });
+    await fetchWeather({
+      fetch,
+      lat: 34.0522342,
+      lon: -118.2436849,
+      now: FETCHED_AT,
+    });
     const url = new URL(String((fetch.mock.calls[0] as unknown[])[0]));
-    expect(url.origin + url.pathname).toBe("https://api.open-meteo.com/v1/forecast");
+    expect(url.origin + url.pathname).toBe(
+      "https://api.open-meteo.com/v1/forecast",
+    );
     const p = url.searchParams;
     expect(p.get("latitude")).toBe("34.05");
     expect(p.get("longitude")).toBe("-118.24");
@@ -126,17 +163,26 @@ describe("fetchWeather", () => {
 
   it("throws with the status on non-2xx", async () => {
     const fetch = vi.fn(async () => new Response("x", { status: 503 }));
-    await expect(fetchWeather({ fetch, ...SITE })).rejects.toThrow("open-meteo: 503");
+    await expect(fetchWeather({ fetch, ...SITE })).rejects.toThrow(
+      "open-meteo: 503",
+    );
   });
 
   it("throws on a bad-shape body", async () => {
-    const fetch = vi.fn(async () => new Response(JSON.stringify({ hourly: {} })));
-    await expect(fetchWeather({ fetch, ...SITE })).rejects.toThrow("open-meteo: bad response");
+    const fetch = vi.fn(
+      async () => new Response(JSON.stringify({ hourly: {} })),
+    );
+    await expect(fetchWeather({ fetch, ...SITE })).rejects.toThrow(
+      "open-meteo: bad response",
+    );
   });
 });
 
 describe("fetchWeather pastDays / forecastDays (B017)", () => {
-  const paramsFor = async (extra: { pastDays?: number; forecastDays?: number }) => {
+  const paramsFor = async (extra: {
+    pastDays?: number;
+    forecastDays?: number;
+  }) => {
     const fetch = okFetch();
     await fetchWeather({ fetch, ...SITE, ...extra });
     return new URL(String((fetch.mock.calls[0] as unknown[])[0])).searchParams;

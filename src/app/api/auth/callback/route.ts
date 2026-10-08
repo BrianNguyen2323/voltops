@@ -11,7 +11,10 @@ const FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 // Log only Tesla's error code, never the raw body.
 async function errorCode(res: Response): Promise<string> {
   const body: unknown = await res.json().catch(() => null);
-  const error = typeof body === "object" && body ? (body as { error?: unknown }).error : undefined;
+  const error =
+    typeof body === "object" && body
+      ? (body as { error?: unknown }).error
+      : undefined;
   return typeof error === "string" ? error : "unknown";
 }
 
@@ -82,7 +85,11 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    console.error("[Tesla OAuth] Token exchange failed:", tokenRes.status, await errorCode(tokenRes));
+    console.error(
+      "[Tesla OAuth] Token exchange failed:",
+      tokenRes.status,
+      await errorCode(tokenRes),
+    );
     loginUrl.searchParams.set("error", "token_exchange_failed");
     return NextResponse.redirect(loginUrl);
   }
@@ -135,15 +142,29 @@ export async function GET(request: NextRequest) {
       if (infoRes.ok) {
         siteInfo = ((await infoRes.json()) as SiteInfoResponse).response;
       } else {
-        console.warn("[Tesla OAuth] Could not fetch site_info:", infoRes.status, await errorCode(infoRes));
+        console.warn(
+          "[Tesla OAuth] Could not fetch site_info:",
+          infoRes.status,
+          await errorCode(infoRes),
+        );
       }
     }
   } else {
-    console.warn("[Tesla OAuth] Could not fetch products:", productsRes.status, await errorCode(productsRes));
+    console.warn(
+      "[Tesla OAuth] Could not fetch products:",
+      productsRes.status,
+      await errorCode(productsRes),
+    );
   }
 
-  console.log("[Tesla OAuth] Energy site:", teslaEnergySiteId ? "found" : "none found");
-  console.log("[Tesla OAuth] Timezone:", siteInfo?.installation_time_zone ?? "none");
+  console.log(
+    "[Tesla OAuth] Energy site:",
+    teslaEnergySiteId ? "found" : "none found",
+  );
+  console.log(
+    "[Tesla OAuth] Timezone:",
+    siteInfo?.installation_time_zone ?? "none",
+  );
 
   // --- Upsert site (keyed on Tesla's site ID so re-logins stay idempotent) ---
 
@@ -194,7 +215,9 @@ export async function GET(request: NextRequest) {
 
   // --- Encrypt and upsert refresh token (single row, id=1) ---
 
-  const { ciphertext: encryptedRefreshToken, iv } = encrypt(tokens.refresh_token);
+  const { ciphertext: encryptedRefreshToken, iv } = encrypt(
+    tokens.refresh_token,
+  );
   const cred = {
     encryptedRefreshToken,
     iv,

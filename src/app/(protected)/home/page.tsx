@@ -1,6 +1,10 @@
 import { Dashboard } from "~/components/dashboard/dashboard";
 import { isAuthDisabled } from "~/lib/auth";
-import { checkSnapshot, toDashboardView, type DashboardSnapshot } from "~/lib/dashboard";
+import {
+  checkSnapshot,
+  toDashboardView,
+  type DashboardSnapshot,
+} from "~/lib/dashboard";
 import { fleetClient } from "~/lib/sources/fleet-api/client";
 import { db } from "~/server/db";
 import { credentials } from "~/server/db/schema";
@@ -17,7 +21,10 @@ export default async function HomePage() {
   try {
     const id = firstSiteId(db);
     if (id !== null) {
-      snapshot = await loadSnapshot({ db, source: fleetClient, now: Date.now() }, id);
+      snapshot = await loadSnapshot(
+        { db, source: fleetClient, now: Date.now() },
+        id,
+      );
       isSample = false;
     }
   } catch (e) {
@@ -25,7 +32,8 @@ export default async function HomePage() {
     console.error("[dashboard snapshot]", err.name, err.message);
   }
   // toDashboardView assumes a checked snapshot; log problems rather than render a quietly wrong view.
-  for (const p of checkSnapshot(snapshot)) console.warn("[dashboard snapshot]", p);
+  for (const p of checkSnapshot(snapshot))
+    console.warn("[dashboard snapshot]", p);
   return (
     <Dashboard
       view={toDashboardView(snapshot)}

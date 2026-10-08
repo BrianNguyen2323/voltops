@@ -1,5 +1,10 @@
 // Pure, advisory only (D11): nothing here writes to the Powerwall.
-import { peakEstimateWh, reservePlan, type DashboardSnapshot, type PeakHistory } from "~/lib/dashboard";
+import {
+  peakEstimateWh,
+  reservePlan,
+  type DashboardSnapshot,
+  type PeakHistory,
+} from "~/lib/dashboard";
 import { tariffAt, type Tariff } from "~/lib/tariff";
 import { addDays, localDate, localMidnight, localParts } from "~/lib/time";
 
@@ -25,7 +30,12 @@ export function peakWindow(tariff: Tariff | null, date: string, tz: string) {
     const p = localParts(ms, tz);
     return p.hour * 60 + p.minute;
   };
-  return { startMs: first, endMs: last + HOUR, fromMin: mins(first), toMin: mins(last + HOUR) };
+  return {
+    startMs: first,
+    endMs: last + HOUR,
+    fromMin: mins(first),
+    toMin: mins(last + HOUR),
+  };
 }
 
 /** Max over the local day: observed temp per hour, else the forecast temp. */
@@ -38,8 +48,10 @@ export function dayHighC(
   const mid = localMidnight(date, tz);
   const next = localMidnight(addDays(date, 1), tz);
   const byHour = new Map<number, number>();
-  for (const r of forecast) if (r.hour >= mid && r.hour < next) byHour.set(r.hour, r.tempC);
-  for (const r of observed) if (r.hour >= mid && r.hour < next) byHour.set(r.hour, r.tempC);
+  for (const r of forecast)
+    if (r.hour >= mid && r.hour < next) byHour.set(r.hour, r.tempC);
+  for (const r of observed)
+    if (r.hour >= mid && r.hour < next) byHour.set(r.hour, r.tempC);
   return byHour.size ? Math.max(...byHour.values()) : null;
 }
 
@@ -62,13 +74,21 @@ export function reserveRecommendation(i: {
   const reserve = reservePlan(peakEstimateWh(tomorrow), i.usableCapacityWh, 20);
   const peakCents = tariffAt(tariff, win.startMs, tz).importCentsPerKwh;
   let offPeakCents = Infinity;
-  for (let h = localMidnight(nextDate, tz); h < localMidnight(addDays(nextDate, 1), tz); h += HOUR) {
+  for (
+    let h = localMidnight(nextDate, tz);
+    h < localMidnight(addDays(nextDate, 1), tz);
+    h += HOUR
+  ) {
     const r = tariffAt(tariff, h, tz);
-    if (r.period === "off-peak") offPeakCents = Math.min(offPeakCents, r.importCentsPerKwh);
+    if (r.period === "off-peak")
+      offPeakCents = Math.min(offPeakCents, r.importCentsPerKwh);
   }
   if (offPeakCents === Infinity) offPeakCents = peakCents;
 
-  const validFrom = Math.max(i.updatedMs, peakWindow(tariff, todayDate, tz)?.endMs ?? 0);
+  const validFrom = Math.max(
+    i.updatedMs,
+    peakWindow(tariff, todayDate, tz)?.endMs ?? 0,
+  );
   const deg =
     i.temperatureUnit === "F"
       ? (c: number) => `${Math.round((c * 9) / 5 + 32)}°F`
@@ -81,7 +101,10 @@ export function reserveRecommendation(i: {
     validFrom: new Date(validFrom).toISOString(),
     validTo: new Date(win.endMs).toISOString(),
     effectWh: reserve.coveredWh,
-    savingsCents: Math.max(0, Math.round((reserve.coveredWh * (peakCents - offPeakCents)) / 1000)),
+    savingsCents: Math.max(
+      0,
+      Math.round((reserve.coveredWh * (peakCents - offPeakCents)) / 1000),
+    ),
     why: [
       `Usual peak use: ${kwh(tomorrow.historyAvgWh)} kWh over ${i.historyDays} days`,
       tomorrow.similarTempAvgWh === null

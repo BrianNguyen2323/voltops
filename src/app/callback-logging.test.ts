@@ -7,7 +7,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { NextRequest } from "next/server";
-import { afterEach, beforeEach, expect, it, vi, type MockInstance } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 
 const jar = vi.hoisted(() => new Map<string, string>());
 vi.mock("next/headers", () => ({
@@ -102,7 +109,7 @@ const logged = () => JSON.stringify(allArgs());
 const expectNoMarkers = () => {
   for (const m of MARKERS) expect(logged()).not.toContain(m);
 };
-const warns = () => (spies[1]!.mock.calls);
+const warns = () => spies[1]!.mock.calls;
 
 const leakyBody = {
   error: "forbidden",
@@ -136,7 +143,7 @@ it("site_info non-OK logs status + error code only", async () => {
   expectNoMarkers();
 });
 
-it("non-JSON error body logs \"unknown\" and does not crash", async () => {
+it('non-JSON error body logs "unknown" and does not crash', async () => {
   stubFetch({
     products,
     siteInfo: () =>
@@ -153,7 +160,7 @@ it("non-JSON error body logs \"unknown\" and does not crash", async () => {
   expectNoMarkers();
 });
 
-it("non-string error field logs \"unknown\"", async () => {
+it('non-string error field logs "unknown"', async () => {
   stubFetch({
     products: () =>
       Response.json({ error: { detail: "BODY-ONLY-MARKER" } }, { status: 400 }),
@@ -169,7 +176,8 @@ it("non-string error field logs \"unknown\"", async () => {
 
 it("token exchange non-OK logs status + error code only", async () => {
   stubFetch({
-    token: () => Response.json({ ...leakyBody, error: "invalid_grant" }, { status: 400 }),
+    token: () =>
+      Response.json({ ...leakyBody, error: "invalid_grant" }, { status: 400 }),
     products,
   });
   await run();
@@ -181,7 +189,7 @@ it("token exchange non-OK logs status + error code only", async () => {
   expectNoMarkers();
 });
 
-it("JSON null error body logs \"unknown\" and does not throw", async () => {
+it('JSON null error body logs "unknown" and does not throw', async () => {
   stubFetch({ products: () => new Response("null", { status: 502 }) });
   await run();
   expect(warns()).toContainEqual([
@@ -266,7 +274,9 @@ it("missing site_info values store null", async () => {
   stubFetch({
     products,
     siteInfo: () =>
-      Response.json({ response: { installation_time_zone: "America/Los_Angeles" } }),
+      Response.json({
+        response: { installation_time_zone: "America/Los_Angeles" },
+      }),
   });
   await run();
   expect(await siteRow()).toEqual([{ name: null, cap: null, reserve: null }]);
