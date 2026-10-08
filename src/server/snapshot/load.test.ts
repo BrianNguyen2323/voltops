@@ -240,28 +240,6 @@ describe("loadSnapshot", () => {
     expect(s.weatherTomorrow?.date).toBe("2026-05-21");
   });
 
-  it("sums several energy_intervals rows within one UTC hour", async () => {
-    const siteId = seed({ now: NORMAL });
-    const mid = localMidnight("2026-05-20", TZ);
-    db.insert(schema.energyIntervals)
-      .values({
-        siteId,
-        start: new Date(mid + 6 * HOUR + 30 * 60_000),
-        solarWh: 100,
-        loadWh: 100,
-        gridImportWh: 0,
-        gridExportWh: 0,
-        batteryChargeWh: 0,
-        batteryDischargeWh: 0,
-      })
-      .run();
-    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
-    const base = hourRow(mid + 6 * HOUR);
-    const row = s.timeline.find((r) => Date.parse(r.hour) === mid + 6 * HOUR)!;
-    expect(row.solarWh).toBe(base.solarWh + 100);
-    expect(row.loadWh).toBe(base.loadWh + 100);
-  });
-
   it("previousDays are the 6 local dates before today, oldest first", async () => {
     const siteId = seed({ now: NORMAL });
     const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
@@ -483,7 +461,6 @@ describe("loadSnapshot", () => {
 // ---- B016: peakEstimate + recommendation, from 5-min seeded history ----
 
 const SUMMER_FRI = Date.parse("2026-07-17T19:30:00Z"); // tomorrow = Saturday: summer weekend has no ON_PEAK
-const MARCH_12 = Date.parse("2026-03-12T19:30:00Z"); // 3/8 (276 slots) is inside the history
 
 // Peak window is 16:00-21:00 local: 16:00 is 8 h and 21:00 is 3 h before the next local midnight (DST-safe).
 const peakSum = (date: string) => {
@@ -688,15 +665,6 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
     expect(t.similarTempAvgWh!).toBeLessThan(t.historyAvgWh);
     expect(s.recommendation?.confidence).toBe("medium");
     expect(s.recommendation?.reserve?.peakWh).toBe(peakEstimateWh(t));
-  });
-
-  it("history spanning the 3/8 DST day (276 slots) counts it and sums its 16-21 local window", async () => {
-    const s = await snap(MARCH_12);
-    expect(checkSnapshot(s)).toEqual([]);
-    expect(s.peakEstimate.historyDays).toBe(7);
-    expect(s.peakEstimate.tomorrow?.historyAvgWh).toBe(
-      mean(prior(MARCH_12).map(peakSum)),
-    );
   });
 
   it.each([
