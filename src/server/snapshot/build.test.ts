@@ -415,7 +415,7 @@ describe("buildSnapshot", () => {
     });
 
     it("historyDays 6: peakEstimate kept, recommendation null", () => {
-      const pe = days(6, ph(11000, 3));
+      const pe = { ...days(6, ph(11000, 3)), today: ph(9000, 3) };
       const s = buildSnapshot(input(NORMAL, { peakEstimate: pe }));
       expect(checkSnapshot(s)).toEqual([]);
       expect(s.peakEstimate).toEqual(pe);
