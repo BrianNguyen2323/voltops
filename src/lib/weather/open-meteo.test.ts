@@ -16,6 +16,8 @@ const fixture = JSON.parse(
   };
 };
 const FETCHED_AT = 1791340007841;
+const okFetch = () => vi.fn(async () => new Response(JSON.stringify(fixture)));
+const SITE = { lat: 34.05, lon: -118.24, now: FETCHED_AT };
 
 function small(over: Partial<Record<string, (number | null)[]>> = {}) {
   // 4 hours: t0..t3 (unix seconds); the last row has no H+1 value.
@@ -101,7 +103,7 @@ describe("mapForecast", () => {
 
 describe("fetchWeather", () => {
   it("builds the URL with 2-decimal coords and the expected params", async () => {
-    const fetch = vi.fn(async () => new Response(JSON.stringify(fixture)));
+    const fetch = okFetch();
     await fetchWeather({ fetch, lat: 34.0522342, lon: -118.2436849, now: FETCHED_AT });
     const url = new URL(String((fetch.mock.calls[0] as unknown[])[0]));
     expect(url.origin + url.pathname).toBe("https://api.open-meteo.com/v1/forecast");
@@ -118,30 +120,25 @@ describe("fetchWeather", () => {
   });
 
   it("returns mapForecast(json, now)", async () => {
-    const fetch = vi.fn(async () => new Response(JSON.stringify(fixture)));
-    const out = await fetchWeather({ fetch, lat: 34.05, lon: -118.24, now: FETCHED_AT });
+    const out = await fetchWeather({ fetch: okFetch(), ...SITE });
     expect(out).toEqual(mapForecast(fixture, FETCHED_AT));
   });
 
   it("throws with the status on non-2xx", async () => {
     const fetch = vi.fn(async () => new Response("x", { status: 503 }));
-    await expect(
-      fetchWeather({ fetch, lat: 34.05, lon: -118.24, now: FETCHED_AT }),
-    ).rejects.toThrow("open-meteo: 503");
+    await expect(fetchWeather({ fetch, ...SITE })).rejects.toThrow("open-meteo: 503");
   });
 
   it("throws on a bad-shape body", async () => {
     const fetch = vi.fn(async () => new Response(JSON.stringify({ hourly: {} })));
-    await expect(
-      fetchWeather({ fetch, lat: 34.05, lon: -118.24, now: FETCHED_AT }),
-    ).rejects.toThrow("open-meteo: bad response");
+    await expect(fetchWeather({ fetch, ...SITE })).rejects.toThrow("open-meteo: bad response");
   });
 });
 
 describe("fetchWeather pastDays / forecastDays (B017)", () => {
   const paramsFor = async (extra: { pastDays?: number; forecastDays?: number }) => {
-    const fetch = vi.fn(async () => new Response(JSON.stringify(fixture)));
-    await fetchWeather({ fetch, lat: 34.05, lon: -118.24, now: FETCHED_AT, ...extra });
+    const fetch = okFetch();
+    await fetchWeather({ fetch, ...SITE, ...extra });
     return new URL(String((fetch.mock.calls[0] as unknown[])[0])).searchParams;
   };
 
