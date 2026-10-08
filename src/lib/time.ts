@@ -33,9 +33,9 @@ export function addDays(date: string, n: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** UTC ms of local 00:00 on `date`; DST-safe via offset correction. */
-export function localMidnight(date: string, tz: string): number {
-  const utc = Date.parse(`${date}T00:00:00Z`);
+/** UTC ms of local clock time `minutes` after midnight on `date` (1440 = next midnight); DST-safe via offset correction. */
+export function localTime(date: string, minutes: number, tz: string): number {
+  const utc = Date.parse(`${date}T00:00:00Z`) + minutes * 60_000;
   let ms = utc;
   for (let i = 0; i < 2; i++) {
     const p = localParts(ms, tz);
@@ -43,3 +43,5 @@ export function localMidnight(date: string, tz: string): number {
   }
   return ms;
 }
+
+export const localMidnight = (date: string, tz: string) => localTime(date, 0, tz);

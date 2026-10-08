@@ -233,7 +233,12 @@ it("stores name, capacity (nested nameplate_energy_watts) and reserve from site_
   stubFetch({ products, siteInfo: () => Response.json(fixture) });
   await run();
   expect(await siteRow()).toEqual([
-    { name: "My Home", cap: 27000, reserve: 20 },
+    {
+      name: "My Home",
+      cap: 27000,
+      reserve: (fixture.response as { backup_reserve_percent: number })
+        .backup_reserve_percent,
+    },
   ]);
   expectNoMarkers();
   expect(logged()).not.toContain("My Home");

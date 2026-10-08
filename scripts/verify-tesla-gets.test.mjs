@@ -552,3 +552,14 @@ test("run: failed today call still appears in results as not ok", async () => {
   assert.equal(t.ok, false);
   assert.ok(!("calendar_history_today" in s.written));
 });
+
+// ---------- B021: installation date ----------
+test("anonymize redacts nested installation_date and keeps sibling fields", () => {
+  const out = anonymize(
+    { response: { installation_date: "2000-01-01T00:00:00Z", installation_time_zone: "America/Los_Angeles", nameplate_power: 5000 } },
+    [],
+  );
+  assert.equal(out.response.installation_date, "REDACTED");
+  assert.equal(out.response.installation_time_zone, "America/Los_Angeles");
+  assert.equal(out.response.nameplate_power, 5000);
+});
