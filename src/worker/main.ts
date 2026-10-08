@@ -49,6 +49,9 @@ async function tick(first = false) {
       lastWeather = now;
       await runWeather(deps);
     }
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error(`[worker] tick ${err.name}: ${err.message}`);
   } finally {
     busy = false;
   }
