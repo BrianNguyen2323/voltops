@@ -60,3 +60,11 @@ it("produces a valid snapshot", async () => {
 - `today`: sums over today's actual hours, plus `selfPoweredPct`.
 - `last7Days`: `previousDays` plus today.
 - `solarOutlook`: today's vs tomorrow's total solar, `changePct` and `direction` ("less" | "more").
+
+## Your system and equipment health
+
+- `system: null | { batteries, solar, plan, firmware, installedOn, changes }` and `equipmentHealth: { solarClearDay, sunnyDayMiss, batteryCapacity, efficiency, backfill }` are both required fields. `system: null` means "not synced yet" and the UI shows "System details not available yet." Every measurement in `equipmentHealth` is null while learning; `backfill` is always present (`{ state: "off", daysDone: 0, daysTotal: 0 }` until the backfill exists).
+- `batteries`: `count` integer >= 1, `model`, `capacityWh`, `maxPowerW` (W), `backupReservePct`. `solar`: `panelCount` / `panelWatts` (user-entered via `SITE_PANEL_COUNT` / `SITE_PANEL_WATTS`; Tesla has no panel data), `bestHourWh` (max hourly solar Wh in stored history) and `bestHourAt` (ISO UTC start of that hour). `plan`: `{ utility, name }`. `installedOn`: YYYY-MM-DD site-local. `changes`: newest first, max 5, `at` ISO UTC.
+- `equipmentHealth`: `solarClearDay` = median clear-hour solar Wh per GHI for `month` as % of `baselineMonth` (a year earlier); `sunnyDayMiss` = latest clear day in the last 7 whose solar was > 25% under expected; `batteryCapacity` = median (battery Wh moved / SoC points moved x 100) over swings of >= 40 points in `month` (null under 5 swings); `efficiency` = monthly discharge Wh / charge Wh x 100; months are `YYYY-MM`.
+- `checkSnapshot` rules: counts, Wh and W are integers >= 0; `count >= 1`; `pctOfBaseline` and `pct` within 0-200; `daysDone <= daysTotal`; months `YYYY-MM`; dates `YYYY-MM-DD`; `changes.length <= 5`.
+- The UI derives the status chips (do not supply): solar below 95% = Watch, below 85% = Check, a `sunnyDayMiss` = Check; battery capacity below 90% of `capacityWh` = Watch, below 80% = Check; efficiency below 85% = Watch; a null measurement = Learning.

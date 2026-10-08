@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { sampleSnapshot } from "../app/(protected)/home/data";
 import {
   checkSnapshot,
@@ -118,6 +118,14 @@ function build(today: string, tz = TZ, actualLoadWh = 800): DashboardSnapshot {
       lowC: 10,
       cloudCoverPct: 10,
       precipitationChancePct: 0,
+    },
+    system: null,
+    equipmentHealth: {
+      solarClearDay: null,
+      sunnyDayMiss: null,
+      batteryCapacity: null,
+      efficiency: null,
+      backfill: { state: "off", daysDone: 0, daysTotal: 0 },
     },
   };
 }

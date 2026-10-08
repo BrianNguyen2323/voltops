@@ -74,7 +74,7 @@ describe("Dashboard structure", () => {
     expect(h1).toEqual([sampleDashboard.site.name]);
   });
 
-  it("renders the seven h2 sections in order", () => {
+  it("renders the eight h2 sections in order", () => {
     expect(h2s(html)).toEqual([
       "Right now",
       "Tonight",
@@ -83,6 +83,7 @@ describe("Dashboard structure", () => {
       "Cost today",
       "Last 7 days",
       "Forecast accuracy",
+      "Your system",
     ]);
   });
 
@@ -106,7 +107,7 @@ describe("Dashboard header flags", () => {
     expect(text(off)).toContain("Connect Tesla");
     expect(off).toContain('href="/api/auth/tesla"');
     // sections still render
-    expect(h2s(off)).toHaveLength(7);
+    expect(h2s(off)).toHaveLength(8);
 
     const on = render({ connected: true });
     expect(text(on)).not.toContain("Connect Tesla");
