@@ -19,7 +19,7 @@ Fetch and store real data, never pruned.
 
 Order: wave 1 = B001, B002, B005, B009 (parallel, disjoint files) → wave 2 = B003, B006, B004 → wave 3 = B008, B007.
 
-## M3: peak estimate + reserve advice (Rev 2, R002)
+## M3: peak estimate + reserve advice (Rev 2, R002) — DONE 2026-10-07 on `middleware` (e7f48a9)
 The Peak hours tile and the Tonight advice show real numbers; past weather is gap-filled.
 - B014 Fleet-api tests follow the re-recorded fixtures (856a5b7)
 - B015 Peak SQL module (2 averages, complete days) + `localTime` helper
