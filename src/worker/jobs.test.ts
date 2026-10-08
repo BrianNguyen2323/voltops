@@ -717,4 +717,18 @@ describe("B017 fillWeatherGaps", () => {
     expect(lines.some((l) => l.includes(`[worker] fillWeatherGaps site=${bad.id} Error: open-meteo: 500`))).toBe(true);
     expect(obsHours(good.id).length).toBeGreaterThan(0);
   });
+
+  // B018: past_days counts UTC days, so a site behind UTC in the evening is a UTC day ahead.
+  it("B018 evening local (03:00 UTC next day): past_days covers the oldest gap day's whole span", async () => {
+    const now = Date.UTC(2026, 9, 6, 3, 0, 0); // 2026-10-05 20:00 PDT
+    const site = addSite(LL);
+    seedEnergy(site.id, "2026-10-02"); // 3 local days back, spans 10-02 07:00Z .. 10-03 07:00Z
+    const f = meteo(now);
+    await run(f, now, site);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(urlOf(f).searchParams.get("past_days")).toBe("4");
+    expect(obsHours(site.id)).toEqual(dayHours("2026-10-02"));
+    await run(f, now, site);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
 });
