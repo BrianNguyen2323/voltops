@@ -5,7 +5,7 @@ import { asc, eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "~/lib/core/types";
-import { checkSnapshot } from "~/lib/dashboard";
+import { checkSnapshot, peakEstimateWh, reservePlan } from "~/lib/dashboard";
 import { mapCalendarHistory } from "~/lib/sources/fleet-api/map";
 import { addDays, localDate, localMidnight } from "~/lib/time";
 import { mapForecast } from "~/lib/weather/open-meteo";
@@ -168,6 +168,16 @@ describe.each([
     };
     const snap = await loadSnapshot({ db, source, now }, siteOf()[0]!.id);
     expect(checkSnapshot(snap)).toEqual([]);
+    // 7 complete days (today-7 .. today-1) of the 27 kWh demo home: the advice shows up.
+    expect(snap.peakEstimate.historyDays).toBe(7);
+    expect(snap.peakEstimate.today).not.toBeNull();
+    expect(snap.peakEstimate.tomorrow).not.toBeNull();
+    expect(snap.recommendation?.reserve).toEqual(
+      reservePlan(peakEstimateWh(snap.peakEstimate.tomorrow!), 27000, 20),
+    );
+    expect(snap.recommendation?.action).toBe(
+      `Raise backup reserve to ${snap.recommendation?.reserve?.targetPct}%`,
+    );
   });
 });
 
