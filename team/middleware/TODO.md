@@ -165,3 +165,10 @@ Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) 
 
 **Q3. Docker Desktop is not running**, so B026's docker smoke (the last O1 gate) can't run. Lint and the config/Dockerfile review already PASS. Start Docker Desktop (or reply "start it" and I'll launch it), then I re-run `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` and merge B026.
 - Answer (PO, 2026-10-08): Docker is up; smoke re-run started.
+
+### Grilling #1 Energy history, round 1 — ANSWERED 2026-10-08 (all recommended)
+1. Contents: `energy_intervals` + `weather_observed` (the glossary's Energy history). SoC samples and forecast weather stay where they are.
+2. Reads **and** writes go through the module (one upsert rule; the worker and the seed share it).
+3. Callers pass a Site and Site-local dates (`YYYY-MM-DD`); all UTC/midnight/DST math is inside. Stored times stay UTC ms.
+4. No behavior change: a pure restructure. Non-whole-hour time zones and the 92-day gap edge stay in the backlog.
+5. Replace, don't layer: one module test file on in-memory SQLite (incl. DST days); `peak.test.ts` and the energy parts of the load/jobs tests move there.
