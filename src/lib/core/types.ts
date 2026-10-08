@@ -18,8 +18,25 @@ export type EnergyInterval = {
   batteryDischargeWh: number;
 };
 
+export type SiteInfo = {
+  name: string | null;
+  timezone: string | null;
+  usableCapacityWh: number | null;
+  backupReservePct: number | null;
+  tariff: {
+    id: string;
+    name: string | null;
+    utility: string | null;
+    currency: string | null;
+    content: unknown;
+  } | null;
+};
+
 export type DataSource = {
   id: "fleet-api" | "local-gateway" | "replay";
+  /** External ids of energy sites with resource_type "battery", in response order. */
+  listSites(): Promise<string[]>;
+  getSiteInfo(siteId: string): Promise<SiteInfo>;
   getLiveStatus(siteId: string): Promise<LiveSample>;
   getHistory(
     siteId: string,

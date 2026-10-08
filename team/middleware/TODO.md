@@ -146,7 +146,7 @@ All of it is on the **`middleware`** branch (last merge e7f48a9). It isn't on `m
 Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw, plus the probe result.
 - Answer: **a, approved** (PO, 2026-10-08). The PO opens the PR `middleware` → `main`. B019 (README) is on `middleware` too. `scripts/generate-tesla-keypair.mjs`: leave as is (the PO has plans for it). The fixtures re-recorded by this probe are still uncommitted; the PO decides.
 
-## USER INPUT REQUIRED — Decision round 3: architecture pick (O1, 2026-10-08)
+## Decision round 3: architecture pick (O1, 2026-10-08) — ANSWERED
 
 `/improve-codebase-architecture` report: `C:\Users\nguye\AppData\Local\Temp\architecture-review-20261008-middleware.html` (outside the repo). Candidates:
 1. **Energy history module** owns every `energy_intervals` read and write; "complete day" is defined once (today it's defined twice: worker vs peak SQL). Strong. **My recommendation.**
@@ -161,7 +161,43 @@ Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) 
 **Q2. `pnpm format:check` flags 453 files repo-wide** (pre-existing, not in the gate). It touches every scope's files.
 - **A (recommended):** leave it. Do one repo-wide `prettier --write` commit later, when no team has open branches.
 - B: add format:check to the gate now (a one-off reformat first).
-- Answer:
+- Answer (PO, 2026-10-08): **reformat now**, after the lead confirmed no team has open branches (all merged into main 10edebf; nothing in doing/gate). B027.
 
 **Q3. Docker Desktop is not running**, so B026's docker smoke (the last O1 gate) can't run. Lint and the config/Dockerfile review already PASS. Start Docker Desktop (or reply "start it" and I'll launch it), then I re-run `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` and merge B026.
 - Answer (PO, 2026-10-08): Docker is up; smoke re-run started.
+
+### Grilling #1 Energy history, round 1 — ANSWERED 2026-10-08 (all recommended)
+1. Contents: `energy_intervals` + `weather_observed` (the glossary's Energy history). SoC samples and forecast weather stay where they are.
+2. Reads **and** writes go through the module (one upsert rule; the worker and the seed share it).
+3. Callers pass a Site and Site-local dates (`YYYY-MM-DD`); all UTC/midnight/DST math is inside. Stored times stay UTC ms.
+4. No behavior change: a pure restructure. Non-whole-hour time zones and the 92-day gap edge stay in the backlog.
+5. Replace, don't layer: one module test file on in-memory SQLite (incl. DST days); `peak.test.ts` and the energy parts of the load/jobs tests move there.
+
+### Grilling #1 round 2 + Site sync round 1 — ANSWERED 2026-10-08 (all recommended)
+Q1 Site-bound handle; Q2 the operation list, peak averages inside; Q3 `src/server/history/`; Q4 observed and forecast as two separate writes; Q5 split B028 module → B029 rewire. Site sync: Q6 `getSiteInfo` on the DataSource + `mapSiteInfo`; Q7 at login + daily (~30 req/month); Q8 all 5 facts, tariff replaced whole; Q9 login stores creds, then syncs via the client with the fresh token; Q10 a failure never blocks login; Q11 the seed uses the mapper.
+→ SPEC Revision 3, `design/revisions/R003.md`, milestone M4 (B028–B031).
+
+**FYI (no action needed):** for Q10 I said a failed sync would show "as a Health warning". There's no job-run table, so the worker can't put anything on the dashboard. A failed site-sync is a log line, like every other worker job; the dashboard still says "No tariff from Tesla" when a tariff is missing. Say so if you want a job-run table (a later item).
+
+## Review: M4, Energy history + Site sync (2026-10-08) — APPROVED 2026-10-08
+
+Everything is on **`middleware`** (last merge 5b5f119; **+ B033 31ceb81**: the SITE_* env settings now reach a Site created after the worker started, e.g. at login, without a worker restart). **You open the PR `middleware` → `main`**; it also carries B027 (repo-wide prettier). Gate on `middleware`: vitest 601/601, test:scripts 71/71, typecheck, lint 0/0, **format:check**, `build:worker`, `build`. Docker smoke PASS (305 MB). Every brief had a tester (where new behavior), an implementer and a reviewer PASS.
+
+**What's new**
+- **Energy history** (`src/server/history/`): one module owns every read and write of stored energy and observed weather. "Complete day" is one rule now. `peak.ts` is gone. This is a pure restructure: the dashboard, the worker and the demo show the same numbers as before.
+- **Site sync:** your site name, timezone, battery capacity, backup reserve and tariff are refreshed **daily by the worker** and at login, through the Tesla client. So a tariff or reserve change in the Tesla app shows up within a day, with no re-login. It costs ~30 extra Tesla requests/month.
+- **Login** no longer hard-codes the North America Fleet API URL (it uses `TESLA_FLEET_BASE_URL`). If the site sync fails at login, you're still logged in and land on `/home`.
+- **Demo** (`VOLTOPS_DEMO`/`seed:replay`): the demo Site's timezone, capacity, reserve and tariff now come from `fixtures/fleet-api/site_info.json`.
+
+**How to try it**
+1. **Demo (no Tesla):** in a throwaway checkout, run `pnpm db:migrate`, `pnpm seed:replay`, `pnpm dev`, then open `/home`. It should look exactly as before: 7 days of history, the Peak hours tile and the Tonight advice.
+2. **Your system (Docker):** `docker compose up -d --build --force-recreate` (your containers were still on the pre-M4 image), then `docker compose logs -f worker`. On the first tick you should see no `site-sync` error. `/home` should look as before.
+3. **Site sync for real:** change the backup reserve in the Tesla app, then restart the worker (`docker compose restart worker`; it syncs on its first tick). The reserve on `/home` (Tonight's advice) should follow.
+4. **Optional:** click "Connect Tesla" again. The login should land on `/home` as before.
+
+**Things to know**
+- A failed site sync shows only in the worker log (`[worker] site-sync site=<n> <ErrorName>`), not on the dashboard. There's no job-run table yet (see the FYI above).
+- The demo tariff id is now the fixture's real plan name (a public SCE plan id, already in the committed fixtures) instead of `replay`.
+
+Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw.
+- Answer (PO, 2026-10-08): **a, approved.** The PO opened the PR `middleware` → `main` (M4 + B027 prettier + B033).

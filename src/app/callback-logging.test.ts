@@ -7,7 +7,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { NextRequest } from "next/server";
-import { afterEach, beforeEach, expect, it, vi, type MockInstance } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 
 const jar = vi.hoisted(() => new Map<string, string>());
 vi.mock("next/headers", () => ({
@@ -102,7 +109,7 @@ const logged = () => JSON.stringify(allArgs());
 const expectNoMarkers = () => {
   for (const m of MARKERS) expect(logged()).not.toContain(m);
 };
-const warns = () => (spies[1]!.mock.calls);
+const warns = () => spies[1]!.mock.calls;
 
 const leakyBody = {
   error: "forbidden",
@@ -115,9 +122,8 @@ it("products non-OK logs status + error code only", async () => {
   stubFetch({ products: () => Response.json(leakyBody, { status: 403 }) });
   await run();
   expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch products:",
-    403,
-    "forbidden",
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
   ]);
   expectNoMarkers();
 });
@@ -128,15 +134,11 @@ it("site_info non-OK logs status + error code only", async () => {
     siteInfo: () => Response.json(leakyBody, { status: 429 }),
   });
   await run();
-  expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch site_info:",
-    429,
-    "forbidden",
-  ]);
+  expect(warns()).toContainEqual(["[Tesla OAuth] site sync", "RateLimited"]);
   expectNoMarkers();
 });
 
-it("non-JSON error body logs \"unknown\" and does not crash", async () => {
+it('non-JSON error body logs "unknown" and does not crash', async () => {
   stubFetch({
     products,
     siteInfo: () =>
@@ -146,30 +148,29 @@ it("non-JSON error body logs \"unknown\" and does not crash", async () => {
   });
   await run();
   expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch site_info:",
-    500,
-    "unknown",
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
   ]);
   expectNoMarkers();
 });
 
-it("non-string error field logs \"unknown\"", async () => {
+it('non-string error field logs "unknown"', async () => {
   stubFetch({
     products: () =>
       Response.json({ error: { detail: "BODY-ONLY-MARKER" } }, { status: 400 }),
   });
   await run();
   expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch products:",
-    400,
-    "unknown",
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
   ]);
   expectNoMarkers();
 });
 
 it("token exchange non-OK logs status + error code only", async () => {
   stubFetch({
-    token: () => Response.json({ ...leakyBody, error: "invalid_grant" }, { status: 400 }),
+    token: () =>
+      Response.json({ ...leakyBody, error: "invalid_grant" }, { status: 400 }),
     products,
   });
   await run();
@@ -181,17 +182,16 @@ it("token exchange non-OK logs status + error code only", async () => {
   expectNoMarkers();
 });
 
-it("JSON null error body logs \"unknown\" and does not throw", async () => {
+it('JSON null error body logs "unknown" and does not throw', async () => {
   stubFetch({ products: () => new Response("null", { status: 502 }) });
   await run();
   expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch products:",
-    502,
-    "unknown",
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
   ]);
 });
 
-it("success path logs timezone and site status but no tariff ID", async () => {
+it("success path logs nothing about the site and no tariff ID", async () => {
   stubFetch({
     products,
     siteInfo: () =>
@@ -205,12 +205,8 @@ it("success path logs timezone and site status but no tariff ID", async () => {
       }),
   });
   await run();
-  const logs = spies[0]!.mock.calls;
-  expect(logs).toContainEqual(["[Tesla OAuth] Energy site:", "found"]);
-  expect(logs).toContainEqual([
-    "[Tesla OAuth] Timezone:",
-    "America/Los_Angeles",
-  ]);
+  expect(warns()).toEqual([]);
+  expect(await siteRow()).toHaveLength(1);
   expect(logged()).not.toContain("Tariff");
   expectNoMarkers();
 });
@@ -266,10 +262,44 @@ it("missing site_info values store null", async () => {
   stubFetch({
     products,
     siteInfo: () =>
-      Response.json({ response: { installation_time_zone: "America/Los_Angeles" } }),
+      Response.json({
+        response: { installation_time_zone: "America/Los_Angeles" },
+      }),
   });
   await run();
   expect(await siteRow()).toEqual([{ name: null, cap: null, reserve: null }]);
 });
 
+// B031 regression: a failing site sync must not undo or hide a successful login.
+async function login() {
+  const { GET } = await import("~/app/api/auth/callback/route");
+  return GET(
+    new NextRequest("http://0.0.0.0:3000/api/auth/callback?code=abc&state=s"),
+  );
+}
+
+it("stores credentials even when syncSite throws", async () => {
+  stubFetch({
+    products,
+    siteInfo: () => Response.json(leakyBody, { status: 500 }),
+  });
+  await login();
+  const { db } = await import("~/server/db");
+  expect(db.$client.prepare("SELECT id FROM credentials").all()).toEqual([
+    { id: 1 },
+  ]);
+  expect(warns()).toContainEqual([
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
+  ]);
+});
+
+it("a sync failure still redirects to /home", async () => {
+  stubFetch({ products: () => Response.json(leakyBody, { status: 500 }) });
+  const res = await login();
+  expect(res.status).toBe(307);
+  const loc = new URL(res.headers.get("location")!);
+  expect(loc.pathname).toBe("/home");
+  expect(loc.searchParams.has("error")).toBe(false);
+});
 vi.setConfig({ testTimeout: 60000, hookTimeout: 60000 });

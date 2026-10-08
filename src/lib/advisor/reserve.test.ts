@@ -36,7 +36,9 @@ import { dayHighC, peakWindow, reserveRecommendation } from "./reserve";
 const HOUR = 3_600_000;
 const TZ = "America/Los_Angeles";
 
-const siteInfo = JSON.parse(readFileSync("fixtures/fleet-api/site_info.json", "utf8")) as {
+const siteInfo = JSON.parse(
+  readFileSync("fixtures/fleet-api/site_info.json", "utf8"),
+) as {
   response: { tariff_content: unknown };
 };
 const sce = parseTariff(siteInfo.response.tariff_content)!; // SCE TOU-D-4-9PM
@@ -84,8 +86,11 @@ const base = {
   updatedMs: NOW,
   tariff: flat(0.48, 0.25),
 };
-const rec = (o: Partial<Parameters<typeof reserveRecommendation>[0]> & { tomorrow: PeakHistory | null }) =>
-  reserveRecommendation({ ...base, ...o });
+const rec = (
+  o: Partial<Parameters<typeof reserveRecommendation>[0]> & {
+    tomorrow: PeakHistory | null;
+  },
+) => reserveRecommendation({ ...base, ...o });
 
 describe("reserveRecommendation", () => {
   it("27 kWh battery, 11 kWh peak: reserve 61%, 253 cents ($0.48 vs $0.25)", () => {
@@ -104,14 +109,21 @@ describe("reserveRecommendation", () => {
 
   it("capped case: a peak above 80% of capacity targets 100% and covers less than the peak", () => {
     const r = rec({ tomorrow: ph(25_000) })!;
-    expect(r.reserve).toMatchObject({ extraPct: 80, targetPct: 100, peakWh: 25_000, coveredWh: 21_600 });
+    expect(r.reserve).toMatchObject({
+      extraPct: 80,
+      targetPct: 100,
+      peakWh: 25_000,
+      coveredWh: 21_600,
+    });
     expect(r.action).toBe("Raise backup reserve to 100%");
     expect(r.effectWh).toBe(21_600);
     expect(r.savingsCents).toBe(497); // round(21600 * 23 / 1000) = round(496.8)
   });
 
   it("estimate is the mean of both averages when the similar-temperature one exists", () => {
-    const r = rec({ tomorrow: ph(10_000, { similarTempDays: 4, similarTempAvgWh: 14_000 }) })!;
+    const r = rec({
+      tomorrow: ph(10_000, { similarTempDays: 4, similarTempAvgWh: 14_000 }),
+    })!;
     expect(r.reserve?.peakWh).toBe(12_000);
   });
 
@@ -122,28 +134,42 @@ describe("reserveRecommendation", () => {
     expect(rec({ tomorrow: ph(11_000), tariff: null })).toBeNull();
     // 2026-07-17 is a Friday; tomorrow (Saturday) is PARTIAL_PEAK in summer, not "peak".
     expect(
-      rec({ tomorrow: ph(11_000), tariff: sce, updatedMs: Date.parse("2026-07-17T19:30:00Z") }),
+      rec({
+        tomorrow: ph(11_000),
+        tariff: sce,
+        updatedMs: Date.parse("2026-07-17T19:30:00Z"),
+      }),
     ).toBeNull();
   });
 
   it("confidence: low under 3 similar days, medium from 3", () => {
-    expect(rec({ tomorrow: ph(11_000, { similarTempDays: 2 }) })?.confidence).toBe("low");
     expect(
-      rec({ tomorrow: ph(11_000, { similarTempDays: 3, similarTempAvgWh: 12_000 }) })?.confidence,
+      rec({ tomorrow: ph(11_000, { similarTempDays: 2 }) })?.confidence,
+    ).toBe("low");
+    expect(
+      rec({
+        tomorrow: ph(11_000, { similarTempDays: 3, similarTempAvgWh: 12_000 }),
+      })?.confidence,
     ).toBe("medium");
   });
 
   it("why lines in deg F (converted, then rounded) with a similar-temperature average", () => {
     const r = rec({
       historyDays: 30,
-      tomorrow: ph(11_200, { highC: 35, similarTempDays: 8, similarTempAvgWh: 15_400 }),
+      tomorrow: ph(11_200, {
+        highC: 35,
+        similarTempDays: 8,
+        similarTempAvgWh: 15_400,
+      }),
     })!;
     expect(r.why).toEqual([
       "Usual peak use: 11.2 kWh over 30 days",
       "On days near 95°F: 15.4 kWh over 8 days",
       "Tomorrow's forecast high: 95°F",
     ]);
-    expect(r.wouldChange).toBe("A different forecast high for tomorrow, or a tariff change.");
+    expect(r.wouldChange).toBe(
+      "A different forecast high for tomorrow, or a tariff change.",
+    );
   });
 
   it("why lines when there are too few similar days", () => {
@@ -156,7 +182,11 @@ describe("reserveRecommendation", () => {
   });
 
   it("deg C is rounded; deg F converts before rounding (34.6 C = 94 F, not 95)", () => {
-    const t = ph(11_000, { highC: 34.6, similarTempDays: 3, similarTempAvgWh: 11_000 });
+    const t = ph(11_000, {
+      highC: 34.6,
+      similarTempDays: 3,
+      similarTempAvgWh: 11_000,
+    });
     expect(rec({ temperatureUnit: "C", tomorrow: t })?.why).toEqual([
       "Usual peak use: 11.0 kWh over 30 days",
       "On days near 35°C: 11.0 kWh over 3 days",
@@ -185,14 +215,22 @@ describe("reserveRecommendation", () => {
     expect(r.validFrom).toBe(new Date(updatedMs).toISOString());
     expect(r.validTo).toBe("2026-07-21T04:00:00.000Z"); // Monday 21:00 PDT
     // SCE summer: ON_PEAK 58.972, lowest off-peak 36.829 cents/kWh
-    expect(r.savingsCents).toBe(Math.round((r.effectWh * (58.972 - 36.829)) / 1000));
+    expect(r.savingsCents).toBe(
+      Math.round((r.effectWh * (58.972 - 36.829)) / 1000),
+    );
   });
 
   it("validTo is local 21:00 across DST (tomorrow 2026-03-09 and 2026-11-02)", () => {
-    const spring = rec({ tomorrow: ph(11_000), updatedMs: Date.parse("2026-03-08T20:00:00Z") })!;
+    const spring = rec({
+      tomorrow: ph(11_000),
+      updatedMs: Date.parse("2026-03-08T20:00:00Z"),
+    })!;
     expect(spring.validFrom).toBe("2026-03-09T04:00:00.000Z"); // 21:00 PDT
     expect(spring.validTo).toBe("2026-03-10T04:00:00.000Z");
-    const fall = rec({ tomorrow: ph(11_000), updatedMs: Date.parse("2026-11-01T20:00:00Z") })!;
+    const fall = rec({
+      tomorrow: ph(11_000),
+      updatedMs: Date.parse("2026-11-01T20:00:00Z"),
+    })!;
     expect(fall.validFrom).toBe("2026-11-02T05:00:00.000Z"); // 21:00 PST
     expect(fall.validTo).toBe("2026-11-03T05:00:00.000Z");
   });
@@ -272,11 +310,15 @@ describe("dayHighC", () => {
   const at = (h: number, tempC: number) => ({ hour: mid + h * HOUR, tempC });
 
   it("takes the max over the day", () => {
-    expect(dayHighC("2026-05-20", TZ, [at(3, 12), at(14, 28)], [at(20, 20)])).toBe(28);
+    expect(
+      dayHighC("2026-05-20", TZ, [at(3, 12), at(14, 28)], [at(20, 20)]),
+    ).toBe(28);
   });
 
   it("prefers the observed temp over the forecast for the same hour", () => {
-    expect(dayHighC("2026-05-20", TZ, [at(10, 15)], [at(10, 40), at(20, 20)])).toBe(20);
+    expect(
+      dayHighC("2026-05-20", TZ, [at(10, 15)], [at(10, 40), at(20, 20)]),
+    ).toBe(20);
   });
 
   it("falls back to the forecast for hours without an observed temp", () => {
@@ -284,12 +326,18 @@ describe("dayHighC", () => {
   });
 
   it("ignores hours outside the local day", () => {
-    const rows = [{ hour: mid - HOUR, tempC: 50 }, { hour: mid + 24 * HOUR, tempC: 50 }, at(5, 10)];
+    const rows = [
+      { hour: mid - HOUR, tempC: 50 },
+      { hour: mid + 24 * HOUR, tempC: 50 },
+      at(5, 10),
+    ];
     expect(dayHighC("2026-05-20", TZ, rows, rows)).toBe(10);
   });
 
   it("is null when no hour has a temperature", () => {
     expect(dayHighC("2026-05-20", TZ, [], [])).toBeNull();
-    expect(dayHighC("2026-05-20", TZ, [{ hour: mid - HOUR, tempC: 20 }], [])).toBeNull();
+    expect(
+      dayHighC("2026-05-20", TZ, [{ hour: mid - HOUR, tempC: 20 }], []),
+    ).toBeNull();
   });
 });
