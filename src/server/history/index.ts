@@ -52,19 +52,25 @@ export function energyHistory(
   ];
   const slots = (d: string) =>
     (localMidnight(addDays(d, 1), tz) - localMidnight(d, tz)) / FIVE;
+  // The one "complete day" rule: at least the day's 5-min slot count (extra or misaligned rows still count).
+  // completeDays applies the same rule in SQL as `COUNT(*) >= slots`.
+  const isFull = (n: number, date: string) => n >= slots(date);
 
   const isComplete = (date: string) =>
-    db
-      .select({ n: count() })
-      .from(e)
-      .where(
-        and(
-          eq(e.siteId, site.id),
-          gte(e.start, new Date(localMidnight(date, tz))),
-          lt(e.start, new Date(localMidnight(addDays(date, 1), tz))),
-        ),
-      )
-      .get()!.n >= slots(date);
+    isFull(
+      db
+        .select({ n: count() })
+        .from(e)
+        .where(
+          and(
+            eq(e.siteId, site.id),
+            gte(e.start, new Date(localMidnight(date, tz))),
+            lt(e.start, new Date(localMidnight(addDays(date, 1), tz))),
+          ),
+        )
+        .get()!.n,
+      date,
+    );
 
   return {
     putIntervals(rows: EnergyInterval[]) {
@@ -188,7 +194,7 @@ export function energyHistory(
           sql`
     WITH days(day, a, b, slots) AS (VALUES ${sql.raw(rows.join(","))})
     SELECT day FROM days JOIN energy_intervals e ON e.site_id = ${site.id} AND e.start >= a AND e.start < b
-    GROUP BY day HAVING COUNT(*) = slots ORDER BY day`,
+    GROUP BY day HAVING COUNT(*) >= slots ORDER BY day`,
         )
         .map((r) => r.day);
     },

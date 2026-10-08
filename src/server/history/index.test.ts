@@ -259,6 +259,14 @@ describe("isComplete", () => {
     seedDay(hist(otherId), "2026-05-10");
     expect(hist().isComplete("2026-05-10")).toBe(false);
   });
+
+  it("treats a day with every slot plus a misaligned extra row as complete, in isComplete and completeDays", () => {
+    const h = hist();
+    seedDay(h, "2026-05-10");
+    h.putIntervals([iv(localMidnight("2026-05-10", TZ) + 2 * 60_000)]); // 289 rows, start at :02
+    expect(h.isComplete("2026-05-10")).toBe(true);
+    expect(h.completeDays("2026-05-11")).toEqual(["2026-05-10"]);
+  });
 });
 
 describe("completeDays", () => {
