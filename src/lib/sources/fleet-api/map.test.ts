@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mapCalendarHistory, mapLiveStatus } from "./map";
+import {
+  mapCalendarHistory,
+  mapLiveStatus,
+  mapProducts,
+  mapSiteInfo,
+} from "./map";
 
 const fx = (n: string): unknown =>
   JSON.parse(readFileSync(`fixtures/fleet-api/${n}.json`, "utf8"));
@@ -189,5 +194,101 @@ describe("mapCalendarHistory", () => {
   it("rejects invalid input via zod", () => {
     expect(() => mapCalendarHistory({ response: {} })).toThrow();
     expect(() => mapCalendarHistory(undefined)).toThrow();
+  });
+});
+
+// First numeric nameplate_energy_watts anywhere in the tree (read from the fixture, not pinned).
+const nameplate = (v: unknown): number | null => {
+  if (typeof v !== "object" || !v) return null;
+  for (const [k, x] of Object.entries(v)) {
+    if (k === "nameplate_energy_watts" && typeof x === "number") return x;
+    const r = nameplate(x);
+    if (r !== null) return r;
+  }
+  return null;
+};
+
+describe("mapSiteInfo", () => {
+  const raw = fx("site_info") as {
+    response: {
+      site_name: string;
+      installation_time_zone: string;
+      backup_reserve_percent: number;
+      components: unknown;
+      tariff_id: string;
+      utility: string;
+      tariff_content: { name: string; currency: string };
+    };
+  };
+  const r = raw.response;
+
+  it("maps the fixture's facts", () => {
+    expect(mapSiteInfo(raw)).toEqual({
+      name: r.site_name,
+      timezone: r.installation_time_zone,
+      usableCapacityWh: nameplate(r.components),
+      backupReservePct: r.backup_reserve_percent,
+      tariff: {
+        id: r.tariff_id,
+        name: r.tariff_content.name,
+        utility: r.utility,
+        currency: r.tariff_content.currency,
+        content: r.tariff_content,
+      },
+    });
+    expect(mapSiteInfo(raw).usableCapacityWh).not.toBeNull();
+  });
+
+  it("returns null for every missing field", () => {
+    expect(mapSiteInfo({ response: {} })).toEqual({
+      name: null,
+      timezone: null,
+      usableCapacityWh: null,
+      backupReservePct: null,
+      tariff: null,
+    });
+  });
+
+  it("tariff is null without tariff_id even if tariff_content exists", () => {
+    expect(
+      mapSiteInfo({ response: { ...r, tariff_id: undefined } }).tariff,
+    ).toBeNull();
+  });
+
+  it("tariff with an id but no content/utility keeps null name, utility, currency", () => {
+    expect(mapSiteInfo({ response: { tariff_id: "T1" } }).tariff).toMatchObject(
+      { id: "T1", name: null, utility: null, currency: null },
+    );
+  });
+});
+
+describe("mapProducts", () => {
+  const products = fx("products") as {
+    response: { energy_site_id: unknown; resource_type: string }[];
+  };
+
+  it("returns the fixture's battery site ids as strings", () => {
+    expect(mapProducts(products)).toEqual(
+      products.response
+        .filter((p) => p.resource_type === "battery")
+        .map((p) => String(p.energy_site_id)),
+    );
+  });
+
+  it("keeps battery sites only, stringified, in response order", () => {
+    expect(
+      mapProducts({
+        response: [
+          { resource_type: "vehicle", id: 1 },
+          { resource_type: "battery", energy_site_id: 222 },
+          { resource_type: "solar", energy_site_id: 333 },
+          { resource_type: "battery", energy_site_id: 111 },
+        ],
+      }),
+    ).toEqual(["222", "111"]);
+  });
+
+  it("returns [] when there are no battery sites", () => {
+    expect(mapProducts({ response: [] })).toEqual([]);
   });
 });
