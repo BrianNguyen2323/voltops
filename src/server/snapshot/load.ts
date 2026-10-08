@@ -17,7 +17,12 @@ const LIVE_TTL = 60_000;
 const liveCache = new Map<number, { at: number; live: LiveSample }>();
 
 export function firstSiteId(db: Db): number | null {
-  return db.select({ id: min(s.sites.id) }).from(s.sites).get()?.id ?? null;
+  return (
+    db
+      .select({ id: min(s.sites.id) })
+      .from(s.sites)
+      .get()?.id ?? null
+  );
 }
 
 export async function loadSnapshot(
@@ -37,13 +42,20 @@ export async function loadSnapshot(
         live = await source.getLiveStatus(site.externalId);
         liveCache.set(siteId, { at: now, live });
       } catch (e) {
-        console.warn(`[snapshot] live unavailable site=${site.id} ${e instanceof Error ? e.name : "Error"}`);
+        console.warn(
+          `[snapshot] live unavailable site=${site.id} ${e instanceof Error ? e.name : "Error"}`,
+        );
         liveUnavailable = true;
       }
   } else liveUnavailable = true;
   const lastRow =
-    db.select().from(s.samples).where(eq(s.samples.siteId, siteId)).orderBy(desc(s.samples.ts)).limit(1).get() ??
-    null;
+    db
+      .select()
+      .from(s.samples)
+      .where(eq(s.samples.siteId, siteId))
+      .orderBy(desc(s.samples.ts))
+      .limit(1)
+      .get() ?? null;
   if (!live) {
     if (!lastRow) throw new Error("no live reading and no stored sample");
     live = {
@@ -81,12 +93,23 @@ export async function loadSnapshot(
     .all();
 
   const latestIntervalStart =
-    db.select({ t: max(e.start) }).from(e).where(eq(e.siteId, siteId)).get()?.t?.getTime() ?? null;
+    db
+      .select({ t: max(e.start) })
+      .from(e)
+      .where(eq(e.siteId, siteId))
+      .get()
+      ?.t?.getTime() ?? null;
 
   const samples = db
     .select({ ts: s.samples.ts, socPct: s.samples.socPct })
     .from(s.samples)
-    .where(and(eq(s.samples.siteId, siteId), gte(s.samples.ts, t0), lt(s.samples.ts, t2)))
+    .where(
+      and(
+        eq(s.samples.siteId, siteId),
+        gte(s.samples.ts, t0),
+        lt(s.samples.ts, t2),
+      ),
+    )
     .all()
     .map((r) => ({ ts: r.ts.getTime(), socPct: r.socPct }));
 
@@ -112,7 +135,7 @@ export async function loadSnapshot(
     .map((r) => ({ hour: r.hour, ghiWm2: r.ghiWm2 }));
 
   // Oldest issue first, so the Map keeps the latest-issued row per target hour.
-  const latest = new Map<number, (typeof s.weatherForecast.$inferSelect)>();
+  const latest = new Map<number, typeof s.weatherForecast.$inferSelect>();
   for (const r of db
     .select()
     .from(s.weatherForecast)
@@ -150,7 +173,13 @@ export async function loadSnapshot(
     const w = peakWindow(tariff, date, tz);
     const highC = dayHighC(date, tz, observedTemps, forecast);
     return w && highC !== null
-      ? peakHistory(db, siteId, { tz, days, fromMin: w.fromMin, toMin: w.toMin, highC })
+      ? peakHistory(db, siteId, {
+          tz,
+          days,
+          fromMin: w.fromMin,
+          toMin: w.toMin,
+          highC,
+        })
       : null;
   };
 

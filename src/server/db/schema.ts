@@ -1,5 +1,12 @@
 import { sql } from "drizzle-orm";
-import { check, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
 const ts = (name: string) => integer(name, { mode: "timestamp_ms" });
 
