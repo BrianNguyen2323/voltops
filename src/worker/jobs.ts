@@ -157,6 +157,7 @@ export async function syncWeather({ db, fetch, now }: Deps, site: Site) {
 
 const GAP_DAYS = 92;
 const HOUR = 3_600_000;
+const DAY_MS = 24 * HOUR;
 
 /** Backfill observed weather for past site-local days that have energy but incomplete weather. */
 export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
@@ -208,7 +209,15 @@ export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
     lat: site.latitude,
     lon: site.longitude,
     now,
-    pastDays: Math.round((to - localMidnight(gaps[0]!, tz)) / 86_400_000),
+    // Open-Meteo runs with timezone=UTC, so past_days counts UTC days back
+    pastDays: Math.min(
+      92,
+      Math.max(
+        1,
+        Math.floor(now / DAY_MS) -
+          Math.floor(localMidnight(gaps[0]!, tz) / DAY_MS),
+      ),
+    ),
     forecastDays: 1,
   });
   const gapSet = new Set(gaps);
