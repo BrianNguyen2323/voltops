@@ -730,3 +730,79 @@ describe("Tonight card clarity", () => {
     expect(html).not.toMatch(infoButton);
   });
 });
+
+describe("Your system section (Rev 8)", () => {
+  const html = render();
+  const t = text(html);
+  const aboutCount = (h: string) =>
+    (h.match(/aria-label="About/g) ?? []).length;
+
+  it("has an H2 'Your system', last", () => {
+    const all = h2s(html);
+    expect(all[all.length - 1]).toBe("Your system");
+  });
+  it.each([
+    "2 batteries · Powerwall 3",
+    "27.0 kWh",
+    "11.5 kW",
+    "20%",
+    "24 panels × 400 W",
+    "9.6 kW",
+    "Best hour so far",
+    "7.9 kWh",
+    "Est. capacity 26.1 kWh (97% of 27.0 kWh)",
+    "Round-trip efficiency 88%",
+    "Clear-day output 98% of June 2025",
+    "Southern California Edison",
+    "Firmware 26.26.11",
+    "Grid outage, 2 h 10 min",
+  ])("shows %s", (s) => expect(t).toContain(s));
+
+  it("shows OK chips", () => expect(t).toMatch(/\bOK\b/));
+  it("adds two About buttons for the health lines", () => {
+    const without = render({ view: { ...sampleDashboard, system: null } });
+    expect(aboutCount(html) - aboutCount(without)).toBe(2);
+  });
+
+  it("panels null -> 'Panel details not set'", () => {
+    const sys = structuredClone(sampleDashboard.system!);
+    sys.solar.panelCount = null;
+    sys.solar.panelWatts = null;
+    expect(
+      text(render({ view: { ...sampleDashboard, system: sys } })),
+    ).toContain("Panel details not set");
+  });
+  it("system null -> 'System details not available yet.'", () => {
+    const h = render({ view: { ...sampleDashboard, system: null } });
+    expect(h2s(h)).toContain("Your system");
+    expect(text(h)).toContain("System details not available yet.");
+  });
+  it("all health null + backfill running -> 'Loading past data: 230 of 730 days'", () => {
+    const equipmentHealth = {
+      solarClearDay: null,
+      sunnyDayMiss: null,
+      batteryCapacity: null,
+      efficiency: null,
+      backfill: { state: "running" as const, daysDone: 230, daysTotal: 730 },
+    };
+    const h = text(render({ view: { ...sampleDashboard, equipmentHealth } }));
+    expect(h).toContain("Loading past data: 230 of 730 days");
+    expect(h).toContain("Learning");
+  });
+  it("batteryCapacity null -> Learning", () => {
+    const equipmentHealth = {
+      ...sampleDashboard.equipmentHealth,
+      batteryCapacity: null,
+    };
+    expect(
+      text(render({ view: { ...sampleDashboard, equipmentHealth } })),
+    ).toContain("Learning");
+  });
+  it("one battery is singular", () => {
+    const sys = structuredClone(sampleDashboard.system!);
+    sys.batteries.count = 1;
+    const h = text(render({ view: { ...sampleDashboard, system: sys } }));
+    expect(h).toContain("1 battery");
+    expect(h).not.toContain("1 batteries");
+  });
+});

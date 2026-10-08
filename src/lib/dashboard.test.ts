@@ -687,3 +687,50 @@ describe("toDashboardView: peakUsage", () => {
     expect(toDashboardView(at7).peakUsage.learning).toBe(false);
   });
 });
+
+describe("checkSnapshot: system and equipment health rules (Rev 8)", () => {
+  const sys = (s: DashboardSnapshot) => {
+    if (!s.system) throw new Error("sample needs system");
+    return s.system;
+  };
+  const bad = (mut: (s: DashboardSnapshot) => void) =>
+    expect(problems(mut).length).toBeGreaterThan(0);
+  it("sample has a system and passes", () => {
+    expect(sampleSnapshot.system).not.toBeNull();
+    expect(checkSnapshot(sampleSnapshot)).toEqual([]);
+  });
+  it("accepts system: null", () =>
+    expect(problems((s) => (s.system = null))).toEqual([]));
+  it("reports a battery count of 0", () =>
+    bad((s) => (sys(s).batteries.count = 0)));
+  it("reports negative Wh", () =>
+    bad((s) => (sys(s).batteries.capacityWh = -1)));
+  it("reports efficiency pct 250", () =>
+    bad((s) => (s.equipmentHealth.efficiency = { month: "2026-06", pct: 250 })));
+  it("reports pctOfBaseline 250", () =>
+    bad(
+      (s) =>
+        (s.equipmentHealth.solarClearDay = {
+          month: "2026-06",
+          baselineMonth: "2025-06",
+          pctOfBaseline: 250,
+          clearHours: 41,
+        }),
+    ));
+  it("reports daysDone > daysTotal", () =>
+    bad(
+      (s) =>
+        (s.equipmentHealth.backfill = {
+          state: "running",
+          daysDone: 11,
+          daysTotal: 10,
+        }),
+    ));
+  it("reports a bad month string", () =>
+    bad((s) => (s.equipmentHealth.efficiency = { month: "June", pct: 88 })));
+  it("reports 6 changes", () =>
+    bad((s) => {
+      const c = sys(s).changes[0]!;
+      sys(s).changes = Array.from({ length: 6 }, () => ({ ...c }));
+    }));
+});
