@@ -1,10 +1,12 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource, EnergyInterval, LiveSample } from "~/lib/core/types";
 import { AuthExpired } from "~/lib/core/types";
+import { mapSiteInfo } from "~/lib/sources/fleet-api/map";
 import { addDays, localMidnight } from "~/lib/time";
 import { fetchWeather } from "~/lib/weather/open-meteo";
 import { openDb } from "~/server/db";
@@ -15,6 +17,7 @@ import {
   fillWeatherGaps,
   isTeslaIdle,
   parseSiteSettings,
+  runSiteSync,
   runTesla,
   runWeather,
   syncEnergy,
@@ -776,5 +779,75 @@ describe("B017 fillWeatherGaps", () => {
     expect(obsHours(site.id)).toEqual(dayHours("2026-10-02"));
     await run(f, now, site);
     expect(f).toHaveBeenCalledTimes(1);
+  });
+});
+
+// B031 daily site-sync job. Contract assumed: runSiteSync(deps) exported from ./jobs.
+describe("B031 runSiteSync", () => {
+  const info = mapSiteInfo(
+    JSON.parse(readFileSync("fixtures/fleet-api/site_info.json", "utf8")),
+  );
+  const lines = () => {
+    const out: string[] = [];
+    for (const m of ["log", "warn", "error", "info"] as const)
+      vi.spyOn(console, m).mockImplementation(
+        (...a: unknown[]) => void out.push(a.map(String).join(" ")),
+      );
+    return out;
+  };
+
+  it("syncs every fleet-api site from the source and skips replay sites", async () => {
+    const a = addSite({ externalId: "EXT-A", timezone: "UTC" });
+    const b = addSite({ externalId: "EXT-B", timezone: "UTC" });
+    const r = addSite({ source: "replay", externalId: "replay" });
+    const getSiteInfo = vi.fn(() => Promise.resolve(info));
+    const { source } = fakeSource({ getSiteInfo });
+    await runSiteSync(mkDeps(source, NOW));
+    expect(
+      getSiteInfo.mock.calls.map((c) => (c as unknown[])[0]).sort(),
+    ).toEqual(["EXT-A", "EXT-B"]);
+    const row = (id: number) =>
+      db.select().from(schema.sites).where(eq(schema.sites.id, id)).get();
+    for (const id of [a.id, b.id])
+      expect(row(id)).toMatchObject({
+        timezone: info.timezone,
+        usableCapacityWh: info.usableCapacityWh,
+        backupReservePct: info.backupReservePct,
+      });
+    expect(row(r.id)!.timezone).toBe(TZ);
+    expect(row(r.id)!.usableCapacityWh).toBeNull();
+  });
+
+  it("one site failing is logged by name and does not stop the others", async () => {
+    const out = lines();
+    const bad = addSite({ externalId: "EXT-SECRET-BAD" });
+    const good = addSite({ externalId: "EXT-SECRET-GOOD" });
+    const { source } = fakeSource({
+      getSiteInfo: vi.fn((id: string) =>
+        id === "EXT-SECRET-BAD"
+          ? Promise.reject(new AuthExpired("token expired"))
+          : Promise.resolve(info),
+      ),
+    });
+    await runSiteSync(mkDeps(source, NOW));
+    expect(
+      out.some((l) =>
+        l.includes(
+          `[worker] site-sync site=${bad.id} AuthExpired: token expired`,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      db.select().from(schema.sites).where(eq(schema.sites.id, good.id)).get()!
+        .usableCapacityWh,
+    ).toBe(info.usableCapacityWh);
+    expect(out.join("\n")).not.toContain("EXT-SECRET");
+  });
+
+  it("does nothing without fleet-api sites", async () => {
+    addSite({ source: "replay", externalId: "replay" });
+    const getSiteInfo = vi.fn(() => Promise.resolve(info));
+    await runSiteSync(mkDeps(fakeSource({ getSiteInfo }).source, NOW));
+    expect(getSiteInfo).not.toHaveBeenCalled();
   });
 });
