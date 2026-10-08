@@ -470,3 +470,61 @@ Built and merged on `front-end-development` (1f92288). Gate green: 627 tests, ty
 Screenshots: `data/shots/b034-fix-*.png`.
 
 **Answer:** "approved", or list changes (these become the next round). Then you merge `front-end-development` → `main`. Next on my side: the optimization round (due after M7).
+
+---
+
+## USER INPUT REQUIRED — Decision round 4 (2026-10-08): "Your system" section. Research: `research/system-info/README.md`
+
+**What exists.** Checked against the data recorded from your real site:
+- **Tesla gives us:**
+  - battery count: **2**;
+  - model: **Powerwall 3**;
+  - total storage: **27 kWh**;
+  - max battery power: **11.5 kW**;
+  - backup reserve: **20%**;
+  - utility and rate plan: **SCE TOU-D 4-9PM**;
+  - firmware;
+  - install date.
+- **Tesla does not give us:** solar panel count, panel rating, or solar system size. They aren't in any Fleet API response. The local gateway reports solar *strings*, not panels, and that source isn't built yet.
+- **Panel ratings are power (W), not energy (kWh).** A 400 W panel makes 400 W in full sun; its kWh depends on how many hours of sun it gets. So the section shows "panel rating (W)" and "best hour so far (kWh)" rather than a "max kWh per panel".
+
+Answer in chat or here, e.g. "all recommended".
+
+**Q1. What the section shows.**
+- **A (recommended):**
+  - **Batteries:**
+    - "2 batteries · Powerwall 3";
+    - stores **27.0 kWh**;
+    - up to **11.5 kW**;
+    - backup reserve **20%**.
+  - **Solar:**
+    - "**24 panels × 400 W** = **9.6 kW** system";
+    - best hour so far **7.9 kWh** (≈ 330 W per panel);
+    - when panels aren't entered: "Panel details not set" with how to set them.
+  - **Plan:** utility + rate plan, peak hours.
+  - **Details** (small, muted): firmware, installed date, data source.
+  - The panel numbers above are sample placeholders.
+- B: batteries and solar only. No plan or details.
+- Answer:
+
+**Q2. Where panel count and rating come from.**
+- **A (recommended): two env vars, `SITE_PANEL_COUNT` and `SITE_PANEL_WATTS`.** Same pattern as the existing `SITE_*` settings the worker applies, documented in `.env.example`. A Settings screen can replace them later.
+- B: no input until a Settings screen exists. Solar shows only the best measured hour.
+- C: guess the system size from the best measured hour (no panel count). It's always available, but it's an estimate and can't give a panel count.
+- Answer:
+
+**Q3. Where the section goes.**
+- **A (recommended):** a "Your system" section at the bottom of `/home`, above the status line. It's reference info, so it shouldn't push the live data down. It's a 3-tile row on desktop (Batteries · Solar · Plan) that stacks on a phone.
+- B: its own `/system` page. That needs navigation, which we deferred in round 1 (Q7).
+- Answer:
+
+**Q4. Who does what** (same split as topic 2).
+- **A (recommended):**
+  - The front-end adds `system` to the snapshot contract, sample values, the section, a `null`/"not available" state, and a stub in `build.ts`.
+  - The middleware gets a backlog brief:
+    - parse `battery_count`, gateway `part_name`, `nameplate_power`, `version` and `installation_date` from `site_info`;
+    - add the panel env vars;
+    - store the new columns;
+    - fill the best solar hour from history.
+- B: the front-end does both. That crosses into middleware-owned DB and adapter code, so they'd have to review it.
+- Answer:

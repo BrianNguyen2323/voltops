@@ -1,5 +1,17 @@
 # Resume board — front-end
 
+- **Topic 4 (PO, 2026-10-08, before the optimization round): a "Your system" section.**
+  - It covers battery count, storage, panel count, panel rating and other details. Placeholders only; the middleware connects the real data.
+  - Research `research/system-info/README.md`: Fleet API has battery count, model, storage, power, reserve, plan, firmware and install date. It has **no** panel count, rating or solar size (user-entered per CLAUDE.md section 6).
+  - **Status: Decision round 4 in TODO.md, waiting on the PO.** M7's review item is also still open.
+  - **Next:**
+    - record the answers;
+    - SPEC Rev 8 + R008;
+    - M8 brief B035 (front-end) + a middleware backlog brief;
+    - tester -> implementer -> reviewer;
+    - then the optimization round.
+
+## Topic 3 record
 - **Topic 3 (PO, 2026-10-08): Tonight card clarity.**
   - (1) "From 9:00 PM until 9:00 PM" is confusing.
   - (2) An info tooltip on the confidence/"what would change it" line that explains the confidence level and the scenarios.
