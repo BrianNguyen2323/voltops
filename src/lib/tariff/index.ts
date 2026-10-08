@@ -65,12 +65,9 @@ function classify(t: Tariff, ms: number, tz: string) {
   const minutes = p.hour * 60 + p.minute;
   for (const [sName, s] of Object.entries(t.seasons)) {
     if (!inSeason(s, p.month, p.day)) continue;
-    for (const [name, ws] of Object.entries(s.tou_periods)) {
-      if (ws.some((w) => inWindow(w, p.weekday, minutes))) {
-        return { period: NAMES[name] ?? ("off-peak" as TouPeriod), season: sName, name };
-      }
-    }
-    return { period: "off-peak" as TouPeriod, season: sName, name: "OFF_PEAK" };
+    const hit = Object.entries(s.tou_periods).find(([, ws]) => ws.some((w) => inWindow(w, p.weekday, minutes)));
+    const name = hit?.[0] ?? "OFF_PEAK";
+    return { period: NAMES[name] ?? ("off-peak" as TouPeriod), season: sName, name };
   }
   return { period: "off-peak" as TouPeriod, season: undefined, name: "OFF_PEAK" };
 }
