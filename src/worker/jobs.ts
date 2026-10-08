@@ -181,6 +181,14 @@ export function applySiteSettings(
   if (Object.keys(set).length) db.update(s.sites).set(set).run();
 }
 
+/** Runs at the start of every worker tick, so Sites created since the last tick get the env settings. */
+export function prepareTick(
+  db: Db,
+  settings: Parameters<typeof applySiteSettings>[1],
+) {
+  applySiteSettings(db, settings);
+}
+
 /** Never logs externalId, tokens or bodies: only job, internal site id, error name and message. */
 async function guarded(job: string, site: Site, f: () => Promise<void>) {
   try {

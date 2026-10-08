@@ -17,6 +17,7 @@ import {
   fillWeatherGaps,
   isTeslaIdle,
   parseSiteSettings,
+  prepareTick,
   runSiteSync,
   runTesla,
   runWeather,
@@ -849,5 +850,37 @@ describe("B031 runSiteSync", () => {
     const getSiteInfo = vi.fn(() => Promise.resolve(info));
     await runSiteSync(mkDeps(fakeSource({ getSiteInfo }).source, NOW));
     expect(getSiteInfo).not.toHaveBeenCalled();
+  });
+});
+
+describe("B033 prepareTick", () => {
+  const env = {
+    SITE_LATITUDE: 34.05,
+    SITE_LONGITUDE: -118.24,
+    TEMPERATURE_UNIT: "F" as const,
+  };
+  it("applies the settings to a Site created after the first tick", () => {
+    prepareTick(db, env);
+    const late = addSite({
+      externalId: "late",
+      latitude: null,
+      longitude: null,
+    });
+    expect(late.latitude).toBeNull();
+    prepareTick(db, env);
+    expect(
+      db.select().from(schema.sites).where(eq(schema.sites.id, late.id)).get(),
+    ).toMatchObject({
+      latitude: 34.05,
+      longitude: -118.24,
+      temperatureUnit: "F",
+    });
+  });
+  it("changes nothing with empty settings", () => {
+    const s = addSite({ externalId: "x", latitude: null, longitude: null });
+    prepareTick(db, {});
+    expect(
+      db.select().from(schema.sites).where(eq(schema.sites.id, s.id)).get(),
+    ).toEqual(s);
   });
 });
