@@ -72,3 +72,10 @@ Implementer: `Use skill: frontend-design` (the line and the popover must fit the
     - at 390 the popover touches the left edge (`collisionPadding={8}`).
   - Fix-up implementer spawned on `phase2b/tonight-clarity-fix` (the must-fix + both nits).
 - Fix-up 2ad2632 on `phase2b/tonight-clarity-fix`: `onCloseAutoFocus` preventDefault, `collisionPadding={8}`, the last word + ⓘ in a `whitespace-nowrap` span (only when there is info). Gate green (627/71/tsc/lint/build). Hover-leave and Escape close it at 1440. Re-review spawned.
+- Re-review (2ad2632): **PASS**.
+  - Diff scope OK; gate green.
+  - At 1440: hover-leave, Escape, outside click and keyboard all behave; the ⓘ is on the same line.
+  - At 390: tap opens it, 8 px margin, an outside tap closes it.
+  - Screenshots in `data/shots/b034-fix-*.png`.
+  - Nits (open): at 390 the popover bottom is ~2 px past the viewport (the page scrolls); `lastIndexOf(" ")` is computed twice in `dashboard.tsx`.
+- **Merged 1f92288** into `front-end-development`. Gate there: vitest 627/627, scripts green, tsc, lint clean, build OK, `/home` 219 kB / 321 kB First Load (was 217/320). Worktrees and branches removed.

@@ -4,14 +4,16 @@
   - (1) "From 9:00 PM until 9:00 PM" is confusing.
   - (2) An info tooltip on the confidence/"what would change it" line that explains the confidence level and the scenarios.
   - Research: `research/tonight-clarity/README.md`. Finding: `validTo` = end of tomorrow's peak. It should be the peak *start*: the reserve must drop back to 20% so the battery covers the peak.
-- **Status: round 3 answered (all A, 2026-10-08). SPEC Rev 7. M7 / B034 in doing: tester spawned on `phase2b/tonight-clarity-test`.**
+- **Status: M7 DONE 2026-10-08 (merge 1f92288 on `front-end-development`), waiting on the PO's review** (TODO.md "Review: M7").
+  - Gate on `front-end-development`: vitest 627, scripts, tsc, lint, build; `/home` 219/321 kB.
+  - Middleware records updated: SPEC L166 + a note in their RESUME.
 - **Next action:**
-  - record the answers;
-  - SPEC Rev 7 + R007;
-  - M7 brief B034-tonight-window-tooltip (IDs are shared across scopes; B033 is the last), tester → implementer → reviewer with screenshots. Use skill `frontend-design`.
-  - If Q1 A, the owned files include `src/lib/advisor/reserve.ts` (+ test). Then note the change in `team/middleware/design/SPEC.md` L166 and their RESUME.
-  - **The optimization round is due after M7.**
-- **Open branches / worktrees:** none.
+  - fold in the PO's review notes;
+  - then the **optimization round** (due now, after M7): a `cleaner` per area, a perf/size pass, and a TODO item asking the PO to run `/improve-codebase-architecture`.
+  - Open nits:
+    - the popover runs ~2 px past the viewport at 390;
+    - `lastIndexOf` is computed twice in `dashboard.tsx`.
+- **Open branches / worktrees:** none from this topic. `worktree-agent-a1fb…`, `acef…` and `a85ac…` predate it (other scopes) and are left alone.
 
 ## Topic 2 record
 - **Topic 2 (PO, 2026-10-07): peak-hours usage estimate + reserve advice.**

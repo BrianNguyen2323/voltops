@@ -31,7 +31,7 @@
 - B012 contract (`peakEstimate`, `recommendation.reserve`, `peakEstimateWh`, `reservePlan`, check rules, `peakUsage` view), sample values, the tile + the Tonight sentence, the `build.ts` stub, the doc section. Tester → implementer → reviewer with screenshots.
 - Then: the lead refreshes the middleware's doc copy; middleware B013 (in their backlog) fills the real numbers; a PO review.
 
-## M7 — Tonight card clarity (window fix, two-step line, ⓘ popover) — SPEC Rev 7
+## M7 — Tonight card clarity (window fix, two-step line, ⓘ popover) — SPEC Rev 7 — DONE 2026-10-08 (1f92288 on `front-end-development`)
 - B034 advisor `validTo` = peak start, the two-step line with day words, the ⓘ popover (shadcn Popover) with confidence and scenario copy, sample `validTo`. Tester → implementer → reviewer with screenshots.
 - Then: the lead updates middleware SPEC L166 and their RESUME, then a PO review. **The optimization round is due after M7.**
 

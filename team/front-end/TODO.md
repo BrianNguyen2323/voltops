@@ -455,3 +455,18 @@ Answer in chat or here, e.g. "all recommended" or "Q2 B, rest recommended".
 - **A (recommended):** an ⓘ icon button after the confidence line. It opens on hover and keyboard focus (desktop) **and** on tap (phone). Built on shadcn Popover, which adds `src/components/ui/popover.tsx`. `radix-ui` is already installed, so no new dependency.
 - B: a shadcn Tooltip, hover/focus only. On a phone it never opens.
 - Answer: **A** (PO, 2026-10-08).
+
+## USER INPUT REQUIRED — Review: M7 Tonight card clarity (2026-10-08)
+Built and merged on `front-end-development` (1f92288). Gate green: 627 tests, typecheck, lint, build.
+
+**Run it:** `pnpm dev`, then open `/home`. The sample data shows the reserve advice.
+
+**What to try:**
+1. The Tonight card shows "**Tonight at 9:00 PM**, after today's peak hours end, raise it to 89%. **Tomorrow at 4:00 PM**, when peak hours start, lower it back to 20% so the battery covers the peak." The old "From 9:00 PM until 9:00 PM" is gone.
+2. Hover the ⓘ after "…reserve needed." on desktop. It opens and closes when you move away or press Escape. On a phone (or at a narrow width), tap it, then tap outside.
+3. Read the 3 sections: "Why medium confidence", "If tomorrow's forecast high changes" (70°F–81°F for the sample), "If your tariff changes" (4:00 PM–9:00 PM).
+4. Real data: the advisor's end time is now the **start** of tomorrow's peak. If your instance has ≥ 7 days of history, the card should read "Tomorrow at 4:00 PM".
+
+Screenshots: `data/shots/b034-fix-*.png`.
+
+**Answer:** "approved", or list changes (these become the next round). Then you merge `front-end-development` → `main`. Next on my side: the optimization round (due after M7).
