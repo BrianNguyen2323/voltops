@@ -10,19 +10,10 @@ import type {
 import { forecastHours } from "~/lib/forecast/baseline";
 import { costToday, tariffAt, type Tariff } from "~/lib/tariff";
 import { addDays, localDate, localMidnight } from "~/lib/time";
+import type { HourEnergy } from "~/server/history";
 
 const HOUR = 3_600_000;
 const SAMPLE_TOLERANCE = 30 * 60_000;
-
-export type HourRow = {
-  start: number;
-  solarWh: number;
-  loadWh: number;
-  gridImportWh: number;
-  gridExportWh: number;
-  batteryChargeWh: number;
-  batteryDischargeWh: number;
-};
 
 export type BuildInput = {
   now: number;
@@ -41,10 +32,10 @@ export type BuildInput = {
   live: LiveSample;
   liveUnavailable: boolean;
   lastSampleTs: number | null;
-  /** max(energy_intervals.start) for the site; falls back to the latest hour bucket when null/absent. */
+  /** latest interval start for the site; falls back to the latest hour bucket when null/absent. */
   latestIntervalStart?: number | null;
-  /** energy_intervals summed per UTC hour: today + the 7 days before. */
-  hourly: HourRow[];
+  /** Energy summed per UTC hour: today + the 7 days before. */
+  hourly: HourEnergy[];
   samples: { ts: number; socPct: number }[];
   observed: { hour: number; ghiWm2: number }[];
   /** Latest-issued row per target hour. */
