@@ -54,3 +54,12 @@ Implementer: `Use skill: frontend-design` (the line and the popover must fit the
 - **Worktree:** junction `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`; `cmd //c rmdir node_modules` before finishing; never `--force`. Keep commands bounded (no watch mode). Prettier only on owned files. **COMMIT and give the hash.**
 
 ## Gate log
+- Tests 01428f0 on `phase2b/tonight-clarity-test`:
+  - 11 tests fail plus 1 suite that can't load (`tonight.ts` missing), all for the right reason.
+  - Shapes fixed by the tester:
+    - `dayWord` returns lowercase words or a capitalised weekday;
+    - `reserveSteps` → `{ lead, rest }[]` (2 entries);
+    - `confidenceInfo` → `{ title, text }[] | null`.
+  - validTo expectations: 16:00 local (5/21 → 23:00Z; fall DST 11/2 → 2026-11-03T00:00Z).
+  - The n = 0 copy keeps the "Until then …" tail.
+  - Implementer spawned.
