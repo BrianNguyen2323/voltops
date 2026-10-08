@@ -4,7 +4,7 @@
   - (1) "From 9:00 PM until 9:00 PM" is confusing.
   - (2) An info tooltip on the confidence/"what would change it" line that explains the confidence level and the scenarios.
   - Research: `research/tonight-clarity/README.md`. Finding: `validTo` = end of tomorrow's peak. It should be the peak *start*: the reserve must drop back to 20% so the battery covers the peak.
-- **Status: Decision round 3 in TODO.md, waiting on the PO.**
+- **Status: round 3 answered (all A, 2026-10-08). SPEC Rev 7. M7 / B034 in doing: tester spawned on `phase2b/tonight-clarity-test`.**
 - **Next action:**
   - record the answers;
   - SPEC Rev 7 + R007;
