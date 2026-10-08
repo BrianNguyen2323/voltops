@@ -63,3 +63,4 @@ Implementer: `Use skill: frontend-design` (the line and the popover must fit the
   - validTo expectations: 16:00 local (5/21 → 23:00Z; fall DST 11/2 → 2026-11-03T00:00Z).
   - The n = 0 copy keeps the "Until then …" tail.
   - Implementer spawned.
+- Impl 32dbde9 on `phase2b/tonight-clarity-impl`: vitest 627, scripts 71, typecheck, lint clean, build OK. No edits outside the owned files. `clock` moved into `tonight.ts` and is re-imported by the dashboard. The docs don't describe `validTo` (unchanged). Reviewer spawned.
