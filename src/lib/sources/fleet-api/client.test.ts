@@ -90,7 +90,9 @@ describe("fleet client", () => {
   it("refreshes the token with Basic auth, then GETs live_status with Bearer", async () => {
     seed();
     const s = await mk().getLiveStatus(SITE);
-    expect(s.solarW).toBe(5469);
+    expect(s.solarW).toBe(
+      (fx("live_status") as { response: { solar_power: number } }).response.solar_power,
+    );
     const [tUrl, tInit] = tokenCalls()[0]!;
     expect(String(tUrl)).toBe("https://auth.tesla.com/oauth2/v3/token");
     expect(tInit!.method).toBe("POST");
