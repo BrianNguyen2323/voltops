@@ -100,8 +100,8 @@ describe("syncSite", () => {
       backupReservePct: 77,
     });
     expect(rows()[0]!.createdAt).toEqual(created);
-    expect(rows()[0]!.updatedAt.getTime()).toBeGreaterThanOrEqual(
-      created.getTime(),
+    expect(rows()[0]!.updatedAt!.getTime()).toBeGreaterThanOrEqual(
+      created!.getTime(),
     );
   });
 

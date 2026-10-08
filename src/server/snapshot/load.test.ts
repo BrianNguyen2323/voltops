@@ -81,6 +81,8 @@ const fakeSource = (
   });
   const source: DataSource = {
     id,
+    listSites: () => Promise.resolve([]),
+    getSiteInfo: () => Promise.reject(new Error("unused")),
     getLiveStatus,
     getHistory: vi.fn(async () => []),
   };
