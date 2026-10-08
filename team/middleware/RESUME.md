@@ -28,12 +28,11 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
 - **Final gate on main:** vitest 448, tsc, lint, test:scripts 70, build:worker, build; docker smoke PASS at 305 MB (reviewer, on the merged tree).
 - **Last action:** wrote the PO Review item (890e44e). All merged worktrees and branches removed.
 - **Incoming from front-end (2026-10-07):** `plan/board/backlog/B013-peak-estimate.md` covers the peak-hours estimate (2 SQL averages: all history + similar temperature), the reserve advice (`recommendation.reserve`) and the weather gap-fill. Start after front-end B012 (contract + helpers + stub) merges.
-- **Fixtures re-recorded again (uncommitted, 2026-10-08 00:02, likely by `pnpm verify:tesla`):** 2 tests fail on them: `map.test.ts` hard-coded `2026-10-06T07:05Z` start (B014 review nit) and "does not warn at exactly 50 W imbalance". The committed tree is green. Waiting on the PO: commit or revert them, plus the probe line.
 - **Next action:**
   - **M3 APPROVED by the PO (2026-10-08), probe answered** (N = 9 vs ~8: partial today works; no fetch-plan change). The PO opens the PR `middleware` → `main`;
   - after that PR merges (so the approved PR stays clean), start the **optimization round**: a `cleaner` per package (`src/lib/advisor`, `src/server/snapshot`, `src/worker`, `src/lib/weather`, `src/lib/tariff`, `src/lib/sources`), a perf/size pass, and a TODO item asking the PO to run `/improve-codebase-architecture`;
   - cleaner candidates: `BuildInput.peakEstimate` optional → required (`build.test.ts:21` says "required"); gap-fill loads all 92 days of intervals into JS (a GROUP BY would do); the 2 old lint warnings; `pnpm format:check` reports 453 files (pre-existing, not in the gate);
-  - if the PO commits the re-recorded fixtures: fix the 2 red tests in `map.test.ts` (hard-coded `2026-10-06T07:05Z`; "does not warn at exactly 50 W imbalance");
+  - fixtures re-recorded + committed a491385 (Haiku scan PASS); B020 (ac9eceb) made `map.test.ts` recording-independent. Left: the "fixture balances" no-warn check (`map.test.ts:26`) still assumes a recording balances within 50 W; the scan flagged `site_info.installation_date` as a quasi-identifier (PO to decide on redacting it in `verify:tesla`); `du.exe.stackdump` untracked, never `git add -A`;
   - leave `scripts/generate-tesla-keypair.mjs` alone (PO).
 - **Open branches / worktrees:** only 2 locked, empty spawns (`agent-acef4e3717147cf8b`, `agent-a1fb976491a87f4dd`) and `rv-b001`. Their removal was denied to the lead; it's in the PO housekeeping list. `worktree-agent-a85ac516cb7dc60dd` predates this team.
 - **Follow-ups / backlog ideas (not MVP):**
