@@ -71,3 +71,4 @@ Implementer: `Use skill: frontend-design` (the line and the popover must fit the
     - the ⓘ wraps alone onto its own line at 1440;
     - at 390 the popover touches the left edge (`collisionPadding={8}`).
   - Fix-up implementer spawned on `phase2b/tonight-clarity-fix` (the must-fix + both nits).
+- Fix-up 2ad2632 on `phase2b/tonight-clarity-fix`: `onCloseAutoFocus` preventDefault, `collisionPadding={8}`, the last word + ⓘ in a `whitespace-nowrap` span (only when there is info). Gate green (627/71/tsc/lint/build). Hover-leave and Escape close it at 1440. Re-review spawned.
