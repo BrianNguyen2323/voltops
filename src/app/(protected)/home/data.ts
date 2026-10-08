@@ -159,7 +159,7 @@ export const sampleSnapshot: DashboardSnapshot = {
   recommendation: {
     action: `Raise backup reserve to ${reserve.targetPct}%`,
     validFrom: "2026-07-16T04:00:00Z", // 21:00 local
-    validTo: "2026-07-17T04:00:00Z",
+    validTo: "2026-07-16T23:00:00Z",
     effectWh: reserve.coveredWh,
     // covered Wh x (peak rate - off-peak rate)
     savingsCents: Math.round(
