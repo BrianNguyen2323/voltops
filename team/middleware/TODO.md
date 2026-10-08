@@ -145,3 +145,20 @@ All of it is on the **`middleware`** branch (last merge e7f48a9). It isn't on `m
 
 Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw, plus the probe result.
 - Answer: **a, approved** (PO, 2026-10-08). The PO opens the PR `middleware` → `main`. B019 (README) is on `middleware` too. `scripts/generate-tesla-keypair.mjs`: leave as is (the PO has plans for it). The fixtures re-recorded by this probe are still uncommitted; the PO decides.
+
+## USER INPUT REQUIRED — Decision round 3: architecture pick (O1, 2026-10-08)
+
+`/improve-codebase-architecture` report: `C:\Users\nguye\AppData\Local\Temp\architecture-review-20261008-middleware.html` (outside the repo). Candidates:
+1. **Energy history module** owns every `energy_intervals` read and write; "complete day" is defined once (today it's defined twice: worker vs peak SQL). Strong. **My recommendation.**
+2. **Site sync**: site_info joins the DataSource; the callback and a daily worker job share one mapping, so tariff/reserve/capacity changes are picked up without re-login, and the hard-coded NA base URL goes away. Strong. Costs ~30 Tesla requests/month.
+3. **Collapse snapshot load/build** into one `loadSnapshot` test surface. Worth exploring (after 1).
+4. **Tariff day**: the tariff module returns a whole Site-local day (periods, peak window, cheapest off-peak). Worth exploring.
+5. **One demo adapter**: retire the hand-simulated `home/data.ts` sample in favour of replay. Speculative; front-end owns that file.
+
+**Q1. Which to explore?** Pick one or more (e.g. "1 and 2"). We then grill the shape together, and your pick becomes SPEC Revision 3.
+- Answer:
+
+**Q2. `pnpm format:check` flags 453 files repo-wide** (pre-existing, not in the gate). It touches every scope's files.
+- **A (recommended):** leave it. Do one repo-wide `prettier --write` commit later, when no team has open branches.
+- B: add format:check to the gate now (a one-off reformat first).
+- Answer:
