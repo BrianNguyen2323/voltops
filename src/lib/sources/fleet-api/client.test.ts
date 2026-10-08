@@ -374,7 +374,7 @@ describe("fleet client", () => {
         clientId: "cid",
         clientSecret: "csecret",
         sleep,
-      } as Parameters<typeof createFleetClient>[0]);
+      });
     const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 
     it("two connections refresh one at a time and the second uses the rotated token", async () => {
