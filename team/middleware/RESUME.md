@@ -2,6 +2,7 @@
 
 Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).
 
+- **B019 README rewrite merged into `middleware` 2026-10-08** (PO request, Haiku member; reviewer PASS). Stale `scripts/generate-tesla-keypair.mjs` (TESLA_PRIVATE_KEY, Netlify vars) flagged to the PO.
 - **Status (2026-10-07): M3 DONE on `middleware` (e7f48a9). Waiting on the PO's Review** (TODO.md "Review: M3") and the still-open M1+M2 review + B004 probe. SPEC Revision 2, R002.
   - **Integration branch: `middleware`** (the PO checked it out at main 8dd31b9). Members branch from it; I merge into it; **the PO opens the PR `middleware` → `main`**.
   - M3 merges into `middleware`: B014 c1d3a02 (fixture tests), B017 2291729 (gap-fill), B015 9a6444a (peak SQL), B018 fb80002 (gap-fill UTC past_days), B016 e7f48a9 (advisor + wiring).
