@@ -23,6 +23,7 @@ type Deps = {
 
 const TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token";
 const MIN_LIFE_MS = 5 * 60_000;
+const ROW = eq(credentials.id, 1);
 
 export function createFleetClient(deps: Deps): DataSource {
   const { db, now } = deps;
@@ -61,12 +62,12 @@ export function createFleetClient(deps: Deps): DataSource {
   // Lease instead of a transaction held across the POST: each DB step is one sync transaction.
   function acquireLease(): string | undefined {
     return db.transaction((tx) => {
-      const row = tx.select().from(credentials).where(eq(credentials.id, 1)).get();
+      const row = tx.select().from(credentials).where(ROW).get();
       if (!row) throw new AuthExpired("No Tesla credentials stored");
       if (row.refreshLockUntil && row.refreshLockUntil.getTime() > now()) return undefined;
       tx.update(credentials)
         .set({ refreshLockUntil: new Date(now() + LEASE_MS) })
-        .where(eq(credentials.id, 1))
+        .where(ROW)
         .run();
       return decrypt(row.encryptedRefreshToken, row.iv);
     });
@@ -74,9 +75,7 @@ export function createFleetClient(deps: Deps): DataSource {
 
   async function refresh(): Promise<string> {
     let refreshToken: string | undefined;
-    for (let waited = 0; ; waited += WAIT_STEP_MS) {
-      refreshToken = acquireLease();
-      if (refreshToken) break;
+    for (let waited = 0; !(refreshToken = acquireLease()); waited += WAIT_STEP_MS) {
       if (waited >= WAIT_MAX_MS) throw new SourceUnavailable("token refresh lock timeout");
       await sleep(WAIT_STEP_MS);
     }
@@ -104,14 +103,14 @@ export function createFleetClient(deps: Deps): DataSource {
           updatedAt: new Date(now()),
           refreshLockUntil: null,
         })
-        .where(eq(credentials.id, 1))
+        .where(ROW)
         .run();
       token = { value: t.access_token, expiresAt };
       return t.access_token;
     } catch (e) {
       db.update(credentials)
         .set({ refreshLockUntil: null })
-        .where(eq(credentials.id, 1))
+        .where(ROW)
         .run();
       throw e;
     }

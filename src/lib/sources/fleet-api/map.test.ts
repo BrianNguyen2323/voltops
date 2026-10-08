@@ -5,8 +5,14 @@ import { mapCalendarHistory, mapLiveStatus } from "./map";
 const fx = (n: string): unknown =>
   JSON.parse(readFileSync(`fixtures/fleet-api/${n}.json`, "utf8"));
 const live = fx("live_status") as { response: Record<string, unknown> };
-const lr = live.response as { solar_power: number; load_power: number; battery_power: number };
+const lr = live.response as {
+  solar_power: number;
+  load_power: number;
+  battery_power: number;
+  grid_power: number;
+};
 const balancedGrid = lr.load_power - lr.solar_power - lr.battery_power;
+const residual = lr.solar_power + lr.battery_power + lr.grid_power - lr.load_power;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -23,7 +29,8 @@ describe("mapLiveStatus", () => {
       socPct: r.percentage_charged,
       gridStatus: "connected",
     });
-    expect(warn).not.toHaveBeenCalled(); // fixture balances: solar+battery+grid = load
+    // Warn iff |solar + battery + grid - load| > 50 W for whatever recording is current.
+    expect(warn).toHaveBeenCalledTimes(Math.abs(residual) > 50 ? 1 : 0);
   });
 
   it("rounds watts to integers", () => {
