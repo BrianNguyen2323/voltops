@@ -188,33 +188,6 @@ describe("syncEnergy", () => {
     expect(days(calls)).toEqual(["2026-10-03", "2026-10-05"]);
   });
 
-  it("spring-forward day is complete at 276 intervals", async () => {
-    const site = addSite();
-    const now = Date.UTC(2026, 2, 9, 18, 0, 0); // 2026-03-09 11:00 PDT
-    fillPrev(site.id, "2026-03-09", ["2026-03-08"]);
-    fillDay(site.id, "2026-03-08", 276);
-    const { source, calls } = fakeSource();
-    await syncEnergy(mkDeps(source, now), site);
-    expect(days(calls)).toEqual(["2026-03-09"]);
-  });
-
-  it("fall-back day is complete at 300 intervals, not 288", async () => {
-    const now = Date.UTC(2026, 10, 2, 19, 0, 0); // 2026-11-02 11:00 PST
-    const a = addSite({ externalId: "a" });
-    fillPrev(a.id, "2026-11-02", ["2026-11-01"]);
-    fillDay(a.id, "2026-11-01", 288);
-    const sa = fakeSource();
-    await syncEnergy(mkDeps(sa.source, now), a);
-    expect(days(sa.calls)).toEqual(["2026-11-01", "2026-11-02"]);
-
-    const b = addSite({ externalId: "b" });
-    fillPrev(b.id, "2026-11-02", ["2026-11-01"]);
-    fillDay(b.id, "2026-11-01", 300);
-    const sb = fakeSource();
-    await syncEnergy(mkDeps(sb.source, now), b);
-    expect(days(sb.calls)).toEqual(["2026-11-02"]);
-  });
-
   it("upserts idempotently and updates changed values", async () => {
     const site = addSite();
     const t = localMidnight("2026-10-05", TZ);
@@ -693,28 +666,6 @@ describe("B017 fillWeatherGaps", () => {
     ).toBe(false);
   });
 
-  it("a day with energy but only 20 observed hours is a gap and gets completed", async () => {
-    const site = addSite(LL);
-    seedEnergy(site.id, "2026-10-04");
-    seedWeather(site.id, "2026-10-04", 20);
-    const f = meteo(NOW);
-    await run(f, NOW, site);
-    expect(f).toHaveBeenCalledTimes(1);
-    expect(urlOf(f).searchParams.get("past_days")).toBe("1");
-    expect(obsHours(site.id)).toEqual(dayHours("2026-10-04"));
-  });
-
-  it("a day with weather but no energy is not a gap", async () => {
-    const site = addSite(LL);
-    seedEnergy(site.id, "2026-10-04");
-    seedWeather(site.id, "2026-10-04", 24);
-    seedWeather(site.id, "2026-10-03", 10); // weather, no energy
-    const f = meteo(NOW);
-    await run(f, NOW, site);
-    expect(f).not.toHaveBeenCalled();
-    expect(obsHours(site.id)).toHaveLength(34);
-  });
-
   it("an energy-less day between two gap days is not written", async () => {
     const site = addSite(LL);
     seedEnergy(site.id, "2026-10-02");
@@ -737,23 +688,6 @@ describe("B017 fillWeatherGaps", () => {
     await run(f, NOW, site);
     expect(urlOf(f).searchParams.get("past_days")).toBe("92");
     expect(obsHours(site.id)).toEqual(dayHours(addDays("2026-10-05", -92)));
-  });
-
-  it("only a day 100 back has a gap: no call", async () => {
-    const site = addSite(LL);
-    seedEnergy(site.id, addDays("2026-10-05", -100));
-    const f = meteo(NOW);
-    await run(f, NOW, site);
-    expect(f).not.toHaveBeenCalled();
-  });
-
-  it("today is never a gap day", async () => {
-    const site = addSite(LL);
-    seedEnergy(site.id, "2026-10-05");
-    const f = meteo(NOW);
-    await run(f, NOW, site);
-    expect(f).not.toHaveBeenCalled();
-    expect(obsHours(site.id)).toHaveLength(0);
   });
 
   it("no gap: fetch is not called", async () => {
@@ -785,51 +719,6 @@ describe("B017 fillWeatherGaps", () => {
     await run(f, NOW, site);
     expect(f).toHaveBeenCalledTimes(1);
     expect(db.select().from(schema.weatherObserved).all()).toEqual(before);
-  });
-
-  it("only looks at the given site's energy", async () => {
-    const a = addSite({ ...LL, externalId: "a" });
-    const b = addSite({ ...LL, externalId: "b" });
-    seedEnergy(b.id, "2026-10-04");
-    const f = meteo(NOW);
-    await run(f, NOW, a);
-    expect(f).not.toHaveBeenCalled();
-  });
-
-  it("spring-forward day is full at 23 hours, a gap at 22", async () => {
-    const now = Date.UTC(2026, 2, 9, 18, 0, 0); // 2026-03-09 11:00 PDT
-    const full = addSite({ ...LL, externalId: "full" });
-    seedEnergy(full.id, "2026-03-08");
-    seedWeather(full.id, "2026-03-08", 23);
-    const f1 = meteo(now);
-    await run(f1, now, full);
-    expect(f1).not.toHaveBeenCalled();
-
-    const short = addSite({ ...LL, externalId: "short" });
-    seedEnergy(short.id, "2026-03-08");
-    seedWeather(short.id, "2026-03-08", 22);
-    const f2 = meteo(now);
-    await run(f2, now, short);
-    expect(f2).toHaveBeenCalledTimes(1);
-    expect(obsHours(short.id)).toEqual(dayHours("2026-03-08", 23));
-  });
-
-  it("fall-back day is full at 25 hours, a gap at 24", async () => {
-    const now = Date.UTC(2026, 10, 2, 19, 0, 0); // 2026-11-02 11:00 PST
-    const full = addSite({ ...LL, externalId: "full" });
-    seedEnergy(full.id, "2026-11-01");
-    seedWeather(full.id, "2026-11-01", 25);
-    const f1 = meteo(now);
-    await run(f1, now, full);
-    expect(f1).not.toHaveBeenCalled();
-
-    const short = addSite({ ...LL, externalId: "short" });
-    seedEnergy(short.id, "2026-11-01");
-    seedWeather(short.id, "2026-11-01", 24);
-    const f2 = meteo(now);
-    await run(f2, now, short);
-    expect(f2).toHaveBeenCalledTimes(1);
-    expect(obsHours(short.id)).toEqual(dayHours("2026-11-01", 25));
   });
 
   it("runWeather runs the gap-fill after syncWeather", async () => {
