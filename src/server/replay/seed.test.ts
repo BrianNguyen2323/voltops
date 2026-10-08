@@ -201,6 +201,8 @@ describe.each([
   it("produces a snapshot that passes checkSnapshot", async () => {
     const source: DataSource = {
       id: "fleet-api",
+      listSites: vi.fn(async () => []),
+      getSiteInfo: vi.fn(() => Promise.reject(new Error("unused"))),
       getLiveStatus: vi.fn(async () => {
         throw new Error("replay must not touch the source");
       }),

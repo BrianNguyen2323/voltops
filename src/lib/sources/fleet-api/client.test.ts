@@ -501,3 +501,99 @@ describe("fleet client", () => {
     });
   });
 });
+
+describe("site info (B030)", () => {
+  const route = (url: string): Promise<Response> =>
+    Promise.resolve(
+      url.endsWith("/api/1/products")
+        ? json(fx("products"))
+        : url.endsWith("/site_info")
+          ? json(fx("site_info"))
+          : json({}, 404),
+    );
+  const failApi = (st: number, body: unknown = { error: "x" }) => {
+    seed();
+    fetchMock.mockImplementation((u) =>
+      Promise.resolve(String(u).startsWith(BASE) ? json(body, st) : tok()),
+    );
+  };
+
+  it("listSites GETs /api/1/products on the base URL with Bearer and maps ids", async () => {
+    seed();
+    fetchMock.mockImplementation((u) =>
+      String(u).startsWith(BASE) ? route(String(u)) : Promise.resolve(tok()),
+    );
+    const ids = await mk().listSites();
+    const raw = fx("products") as {
+      response: { energy_site_id: unknown; resource_type: string }[];
+    };
+    expect(ids).toEqual(
+      raw.response
+        .filter((p) => p.resource_type === "battery")
+        .map((p) => String(p.energy_site_id)),
+    );
+    const [url, init] = apiCalls()[0]!;
+    expect(String(url)).toBe(`${BASE}/api/1/products`);
+    expect(new Headers(init!.headers).get("authorization")).toBe("Bearer a");
+  });
+
+  it("getSiteInfo GETs site_info for the site and maps it", async () => {
+    seed();
+    fetchMock.mockImplementation((u) =>
+      String(u).startsWith(BASE) ? route(String(u)) : Promise.resolve(tok()),
+    );
+    const info = await mk().getSiteInfo(SITE);
+    expect(String(apiCalls()[0]![0])).toBe(
+      `${BASE}/api/1/energy_sites/${SITE}/site_info`,
+    );
+    const r = (
+      fx("site_info") as {
+        response: { site_name: string; installation_time_zone: string };
+      }
+    ).response;
+    expect(info.name).toBe(r.site_name);
+    expect(info.timezone).toBe(r.installation_time_zone);
+  });
+
+  it.each([
+    [401, AuthExpired],
+    [429, RateLimited],
+    [500, SourceUnavailable],
+  ])("listSites API %i maps to the typed error", async (st, Cls) => {
+    failApi(st);
+    await expect(mk().listSites()).rejects.toBeInstanceOf(Cls);
+  });
+
+  it.each([
+    [401, AuthExpired],
+    [429, RateLimited],
+    [500, SourceUnavailable],
+  ])("getSiteInfo API %i maps to the typed error", async (st, Cls) => {
+    failApi(st);
+    await expect(mk().getSiteInfo(SITE)).rejects.toBeInstanceOf(Cls);
+  });
+
+  it("getSiteInfo error messages never contain the site id", async () => {
+    failApi(500, { error: "boom" });
+    const e = (await mk()
+      .getSiteInfo(SITE)
+      .catch((x: unknown) => x)) as Error;
+    expect(e.message).toContain("500");
+    expect(e.message).not.toContain(SITE);
+  });
+
+  it("primeToken: the next call makes no token request and uses the primed token", async () => {
+    // No credentials row: a refresh attempt would throw AuthExpired.
+    fetchMock.mockImplementation((u) => route(String(u)));
+    const c = mk();
+    c.primeToken("primed-at", now + 28800 * 1000);
+    await c.listSites();
+    await c.getSiteInfo(SITE);
+    expect(tokenCalls()).toHaveLength(0);
+    expect(apiCalls()).toHaveLength(2);
+    for (const [, init] of apiCalls())
+      expect(new Headers(init!.headers).get("authorization")).toBe(
+        "Bearer primed-at",
+      );
+  });
+});
