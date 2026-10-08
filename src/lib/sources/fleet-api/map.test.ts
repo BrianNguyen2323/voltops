@@ -5,6 +5,8 @@ import { mapCalendarHistory, mapLiveStatus } from "./map";
 const fx = (n: string): unknown =>
   JSON.parse(readFileSync(`fixtures/fleet-api/${n}.json`, "utf8"));
 const live = fx("live_status") as { response: Record<string, unknown> };
+const lr = live.response as { solar_power: number; load_power: number; battery_power: number };
+const balancedGrid = lr.load_power - lr.solar_power - lr.battery_power;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -43,14 +45,14 @@ describe("mapLiveStatus", () => {
 
   it("warns once on imbalance > 50 W and leaves data untouched", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const r = mapLiveStatus({ response: { ...live.response, grid_power: 500 } });
+    const r = mapLiveStatus({ response: { ...live.response, grid_power: balancedGrid + 500 } });
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(r.gridW).toBe(500);
+    expect(r.gridW).toBe(balancedGrid + 500);
   });
 
   it("does not warn at exactly 50 W imbalance", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    mapLiveStatus({ response: { ...live.response, grid_power: 50 } });
+    mapLiveStatus({ response: { ...live.response, grid_power: balancedGrid + 50 } });
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -76,10 +78,13 @@ describe("mapCalendarHistory", () => {
     1000;
 
   it("returns one interval per time_series entry with UTC ISO starts", () => {
-    expect(out).toHaveLength(288);
+    expect(out).toHaveLength(raw.length);
     expect(out[0]!.start).toBe(new Date(raw[0]!.timestamp as string).toISOString());
     expect(out[1]!.start).toBe(new Date(raw[1]!.timestamp as string).toISOString());
-    expect(out[1]!.start).toBe("2026-10-06T07:05:00.000Z");
+    expect(
+      out.slice(1).every((i, k) => Date.parse(i.start) - Date.parse(out[k]!.start) === 5 * 60_000),
+    ).toBe(true);
+    expect(out.every((i) => i.start.endsWith("Z"))).toBe(true);
   });
 
   it("maps the first interval's fields", () => {
