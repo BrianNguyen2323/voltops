@@ -311,8 +311,23 @@ export function Dashboard({
                   </ul>
                   <p className="text-sm">
                     <span className="capitalize">{rec.confidence}</span>{" "}
-                    confidence. {rec.wouldChange}
-                    {info && <InfoPopover sections={info} />}
+                    confidence.{" "}
+                    {info ? (
+                      <>
+                        {rec.wouldChange.slice(
+                          0,
+                          rec.wouldChange.lastIndexOf(" ") + 1,
+                        )}
+                        <span className="whitespace-nowrap">
+                          {rec.wouldChange.slice(
+                            rec.wouldChange.lastIndexOf(" ") + 1,
+                          )}
+                          <InfoPopover sections={info} />
+                        </span>
+                      </>
+                    ) : (
+                      rec.wouldChange
+                    )}
                   </p>
                 </>
               ) : (
