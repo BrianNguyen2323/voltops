@@ -45,6 +45,7 @@ Skipped: `pnpm format:check` (453 files, repo-wide, touches other scopes' files)
 - B028 Energy history module (tester → implementer; new files only)
 - B029 Rewire the worker, the snapshot and the seed to it; delete `peak.ts` (needs B028)
 - B030 `listSites`/`getSiteInfo` + `mapSiteInfo` + `syncSite` + login path (tester → implementer; implementer after B029)
+- B032 One "complete day" rule in the history module (B028 review nit)
 - B031 Worker daily `site-sync` job + replay seed via `mapSiteInfo` (tester → implementer; needs B029, B030)
 
 Order: wave 1 = B028 tester + B030 tester → B028 implementer → B029 → B030 implementer → B031.
