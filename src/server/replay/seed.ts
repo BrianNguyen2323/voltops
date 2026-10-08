@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
+import type { EnergyInterval } from "~/lib/core/types";
 import { mapCalendarHistory } from "~/lib/sources/fleet-api/map";
 import { addDays, localDate, localMidnight } from "~/lib/time";
 import { mapForecast } from "~/lib/weather/open-meteo";
 import type { db as Db } from "~/server/db";
 import * as s from "~/server/db/schema";
+import { energyHistory } from "~/server/history";
 
 const TZ = "America/Los_Angeles";
 const HOUR = 3_600_000;
@@ -45,7 +47,7 @@ export function seedReplay(db: typeof Db, now: number): void {
   const today = localDate(now, TZ);
   const first = localMidnight(addDays(today, -7), TZ);
 
-  const rows: (typeof s.energyIntervals.$inferInsert)[] = [];
+  const rows: (Omit<EnergyInterval, "start"> & { start: number })[] = [];
   for (let d = -7; d <= 0; d++) {
     const lm = localMidnight(addDays(today, d), TZ);
     for (const { i, off } of slots) {
@@ -54,8 +56,7 @@ export function seedReplay(db: typeof Db, now: number): void {
       if (localDate(start, TZ) !== addDays(today, d)) continue;
       if (start + STEP > now) continue;
       rows.push({
-        siteId: 0,
-        start: new Date(start),
+        start,
         solarWh: i.solarWh,
         loadWh: i.loadWh,
         gridImportWh: i.gridImportWh,
@@ -65,9 +66,13 @@ export function seedReplay(db: typeof Db, now: number): void {
       });
     }
   }
-  rows.sort((a, b) => a.start.getTime() - b.start.getTime());
+  rows.sort((a, b) => a.start - b.start);
 
-  db.transaction((tx) => {
+  // Shift weather by whole hours so the fixture's fetch day lands on today.
+  const shift =
+    localMidnight(today, TZ) - localMidnight(localDate(FETCHED, TZ), TZ);
+
+  const siteId = db.transaction((tx) => {
     tx.delete(s.sites).where(eq(s.sites.source, "replay")).run();
     const { id: siteId } = tx
       .insert(s.sites)
@@ -97,16 +102,12 @@ export function seedReplay(db: typeof Db, now: number): void {
         updatedAt: new Date(now),
       })
       .run();
-    for (const r of rows)
-      tx.insert(s.energyIntervals)
-        .values({ ...r, siteId })
-        .run();
 
     // Hourly samples: flows from the hour's first interval (x12 = Wh per 5 min to W), SoC integrated.
     let k = 0;
     let soc = 50;
     const sample = (ts: number) => {
-      while (k < rows.length && rows[k]!.start.getTime() < ts) {
+      while (k < rows.length && rows[k]!.start < ts) {
         const r = rows[k++]!;
         soc = Math.min(
           100,
@@ -118,7 +119,7 @@ export function seedReplay(db: typeof Db, now: number): void {
       }
       // first interval in [ts, ts+HOUR), else the latest one before
       const iv =
-        k < rows.length && rows[k]!.start.getTime() < ts + HOUR
+        k < rows.length && rows[k]!.start < ts + HOUR
           ? rows[k]!
           : rows[Math.max(0, k - 1)]!;
       tx.insert(s.samples)
@@ -138,20 +139,6 @@ export function seedReplay(db: typeof Db, now: number): void {
     for (; t <= now; t += HOUR) sample(t);
     if (t - HOUR !== now) sample(now);
 
-    // Shift weather by whole hours so the fixture's fetch day lands on today.
-    const shift =
-      localMidnight(today, TZ) - localMidnight(localDate(FETCHED, TZ), TZ);
-    for (const w of weather.observed)
-      tx.insert(s.weatherObserved)
-        .values({
-          siteId,
-          hour: new Date(w.hour + shift),
-          tempC: w.tempC,
-          cloudPct: w.cloudPct,
-          ghiWm2: w.ghiWm2,
-          precipMm: w.precipMm,
-        })
-        .run();
     for (const w of weather.forecast)
       tx.insert(s.weatherForecast)
         .values({
@@ -165,5 +152,15 @@ export function seedReplay(db: typeof Db, now: number): void {
           precipProbPct: w.precipProbPct,
         })
         .run();
+    return siteId;
   });
+
+  // The history module opens its own transactions, so these run right after the seed's.
+  const history = energyHistory(db, { id: siteId, timezone: TZ });
+  history.putIntervals(
+    rows.map((r) => ({ ...r, start: new Date(r.start).toISOString() })),
+  );
+  history.putObserved(
+    weather.observed.map((w) => ({ ...w, hour: w.hour + shift })),
+  );
 }

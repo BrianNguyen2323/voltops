@@ -1,5 +1,5 @@
 // Reads everything a snapshot needs from the DB (and the live source), then calls buildSnapshot.
-import { and, asc, desc, eq, gte, lt, max, min, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, min } from "drizzle-orm";
 import type { DataSource, LiveSample } from "~/lib/core/types";
 import type { DashboardSnapshot } from "~/lib/dashboard";
 import { dayHighC, peakWindow } from "~/lib/advisor/reserve";
@@ -8,7 +8,7 @@ import { addDays, localDate, localMidnight } from "~/lib/time";
 import type { db as appDb } from "~/server/db";
 import * as s from "~/server/db/schema";
 import { buildSnapshot } from "./build";
-import { completeDays, peakHistory } from "./peak";
+import { energyHistory } from "~/server/history";
 
 type Db = typeof appDb;
 const LIVE_TTL = 60_000;
@@ -71,34 +71,12 @@ export async function loadSnapshot(
 
   const tz = site.timezone ?? "UTC";
   const today = localDate(Date.parse(live.ts), tz);
-  const from = new Date(localMidnight(addDays(today, -7), tz));
   const t0 = new Date(localMidnight(today, tz));
   const t2 = new Date(localMidnight(addDays(today, 2), tz));
 
-  const e = s.energyIntervals;
-  const hourBucket = sql<number>`cast(${e.start} / 3600000 as integer) * 3600000`;
-  const hourly = db
-    .select({
-      start: hourBucket,
-      solarWh: sql<number>`sum(${e.solarWh})`,
-      loadWh: sql<number>`sum(${e.loadWh})`,
-      gridImportWh: sql<number>`sum(${e.gridImportWh})`,
-      gridExportWh: sql<number>`sum(${e.gridExportWh})`,
-      batteryChargeWh: sql<number>`sum(${e.batteryChargeWh})`,
-      batteryDischargeWh: sql<number>`sum(${e.batteryDischargeWh})`,
-    })
-    .from(e)
-    .where(and(eq(e.siteId, siteId), gte(e.start, from), lt(e.start, t2)))
-    .groupBy(hourBucket)
-    .all();
-
-  const latestIntervalStart =
-    db
-      .select({ t: max(e.start) })
-      .from(e)
-      .where(eq(e.siteId, siteId))
-      .get()
-      ?.t?.getTime() ?? null;
+  const history = energyHistory(db, site);
+  const hourly = history.hours(addDays(today, -7), addDays(today, 2));
+  const latestIntervalStart = history.latestStart();
 
   const samples = db
     .select({ ts: s.samples.ts, socPct: s.samples.socPct })
@@ -113,23 +91,8 @@ export async function loadSnapshot(
     .all()
     .map((r) => ({ ts: r.ts.getTime(), socPct: r.socPct }));
 
-  // One read of weather_observed (PK site+hour) covers both the GHI history (before today) and temps (today, tomorrow).
-  const wx = db
-    .select({
-      hour: s.weatherObserved.hour,
-      ghiWm2: s.weatherObserved.ghiWm2,
-      tempC: s.weatherObserved.tempC,
-    })
-    .from(s.weatherObserved)
-    .where(
-      and(
-        eq(s.weatherObserved.siteId, siteId),
-        gte(s.weatherObserved.hour, from),
-        lt(s.weatherObserved.hour, t2),
-      ),
-    )
-    .all()
-    .map((r) => ({ hour: r.hour.getTime(), ghiWm2: r.ghiWm2, tempC: r.tempC }));
+  // One read of observed weather covers both the GHI history (before today) and temps (today, tomorrow).
+  const wx = history.observed(addDays(today, -7), addDays(today, 2));
   const observed = wx
     .filter((r) => r.hour < t0.getTime())
     .map((r) => ({ hour: r.hour, ghiWm2: r.ghiWm2 }));
@@ -168,13 +131,12 @@ export async function loadSnapshot(
     .get();
 
   const tariff = sched ? parseTariff(sched.content) : null;
-  const days = completeDays(db, siteId, tz, today);
+  const days = history.completeDays(today);
   const peakDay = (date: string) => {
     const w = peakWindow(tariff, date, tz);
     const highC = dayHighC(date, tz, observedTemps, forecast);
     return w && highC !== null
-      ? peakHistory(db, siteId, {
-          tz,
+      ? history.peakAverage({
           days,
           fromMin: w.fromMin,
           toMin: w.toMin,
@@ -193,15 +155,7 @@ export async function loadSnapshot(
     liveUnavailable,
     lastSampleTs: lastRow?.ts.getTime() ?? null,
     latestIntervalStart,
-    hourly: hourly.map((h) => ({
-      start: Number(h.start),
-      solarWh: Number(h.solarWh),
-      loadWh: Number(h.loadWh),
-      gridImportWh: Number(h.gridImportWh),
-      gridExportWh: Number(h.gridExportWh),
-      batteryChargeWh: Number(h.batteryChargeWh),
-      batteryDischargeWh: Number(h.batteryDischargeWh),
-    })),
+    hourly,
     samples,
     observed,
     forecast,
