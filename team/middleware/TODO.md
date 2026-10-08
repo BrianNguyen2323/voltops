@@ -77,7 +77,7 @@ Research: `research/mvp-scope/README.md`. **Headline:** the DB has no energy, we
 
 Answer inline or in chat, e.g. "all recommended" or "Q6 B, rest recommended".
 
-## USER INPUT REQUIRED — Review: M1 + M2, real data on `/home` (2026-10-06)
+## Review: M1 + M2, real data on `/home` (2026-10-06) — PROBE ANSWERED 2026-10-08
 
 All of it is on `main` (last merge 0166a1b). Gate on main: vitest 448/448, typecheck, lint, test:scripts 70/70, `build:worker`, `build`. Docker smoke PASS (image 305 MB, ≤ 400). Every brief had a tester, an implementer and a reviewer PASS.
 
@@ -111,3 +111,37 @@ All of it is on `main` (last merge 0166a1b). Gate on main: vitest 448/448, typec
 `git worktree unlock .claude/worktrees/agent-acef4e3717147cf8b; git worktree remove --force .claude/worktrees/agent-acef4e3717147cf8b` (the same for `agent-a1fb976491a87f4dd`). Also delete `.claude/worktrees/rv-b001` and the old branch `worktree-agent-a85ac516cb7dc60dd` (it predates this team).
 
 Reply with: (a) approved; (b) changes (list them); or (c) the probe result plus anything you saw.
+- Answer (PO, 2026-10-08): **probe result** `today intervals: 9 (expected about 8 so far)`, live_status invariant ok (residual 0 W). So Tesla returns today's partial day, and the hourly `calendar_history` plan works as designed; no fetch-plan change needed. The M1+M2 code shipped inside the approved M3 (below).
+
+## Review: M3, peak hours + reserve advice from real data (2026-10-07) — ANSWERED 2026-10-08
+
+All of it is on the **`middleware`** branch (last merge e7f48a9). It isn't on `main` yet: **you open the PR `middleware` → `main`**, the same way as with front-end-development. Gate on `middleware`: vitest 563/563, test:scripts 70/70, typecheck, lint, `build:worker`, `build`. Docker smoke PASS (305 MB). Every brief had a tester, an implementer and a reviewer PASS.
+
+**What's new**
+- **The 6 red fleet-api tests are fixed** (B014). They now read the expected values from your re-recorded fixtures (856a5b7), so the next re-recording breaks fewer of them. No mapper bug was found.
+- **The "Peak hours" tile shows real numbers** (B015, B016). Each one comes from your two SQL averages over all stored history:
+  - the peak-window home use over every complete day;
+  - the same, over the days whose high was within ±3 °C (≈ ±5 °F) of the forecast high.
+  - Under 3 such days, it shows "not enough days near X yet".
+- **Tonight's reserve advice is live** (B016). Example: "Raise backup reserve to 61%" for an 11 kWh peak on your 27 kWh battery, with the saving = covered kWh × (peak − cheapest off-peak rate). It is advice only; nothing is ever sent to the Powerwall.
+- **Past weather gets filled in** (B017, B018). Every 3 h the worker fetches past hours from Open-Meteo, only for days that have energy data but are missing weather, up to 92 days back. It's free and never touches Tesla.
+
+**How to try it**
+1. **Demo (no Tesla):** in a throwaway checkout, run `pnpm db:migrate`, `pnpm seed:replay`, `pnpm dev`, then open `/home`. The demo has 7 complete days, so the tile shows numbers and Tonight shows the advice sentence.
+2. **Your system (Docker):**
+   - run `docker compose up -d --build`;
+   - the worker backfills up to 7 days of Tesla history and fills those days' weather on its next weather run;
+   - with ≥ 7 complete days, `/home` shows the tile and the advice. Under 7, it says "Learning your usage: N of 7 days".
+
+**Things to know**
+- **Your SCE tariff has a peak window every day in winter (Oct–May), weekends included.** So the advice also shows on weekends until summer; in summer, weekends have no peak and no advice.
+- **"Complete day" = all 288 five-minute intervals are stored.** Partial days (e.g. the day you connected) don't count, so they can't drag the averages down.
+- **Without `SITE_LATITUDE`/`SITE_LONGITUDE` there's no temperature, so the tile stays empty.** The existing warning tells you to set them.
+- My other small calls are in `team/middleware/design/revisions/R002.md`.
+
+**Still open from the M1+M2 review above:** your verdict and the `pnpm verify:tesla` probe line.
+
+**Next:** an optimization round is due now (after 3 milestones). That's a cleaner pass per package plus a perf/size pass. Please also run **`/improve-codebase-architecture`** in this session when you're ready; your pick becomes the next design revision.
+
+Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw, plus the probe result.
+- Answer: **a, approved** (PO, 2026-10-08). The PO opens the PR `middleware` → `main`. B019 (README) is on `middleware` too. `scripts/generate-tesla-keypair.mjs`: leave as is (the PO has plans for it). The fixtures re-recorded by this probe are still uncommitted; the PO decides.

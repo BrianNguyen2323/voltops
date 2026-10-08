@@ -2,11 +2,13 @@
 import { and, asc, desc, eq, gte, lt, max, min, sql } from "drizzle-orm";
 import type { DataSource, LiveSample } from "~/lib/core/types";
 import type { DashboardSnapshot } from "~/lib/dashboard";
+import { dayHighC, peakWindow } from "~/lib/advisor/reserve";
 import { parseTariff } from "~/lib/tariff";
 import { addDays, localDate, localMidnight } from "~/lib/time";
 import type { db as appDb } from "~/server/db";
 import * as s from "~/server/db/schema";
 import { buildSnapshot } from "./build";
+import { completeDays, peakHistory } from "./peak";
 
 type Db = typeof appDb;
 const LIVE_TTL = 60_000;
@@ -133,18 +135,41 @@ export async function loadSnapshot(
     precipProbPct: r.precipProbPct,
   }));
 
+  const observedTemps = db
+    .select({ hour: s.weatherObserved.hour, tempC: s.weatherObserved.tempC })
+    .from(s.weatherObserved)
+    .where(
+      and(
+        eq(s.weatherObserved.siteId, siteId),
+        gte(s.weatherObserved.hour, t0),
+        lt(s.weatherObserved.hour, t2),
+      ),
+    )
+    .all()
+    .map((r) => ({ hour: r.hour.getTime(), tempC: r.tempC }));
+
   const sched = db
     .select()
     .from(s.tariffSchedule)
     .where(eq(s.tariffSchedule.siteId, siteId))
     .get();
 
+  const tariff = sched ? parseTariff(sched.content) : null;
+  const days = completeDays(db, siteId, tz, today);
+  const peakDay = (date: string) => {
+    const w = peakWindow(tariff, date, tz);
+    const highC = dayHighC(date, tz, observedTemps, forecast);
+    return w && highC !== null
+      ? peakHistory(db, siteId, { tz, days, fromMin: w.fromMin, toMin: w.toMin, highC })
+      : null;
+  };
+
   return buildSnapshot({
     now,
     source: site.source as DashboardSnapshot["source"],
     site,
     currency: sched?.currency ?? null,
-    tariff: sched ? parseTariff(sched.content) : null,
+    tariff,
     live,
     liveUnavailable,
     lastSampleTs: lastRow?.ts.getTime() ?? null,
@@ -161,5 +186,10 @@ export async function loadSnapshot(
     samples,
     observed,
     forecast,
+    peakEstimate: {
+      historyDays: days.length,
+      today: peakDay(today),
+      tomorrow: peakDay(addDays(today, 1)),
+    },
   });
 }

@@ -18,6 +18,9 @@ import { buildSnapshot, type BuildInput } from "./build";
 //   samples: { ts: number; socPct: number }[];
 //   observed: { hour: number; ghiWm2: number }[];
 //   forecast: { hour, tempC, cloudPct, ghiWm2, precipProbPct }[]   // latest-issued row per target hour
+//   peakEstimate: { historyDays: number; today: PeakHistory | null; tomorrow: PeakHistory | null }
+//     // B016: computed by load.ts (B015 queries); buildSnapshot copies it to the snapshot and
+//     // derives `recommendation` from it with reserveRecommendation() (src/lib/advisor/reserve.ts).
 // }
 
 const HOUR = 3_600_000;
@@ -71,6 +74,7 @@ type Opts = {
   weather?: boolean;
   location?: boolean;
   liveUnavailable?: boolean;
+  peakEstimate?: BuildInput["peakEstimate"];
 };
 
 function input(now: number, o: Opts = {}): BuildInput {
@@ -117,6 +121,7 @@ function input(now: number, o: Opts = {}): BuildInput {
       ? hourly.map((h) => ({ hour: h.start, ghiWm2: h.solarWh / 5 }))
       : [],
     forecast,
+    peakEstimate: o.peakEstimate ?? { historyDays: 0, today: null, tomorrow: null },
   };
 }
 
@@ -363,6 +368,80 @@ describe("buildSnapshot", () => {
       latestIntervalStart: at("2026-05-20T10:55:00Z"),
     });
     expect(fine.health.warnings).toEqual([]);
+  });
+
+  describe("peakEstimate and recommendation", () => {
+    const ph = (avg: number, similarDays = 7, similarAvg: number | null = avg) => ({
+      historyAvgWh: avg,
+      highC: 22,
+      similarTempDays: similarDays,
+      similarTempAvgWh: similarAvg,
+    });
+    const days = (historyDays: number, tomorrow: ReturnType<typeof ph> | null) => ({
+      historyDays,
+      today: ph(9000),
+      tomorrow,
+    });
+
+    it("copies peakEstimate through; the default stub gives no recommendation", () => {
+      const s = buildSnapshot(input(NORMAL));
+      expect(s.peakEstimate).toEqual({ historyDays: 0, today: null, tomorrow: null });
+      expect(s.recommendation).toBeNull();
+    });
+
+    it("historyDays >= 7 and tomorrow set: recommendation with reservePlan, valid until 21:00 tomorrow", () => {
+      const pe = days(7, ph(11000));
+      const s = buildSnapshot(input(NORMAL, { peakEstimate: pe }));
+      expect(checkSnapshot(s)).toEqual([]);
+      expect(s.peakEstimate).toEqual(pe);
+      const r = s.recommendation!;
+      expect(r.reserve).toEqual({
+        emergencyPct: 20,
+        extraPct: 80, // ceil(11000 * 100 / 13500) = 82, capped at 100 - 20
+        targetPct: 100,
+        peakWh: 11000,
+        coveredWh: 10800, // floor(80 * 13500 / 100)
+      });
+      expect(r.action).toBe("Raise backup reserve to 100%");
+      expect(r.effectWh).toBe(10800);
+      expect(r.validFrom).toBe("2026-05-21T04:00:00.000Z"); // today's peak ends 21:00 PDT, after updatedAt
+      expect(r.validTo).toBe("2026-05-22T04:00:00.000Z"); // tomorrow 21:00 PDT
+      expect(r.confidence).toBe("medium");
+      expect(r.why).toEqual([
+        "Usual peak use: 11.0 kWh over 7 days",
+        "On days near 22°C: 11.0 kWh over 7 days",
+        "Tomorrow's forecast high: 22°C",
+      ]);
+    });
+
+    it("historyDays 6: peakEstimate kept, recommendation null", () => {
+      const pe = { ...days(6, ph(11000, 3)), today: ph(9000, 3) };
+      const s = buildSnapshot(input(NORMAL, { peakEstimate: pe }));
+      expect(checkSnapshot(s)).toEqual([]);
+      expect(s.peakEstimate).toEqual(pe);
+      expect(s.recommendation).toBeNull();
+    });
+
+    it("tomorrow null with enough history: recommendation null", () => {
+      const s = buildSnapshot(input(NORMAL, { peakEstimate: days(30, null) }));
+      expect(checkSnapshot(s)).toEqual([]);
+      expect(s.recommendation).toBeNull();
+    });
+
+    it("uses the site's usable capacity and unit (F)", () => {
+      const o = input(NORMAL, { peakEstimate: days(7, ph(5000, 2, null)) });
+      o.site.temperatureUnit = "F";
+      o.site.usableCapacityWh = 27000;
+      const s = buildSnapshot(o);
+      expect(checkSnapshot(s)).toEqual([]);
+      expect(s.recommendation?.reserve).toMatchObject({ extraPct: 19, targetPct: 39, coveredWh: 5000 });
+      expect(s.recommendation?.confidence).toBe("low");
+      expect(s.recommendation?.why).toEqual([
+        "Usual peak use: 5.0 kWh over 7 days",
+        "Not enough days near 72°F yet (2 so far)",
+        "Tomorrow's forecast high: 72°F",
+      ]);
+    });
   });
 
   it("warnings come in the documented order", () => {
