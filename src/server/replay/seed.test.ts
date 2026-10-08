@@ -6,7 +6,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "~/lib/core/types";
 import { checkSnapshot, peakEstimateWh, reservePlan } from "~/lib/dashboard";
-import { mapCalendarHistory } from "~/lib/sources/fleet-api/map";
+import { mapCalendarHistory, mapSiteInfo } from "~/lib/sources/fleet-api/map";
 import { addDays, localDate, localMidnight } from "~/lib/time";
 import { mapForecast } from "~/lib/weather/open-meteo";
 import { openDb } from "~/server/db";
@@ -31,6 +31,7 @@ const read = (p: string): unknown =>
 const fixture = mapCalendarHistory(
   read("fixtures/fleet-api/calendar_history_energy.json"),
 );
+const info = mapSiteInfo(read("fixtures/fleet-api/site_info.json"));
 const fixtureDay = localDate(Date.parse(fixture[0]!.start), TZ);
 const offsets = fixture.map(
   (i) => Date.parse(i.start) - localMidnight(fixtureDay, TZ),
@@ -87,9 +88,9 @@ describe.each([
       source: "replay",
       externalId: "replay",
       name: "Demo home",
-      timezone: TZ,
-      usableCapacityWh: 27000,
-      backupReservePct: 20,
+      timezone: info.timezone ?? TZ,
+      usableCapacityWh: info.usableCapacityWh,
+      backupReservePct: info.backupReservePct,
       latitude: 34.05,
       longitude: -118.24,
       temperatureUnit: "F",
@@ -99,15 +100,13 @@ describe.each([
       .from(s.tariffSchedule)
       .where(eq(s.tariffSchedule.siteId, site!.id))
       .get();
-    const info = (
-      read("fixtures/fleet-api/site_info.json") as {
-        response: { tariff_content: unknown };
-      }
-    ).response;
+    const tariff = info.tariff!;
     expect(t).toMatchObject({
-      tariffId: "replay",
-      currency: "USD",
-      content: info.tariff_content,
+      tariffId: tariff.id,
+      name: tariff.name,
+      utility: tariff.utility,
+      currency: tariff.currency,
+      content: tariff.content,
     });
   });
 
