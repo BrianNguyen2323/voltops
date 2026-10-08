@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+﻿import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
@@ -47,7 +47,7 @@ function seedDay(date: string, w: number, offsetH: number, skip = 0) {
   const rows = [];
   for (let t = from; t < to - skip * FIVE; t += FIVE) {
     rows.push({
-      siteId, start: t, solarWh: 0, gridImportWh: 0, gridExportWh: 0,
+      siteId, start: new Date(t), solarWh: 0, gridImportWh: 0, gridExportWh: 0,
       batteryChargeWh: 0, batteryDischargeWh: 0,
       loadWh: t >= winFrom && t < winTo ? w : 1,
     });
@@ -65,7 +65,7 @@ function seedWeather(date: string, high: number) {
   const rows = [];
   for (let t = from, i = 0; t < to; t += H, i++) {
     rows.push({
-      siteId, hour: t, tempC: i === 14 ? high : high - 5,
+      siteId, hour: new Date(t), tempC: i === 14 ? high : high - 5,
       cloudPct: 0, ghiWm2: 0, precipMm: 0,
     });
   }
