@@ -162,3 +162,6 @@ Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) 
 - **A (recommended):** leave it. Do one repo-wide `prettier --write` commit later, when no team has open branches.
 - B: add format:check to the gate now (a one-off reformat first).
 - Answer:
+
+**Q3. Docker Desktop is not running**, so B026's docker smoke (the last O1 gate) can't run. Lint and the config/Dockerfile review already PASS. Start Docker Desktop (or reply "start it" and I'll launch it), then I re-run `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` and merge B026.
+- Answer:
