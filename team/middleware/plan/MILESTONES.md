@@ -29,3 +29,14 @@ The Peak hours tile and the Tonight advice show real numbers; past weather is ga
 
 Order: wave 1 = B014, B015, B017, plus B016's tester → wave 2 = B016's implementer (on B015's merge). Integration branch: `middleware` (the PO opens the PR to main).
 After M3: optimization round (cleaner per package + perf/size + `/improve-codebase-architecture`).
+
+## O1: optimization round after M3 (started 2026-10-08, on `middleware` from dec2f9a)
+Cleaner per package plus a perf/size pass; no behavior change.
+- B022 snapshot + advisor (`peakEstimate` required)
+- B023 worker (gap-fill query: distinct hours, not 26k rows)
+- B024 fleet-api source + Open-Meteo (map test stops assuming a balanced recording)
+- B025 tariff + forecast + replay
+- B026 repo chores: lint 0/0 (`dist` ignored, config default exports), Dockerfile copies only the fixtures replay reads
+
+Order: wave 1 = B022–B025 (disjoint) → wave 2 = B026. Each gets a reviewer. Plus `/improve-codebase-architecture` with the PO; the PO's pick becomes Revision 3.
+Skipped: `pnpm format:check` (453 files, repo-wide, touches other scopes' files) is flagged to the PO instead.
