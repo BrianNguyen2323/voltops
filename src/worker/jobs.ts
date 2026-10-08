@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { server } from "~/env.schema.js";
-import { and, count, eq, gte, lt } from "drizzle-orm";
+import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 import type { DataSource } from "~/lib/core/types";
 import { addDays, localDate, localMidnight, localParts } from "~/lib/time";
 import { fetchWeather } from "~/lib/weather/open-meteo";
@@ -166,9 +166,13 @@ export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
   const today = localDate(now, tz);
   const from = localMidnight(addDays(today, -GAP_DAYS), tz);
   const to = localMidnight(today, tz);
+  // distinct UTC hour buckets (<= 2,208 rows) instead of every 5-min interval;
+  // same local-date set for whole-hour time zones
   const energyDays = new Set(
     db
-      .select({ start: s.energyIntervals.start })
+      .selectDistinct({
+        hour: sql<number>`(${s.energyIntervals.start} / ${HOUR}) * ${HOUR}`,
+      })
       .from(s.energyIntervals)
       .where(
         and(
@@ -178,7 +182,7 @@ export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
         ),
       )
       .all()
-      .map((r) => localDate(r.start.getTime(), tz)),
+      .map((r) => localDate(r.hour, tz)),
   );
   if (!energyDays.size) return;
   const have = new Map<string, number>();
@@ -211,7 +215,7 @@ export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
     now,
     // Open-Meteo runs with timezone=UTC, so past_days counts UTC days back
     pastDays: Math.min(
-      92,
+      GAP_DAYS,
       Math.max(
         1,
         Math.floor(now / DAY_MS) -
