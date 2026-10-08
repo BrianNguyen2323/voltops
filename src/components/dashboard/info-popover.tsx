@@ -14,8 +14,10 @@ import {
 // closes it unless a click pinned it open.
 export function InfoPopover({
   sections,
+  label = "About this advice",
 }: {
   sections: Array<{ title: string; text: string }>;
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const pinned = useRef(false);
@@ -33,7 +35,7 @@ export function InfoPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="About this advice"
+          aria-label={label}
           className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -my-1 ml-1 inline-flex size-6 items-center justify-center rounded-full align-middle focus-visible:ring-3 focus-visible:outline-none"
           onClick={(e) => {
             e.preventDefault(); // skip Radix's toggle: hover/focus already opened it
