@@ -1,6 +1,6 @@
 # SPEC — Front end: home dashboard (`/home`)
 
-Revision 6
+Revision 7
 
 ## Goal
 `/home` becomes an overview dashboard of the MVP's key features (CLAUDE.md §9: Now, Plan, Trends, Accuracy, Health), fed by **sample data** through one typed contract. Another team will swap the sample data for real queries. It is dark only, built with shadcn (style `radix-nova`), and works at 390 px and 1440 px. Research and design plan: `research/home-dashboard/README.md`.
@@ -21,6 +21,7 @@ Revision 6
 - Architecture candidate 1 (R005): the `DashboardData` contract splits into a **Dashboard snapshot** (inputs only) and a **Dashboard view** (derived) in `src/lib/dashboard.ts`, with `checkSnapshot` and `toDashboardView`. The day rule is the site-local date. See GLOSSARY.md.
 - M3 review (R004): the "Spending" label word is pink too; `pnpm dev` migrates the DB first (`predev`).
 - Topic 2 (R006, Decision round 4): a **"Peak hours" tile** (today's and tomorrow's estimated peak-window home use) next to "Your home now", and a structured **reserve advice sentence** in Tonight. The front-end builds placeholders on sample data; the middleware computes the numbers (`team/middleware/plan/board/backlog/B013-peak-estimate.md`).
+- Topic 3 (R007, Decision round 3): the reserve window ends at the **start** of tomorrow's peak (the reserve drops back to the emergency floor so the battery covers the peak); Tonight states both steps with day words; an ⓘ popover explains the confidence and what would change the advice.
 - M2 review (R003): smaller, matching kW readings in the flow nodes on mobile; a labelled "Grid price now" + "Your home now" (spending/saving/earning per hour) strip replaces the bare Peak badge; the tooltip uses the legend's swatches.
 
 ## Theme (`src/styles/globals.css`)
@@ -181,7 +182,7 @@ The window is derived from the Timeline's `period === "peak"` hours of that site
   - big line: "Raise your backup reserve to {targetPct}%."
   - next line (normal size), the PO's wording: "With {emergencyPct}% as reserve for emergencies, an additional {extraPct}% will help you save {money(savingsCents)} for tomorrow's estimated {formatKwh(peakWh)} usage during peak hours." The money value uses `reading text-foreground`, as today;
   - if `targetPct === 100 && coveredWh < peakWh`: append " That covers about {formatKwh(coveredWh)} of it.";
-  - small muted line: "From {clock(validFrom)} until {clock(validTo)}."
+  - ~~small muted line: "From {clock(validFrom)} until {clock(validTo)}."~~ **Rev 7:** replaced by the two-step line below.
   - Without `reserve`, the card is unchanged (Rev 5).
 
 **Sample adapter** (`home/data.ts`): `historyDays: 30`.
@@ -255,3 +256,28 @@ Sections, in DOM order. On mobile they stack in this order; desktop follows the 
 - Light theme and chart table/CSV views (Q9).
 - Navigation to other screens (Q7).
 - Phase 3 controls.
+
+
+## Tonight card clarity (Rev 7, R007)
+**Window semantics (advisor, `src/lib/advisor/reserve.ts`):** `validFrom` is unchanged (max(updatedAt, end of today's peak window)). `validTo` = the **start** of tomorrow's peak window (`win.startMs`), not its end. The reserve is a floor: it has to drop back to `emergencyPct` when the peak starts so the battery can cover the peak. Sample snapshot: `validTo` = 2026-07-16T23:00:00Z (4:00 PM PDT on 7/16).
+
+**Day words:** `dayWord(iso, updatedAt, tz)`:
+- the local date of `iso` equals the local date of `updatedAt` → "tonight" if the local hour ≥ 17, else "today";
+- the next local date → "tomorrow";
+- otherwise the weekday name ("Friday").
+
+**Two-step line** (replaces "From … until …" when `rec.reserve` is present; `text-sm`, muted, with the times in `text-foreground`):
+- start: if `validFrom` ≤ `updatedAt`: "**Now**, raise it to {targetPct}%."; otherwise "**{Dayword} at {clock(validFrom)}**, after today's peak hours end, raise it to {targetPct}%." The day word is capitalised.
+- end: "**{Dayword} at {clock(validTo)}**, when peak hours start, lower it back to {emergencyPct}% so the battery covers the peak."
+- Sample: "Tonight at 9:00 PM, after today's peak hours end, raise it to 89%. Tomorrow at 4:00 PM, when peak hours start, lower it back to 20% so the battery covers the peak."
+- Without `reserve`, the plain-action card is unchanged.
+
+**ⓘ info popover** (only when `rec.reserve` and `view.peakUsage.tomorrow` are both non-null; otherwise the confidence line is unchanged):
+- An icon button (hugeicons info icon, `aria-label="About this advice"`) after "{Confidence} confidence. {wouldChange}". It opens on hover and keyboard focus **and** on tap/click. Built on shadcn Popover (`src/components/ui/popover.tsx`, `radix-ui`, no new dependency) in a `"use client"` component.
+- Content: three sections, each a small bold title + a paragraph, max width ~20rem. `T = tomorrow`, `temp = formatTemp(T.highC, unit)`, `lo/hi = formatTemp(T.highC ∓ 3, unit)` (the ±3 °C band of the contract), `n = T.similarTempDays`, `days(n)` = "1 past day" / "{n} past days":
+  1. "**Why {confidence} confidence**":
+     - low: "Only {days(n)} had a high near {temp}; 3 are needed. Until then this uses your usual peak use: {formatKwh(T.historyAvgWh)} over {historyDays} days." (n = 0 → "No past days had a high near {temp} yet; 3 are needed. …")
+     - medium/high: "Based on {days(n)} with a high near {temp} ({formatKwh(T.similarTempAvgWh)} on average), mixed with your usual peak use: {formatKwh(T.historyAvgWh)} over {historyDays} days."
+  2. "**If tomorrow's forecast high changes**": "This uses days with a high between {lo} and {hi}. If the forecast moves outside that range, other days are used. Hotter or colder days usually mean more AC or heating, so a higher reserve. The advice updates on its own."
+  3. "**If your tariff changes**": "Your peak hours are {clock(T.windowStart)}–{clock(T.windowEnd)}. If they move, the raise and lower times move with them. The saving is the gap between peak and off-peak prices: a smaller gap means a smaller saving. If your plan has no peak hours, there is no advice."
+- The copy comes from pure functions (`reserveSteps`, `confidenceInfo`) in `src/components/dashboard/tonight.ts`, so it is testable without opening the popover.

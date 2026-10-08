@@ -425,7 +425,7 @@ Merged into `front-end-development` at b66599f. Typecheck, lint and build are gr
 
 ---
 
-## USER INPUT REQUIRED — Decision round 3 (2026-10-08): Tonight card clarity. Research: `research/tonight-clarity/README.md`
+## Decision round 3 — ANSWERED 2026-10-08, all recommended (see design/revisions/R007.md): Tonight card clarity. Research: `research/tonight-clarity/README.md`
 
 **Answer to your question.** "From 9:00 PM until 9:00 PM" means **9 PM tonight** (when today's 4-9 PM peak ends) **until 9 PM tomorrow** (when tomorrow's peak ends). The UI shows only the clock time, so both ends look the same. And yes, 9 PM tonight is when you'd raise the reserve.
 
@@ -440,7 +440,7 @@ Answer in chat or here, e.g. "all recommended" or "Q2 B, rest recommended".
   - The sample data changes to match.
 - B: same as A, but I put the `reserve.ts` change in the middleware backlog. The UI ships the new wording against the sample data, and real data shows the wrong end time until they land it.
 - C: wording only: "From 9:00 PM tonight until 9:00 PM tomorrow." Clear, but it keeps the advice that locks the energy away.
-- Answer:
+- Answer: **A** (PO, 2026-10-08).
 
 **Q2. What the info tooltip says.**
 - **A (recommended): built from the real numbers already in the snapshot.** No contract change.
@@ -449,9 +449,9 @@ Answer in chat or here, e.g. "all recommended" or "Q2 B, rest recommended".
   - *If the tariff changes:* "Your peak hours are 4-9 PM. If they move, the raise and lower times move with them. The saving is the gap between peak and off-peak prices: a smaller gap means a smaller saving, and no gap means no advice."
 - B: A, plus numbers for each scenario ("at 85°F: 72%, saves $1.40"; "the peak rate is 45¢ vs 25¢ off-peak"). This needs new snapshot fields (peak averages for the neighbouring temperature bands, plus tomorrow's peak/off-peak rates), so it's a contract change plus a middleware brief. Slower; it can come after A.
 - C: one fixed paragraph that explains the idea in general, with no numbers.
-- Answer:
+- Answer: **A** (PO, 2026-10-08).
 
 **Q3. How the tooltip opens.** A hover-only tooltip doesn't open on phones.
 - **A (recommended):** an ⓘ icon button after the confidence line. It opens on hover and keyboard focus (desktop) **and** on tap (phone). Built on shadcn Popover, which adds `src/components/ui/popover.tsx`. `radix-ui` is already installed, so no new dependency.
 - B: a shadcn Tooltip, hover/focus only. On a phone it never opens.
-- Answer:
+- Answer: **A** (PO, 2026-10-08).
