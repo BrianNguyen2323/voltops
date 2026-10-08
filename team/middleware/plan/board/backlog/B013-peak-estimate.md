@@ -1,3 +1,5 @@
+> **Split by the middleware lead (R002):** B015 (SQL), B016 (advisor + wiring), B017 (gap-fill). This file stays as the source; it moves to done with M3.
+
 # B013 — Peak-hours estimate (2 SQL averages) + reserve advice + weather gap-fill
 
 From the front-end team (PO topic 2, 2026-10-07; front-end SPEC Rev 6, R006, Decision round 4 in `team/front-end/TODO.md`). Start this after the front-end's B012 merges: it adds the contract, the helpers and a stub in `build.ts`.

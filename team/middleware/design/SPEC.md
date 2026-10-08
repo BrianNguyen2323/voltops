@@ -1,12 +1,13 @@
 # SPEC — Middleware: real data into the dashboard
 
-Revision 1
+Revision 2
 
 Decision round 1 (2026-10-06): all recommended (Q1–Q10 A). See `revisions/R001.md`, `research/mvp-scope/README.md`.
+Rev 2 (2026-10-07): peak estimate, reserve advice and weather gap-fill from the front-end's Decision round 4 (`team/front-end/TODO.md`, front-end R006). See `revisions/R002.md`.
 
 ## Goal
 `/home` shows a real `DashboardSnapshot` (contract: `src/lib/dashboard.ts`, `docs/dashboard-snapshot.md`) built from the DB plus one live Tesla call. With no site in the DB, `/home` keeps `sampleSnapshot` (`isSample`).
-Out of MVP: `recommendation` is always `null`; `accuracy` is always `[]`.
+Out of MVP: `accuracy` is always `[]`. `recommendation` is the reserve advice only (Rev 2).
 
 ## Units and conventions (CLAUDE.md §5)
 W and Wh are integers. Money is in integer cents, timestamps are ISO-8601 UTC, and temperatures are in degrees C.
@@ -27,7 +28,9 @@ Timeline hours and the stored hours are UTC hour starts. "Site-local day" and ho
 | `src/lib/forecast/baseline.ts` | pure forecast + SoC projection | B006 |
 | `src/server/snapshot/*` | pure builder + DB loader; `/home` wiring | B007 |
 | `src/server/replay/seed.ts` | fixture seed | B008 |
-| `src/lib/weather/open-meteo.ts` | Open-Meteo client + pure mapper | B009 |
+| `src/lib/weather/open-meteo.ts` | Open-Meteo client + pure mapper | B009, B017 |
+| `src/server/snapshot/peak.ts` | the 2 peak SQL averages | B015 |
+| `src/lib/advisor/reserve.ts` | pure reserve advice | B016 |
 
 ## Fleet API (B001; Q1 A absorbs tesla-api-connection round 2: 2A, 4A, 5A)
 - Base URL: env `TESLA_FLEET_BASE_URL`, default `https://fleet-api.prd.na.vn.cloud.tesla.com`.
@@ -135,7 +138,7 @@ Timeline hours and the stored hours are UTC hour starts. "Site-local day" and ho
 - `health`:
   - `lastPollAt` = the latest `samples.ts` (else updatedAt), `estRequestsPerMonth` = 1440;
   - `warnings`: "Energy history is N h behind" (latest interval > 2 h old); "Learning: forecasts improve after 7 days of data" (< 7 history days); "Set SITE_LATITUDE and SITE_LONGITUDE for weather" (no lat/lon); "Live reading unavailable: showing the last stored reading"; "No tariff from Tesla".
-- `recommendation: null`, `accuracy: []`.
+- `accuracy: []`. `peakEstimate` and `recommendation`: see "Peak estimate and reserve advice" (Rev 2).
 
 ## Replay (B008; Q9 A)
 `seedReplay(db, now)` replaces any `replay` site and its rows:
@@ -146,3 +149,27 @@ Timeline hours and the stored hours are UTC hour starts. "Site-local day" and ho
 - Weather: B009's recorded fixture, shifted day by day onto the same dates.
 
 The worker seeds on start when `VOLTOPS_DEMO=true` and no `fleet-api` site exists. `// ponytail:` the demo goes stale after a day; a restart refreshes it.
+
+## Peak estimate and reserve advice (Rev 2; front-end R006, Decision round 4: Q1–Q3, Q5–Q8 A)
+Contract: `src/lib/dashboard.ts` (`PeakHistory`, `ReservePlan`, `peakEstimateWh`, `reservePlan`). Use the helpers; don't re-implement them. `checkSnapshot` enforces the rules.
+- **Peak window of a target day** (today, tomorrow): the Timeline hours of that site-local date whose `period` is `peak`. Window = [local clock start of the first one, local clock end of the last one), e.g. 16:00–21:00. No peak hour that day → that day is `null`.
+- **Complete day:** a site-local day before today whose `energy_intervals` count equals its 5-min slot count (288, or 276/300 on DST days). Same rule the worker uses for "missing". `historyDays` = the number of complete days in the **whole** stored history.
+- **Query 1 (`historyAvgWh`):** for every complete day, Σ `load_wh` with `start` in the target window's clock times applied to that day; `round(AVG)`. 0 complete days → the day is `null`.
+- **Query 2 (similar temperature):** the same per-day sums, only for complete days whose observed high (`MAX(weather_observed.temp_c)` over hours in that site-local day) is within ±3 °C (inclusive) of the target `highC`. `similarTempDays` = count; `similarTempAvgWh` = `round(AVG)`, or `null` when count < 3. Days with no observed weather aren't matched.
+- **`highC` of a target day:** the max over that day's hours of the observed temp where present, else the latest-issued forecast temp. Tomorrow is all forecast; today mixes both (forecast rows only cover the hours after each fetch). No temperature for any hour of the day → that day is `null`.
+- **SQL in SQLite:** no time zones, so JS computes each complete day's `[from_ms, to_ms)` window and `[d0_ms, d1_ms)` bounds (`src/lib/time.ts`, DST-safe) and passes them as a CTE `WITH days(day, from_ms, to_ms, d0_ms, d1_ms) AS (VALUES …)`. Integers computed in JS may be inlined as literals; it must work for 10 years of days. Both averages are SQL `AVG`s over `GROUP BY day` sums.
+- **Reserve advice** (pure, `src/lib/advisor/reserve.ts`; advisory only, D11: never writes to the Powerwall). Only when `peakEstimate.tomorrow` is non-null **and** `historyDays ≥ 7`; otherwise `recommendation: null`.
+  - `reserve = reservePlan(peakEstimateWh(tomorrow), usableCapacityWh, 20)`;
+  - `savingsCents = max(0, round(coveredWh × (peakCents − offPeakCents) / 1000))`. `peakCents` = the import rate at the start of tomorrow's window. `offPeakCents` = the lowest import rate among tomorrow's `off-peak` Timeline hours (none → `peakCents`);
+  - `effectWh = coveredWh`; `action` = "Raise backup reserve to {targetPct}%";
+  - `validFrom` = max(updatedAt, end of today's peak window when today has one); `validTo` = end of tomorrow's window;
+  - `why`: the usual average ("Usual peak use: 11.2 kWh over 30 days"), the similar-temperature one or "not enough days near 95°F yet", and tomorrow's high. Temperatures are shown in the site's unit; kWh to 1 decimal;
+  - `confidence`: `low` when `similarTempDays < 3`, else `medium`;
+  - `wouldChange`: "A different forecast high for tomorrow, or a tariff change."
+- `health` warning "Learning: …" stays as is.
+
+## Weather gap-fill (Rev 2; front-end Q4 A with the PO's condition)
+- In the worker's weather job (every 3 h), for sites with lat/lon. A **gap day** is a site-local day before today that has `energy_intervals` rows but fewer `weather_observed` hours than the day has hours (24, or 23/25 on DST days).
+- Only gap days within the last 92 days count (Open-Meteo `past_days` max). Never fetch for days without energy.
+- One Open-Meteo call with `past_days` = the number of days back to the oldest gap day (≤ 92) and `forecast_days=1`. `fetchWeather` gains a `pastDays`/`forecastDays` option; the defaults stay 1/3. Upsert only the observed rows that fall on gap days. No forecast rows are written by the gap-fill.
+- No gap day → no call.

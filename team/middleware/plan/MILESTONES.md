@@ -18,3 +18,13 @@ Fetch and store real data, never pruned.
 - B008 Replay seed + `VOLTOPS_DEMO` (needs B002, B009 fixture, B003)
 
 Order: wave 1 = B001, B002, B005, B009 (parallel, disjoint files) → wave 2 = B003, B006, B004 → wave 3 = B008, B007.
+
+## M3: peak estimate + reserve advice (Rev 2, R002)
+The Peak hours tile and the Tonight advice show real numbers; past weather is gap-filled.
+- B014 Fleet-api tests follow the re-recorded fixtures (856a5b7)
+- B015 Peak SQL module (2 averages, complete days) + `localTime` helper
+- B016 Reserve advisor + snapshot wiring (`peakEstimate`, `recommendation`) (needs B015)
+- B017 Weather gap-fill in the worker (`fetchWeather` past days)
+
+Order: wave 1 = B014, B015, B017, plus B016's tester → wave 2 = B016's implementer (on B015's merge). Integration branch: `middleware` (the PO opens the PR to main).
+After M3: optimization round (cleaner per package + perf/size + `/improve-codebase-architecture`).
