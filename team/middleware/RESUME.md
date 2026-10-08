@@ -2,6 +2,11 @@
 
 Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).
 
+- **O1 cleaners DONE (2026-10-08): all 5 merged into `middleware`, last 5c3277f; gate green + docker smoke PASS 305 MB. Now: grilling architecture pick 1 (Energy history), then 2 (Site sync) → SPEC Revision 3. Grill round 1 (Q1–Q5: scope, writes, local dates, no behavior change, replace tests) asked in chat, awaiting PO.**. Started 2026-10-08** (PR #11 merged: main = middleware = dec2f9a). Integration branch stays `middleware`; the PO opens the PR to main.
+  - **Done + merged into `middleware`** (reviewer PASS each; gate green after each: vitest 563, test:scripts 71, tsc, lint 0/0, build:worker, build): B023 worker 39ccf88 (gap-fill reads distinct hours), B025 tariff df00880, B024 sources d92b6be (map test uses the fixture residual), B022 snapshot 6f6be2f (`peakEstimate` required, one weather_observed read). Worktrees + branches removed.
+  - B026 chores 5c3277f (lint 0/0 incl. dist ignored; image ships only runtime fixtures), smoke PASS 305 MB.
+  - Reviewer nit (non-blocking, B023): no test puts intervals across a DST day for the distinct-hour bucket. Candidate for the next round.
+  - **/improve-codebase-architecture run** (PO asked): report at `%TEMP%\architecture-review-20261008-middleware.html`; TODO **Decision round 3** waits on the PO (pick from 1–5, plus Q2 on format:check). The pick → grilling → SPEC Revision 3.
 - **B019 README rewrite merged into `middleware` 2026-10-08** (PO request, Haiku member; reviewer PASS). Stale `scripts/generate-tesla-keypair.mjs` (TESLA_PRIVATE_KEY, Netlify vars) flagged to the PO.
 - **Status (2026-10-08): M3 DONE and APPROVED** (e7f48a9; README B019 e1ce27e). B004 probe answered: partial today works. SPEC Revision 2, R002.
   - **Integration branch: `middleware`** (the PO checked it out at main 8dd31b9). Members branch from it; I merge into it; **the PO opens the PR `middleware` → `main`**.
