@@ -24,6 +24,7 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
 - **Final gate on main:** vitest 448, tsc, lint, test:scripts 70, build:worker, build; docker smoke PASS at 305 MB (reviewer, on the merged tree).
 - **Last action:** wrote the PO Review item (890e44e). All merged worktrees and branches removed.
 - **Incoming from front-end (2026-10-07):** `plan/board/backlog/B013-peak-estimate.md` covers the peak-hours estimate (2 SQL averages: all history + similar temperature), the reserve advice (`recommendation.reserve`) and the weather gap-fill. Start after front-end B012 (contract + helpers + stub) merges.
+- **Red tests (2026-10-07):** the PO re-recorded `fixtures/fleet-api/*.json` (856a5b7: day 2026-10-06, reserve 70%). 6 tests pin the old capture: `map.test.ts` (4), `client.test.ts` (1), `callback-logging.test.ts` (1). Update them first.
 - **Next action:**
   - record the PO's review (a/b/c) and the B004 probe result. If N = 0 (no partial today), open a decision on the fetch plan;
   - review notes become the next round's input;
