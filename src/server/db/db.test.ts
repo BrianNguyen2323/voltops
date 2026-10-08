@@ -47,7 +47,12 @@ describe("openDb + migrations", () => {
         .all() as { name: string }[]
     ).map((r) => r.name);
     expect(names).toEqual(
-      expect.arrayContaining(["admin", "credentials", "sites", "tariff_schedule"]),
+      expect.arrayContaining([
+        "admin",
+        "credentials",
+        "sites",
+        "tariff_schedule",
+      ]),
     );
     expect(names).not.toContain("users");
     expect(names).not.toContain("tesla_token");
@@ -62,9 +67,15 @@ describe("openDb + migrations", () => {
 
 describe("constraints", () => {
   it("allows admin id=1 but rejects a second admin row", () => {
-    sql("INSERT INTO admin (id, password_hash, created_at) VALUES (1, 'h', ?)", now);
+    sql(
+      "INSERT INTO admin (id, password_hash, created_at) VALUES (1, 'h', ?)",
+      now,
+    );
     expect(() =>
-      sql("INSERT INTO admin (id, password_hash, created_at) VALUES (2, 'h', ?)", now),
+      sql(
+        "INSERT INTO admin (id, password_hash, created_at) VALUES (2, 'h', ?)",
+        now,
+      ),
     ).toThrow();
   });
 
@@ -88,7 +99,9 @@ describe("constraints", () => {
   it("cascades site deletion to tariff_schedule", () => {
     addSite("abc");
     const id = (
-      db.$client.prepare("SELECT id FROM sites WHERE external_id='abc'").get() as {
+      db.$client
+        .prepare("SELECT id FROM sites WHERE external_id='abc'")
+        .get() as {
         id: number;
       }
     ).id;
@@ -99,7 +112,9 @@ describe("constraints", () => {
     );
     const count = () =>
       (
-        db.$client.prepare("SELECT count(*) AS n FROM tariff_schedule").get() as {
+        db.$client
+          .prepare("SELECT count(*) AS n FROM tariff_schedule")
+          .get() as {
           n: number;
         }
       ).n;

@@ -37,7 +37,9 @@ const vars: Record<string, string> = {
 describe("globals.css tokens", () => {
   for (const [name, hex] of Object.entries(vars)) {
     it(`defines --${name}: ${hex}`, () => {
-      const m = new RegExp(`(?<![\\w-])--${name}\\s*:\\s*(#[0-9a-fA-F]{3,8})\\s*;`).exec(css);
+      const m = new RegExp(
+        `(?<![\\w-])--${name}\\s*:\\s*(#[0-9a-fA-F]{3,8})\\s*;`,
+      ).exec(css);
       expect(m?.[1]?.toLowerCase()).toBe(hex);
     });
   }
@@ -77,7 +79,9 @@ describe("globals.css tokens", () => {
 
 describe("shadcn setup", () => {
   it("components.json style is radix-nova", () => {
-    expect((JSON.parse(read("components.json")) as { style: string }).style).toBe("radix-nova");
+    expect(
+      (JSON.parse(read("components.json")) as { style: string }).style,
+    ).toBe("radix-nova");
   });
 
   for (const c of ["button", "card", "badge", "chart"]) {

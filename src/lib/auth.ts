@@ -23,7 +23,11 @@ export const getAdminHash = () =>
 // Single-row PK/CHECK (id = 1) makes a concurrent second insert throw.
 export async function createAdmin(pw: string): Promise<void> {
   db.insert(admin)
-    .values({ id: 1, passwordHash: await hashPassword(pw), createdAt: new Date() })
+    .values({
+      id: 1,
+      passwordHash: await hashPassword(pw),
+      createdAt: new Date(),
+    })
     .run();
 }
 

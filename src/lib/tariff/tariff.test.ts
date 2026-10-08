@@ -3,15 +3,19 @@ import { describe, expect, it } from "vitest";
 import { costToday, parseTariff, tariffAt } from "~/lib/tariff";
 
 const LA = "America/Los_Angeles";
-const raw = JSON.parse(readFileSync("fixtures/fleet-api/site_info.json", "utf8")) as {
+const raw = JSON.parse(
+  readFileSync("fixtures/fleet-api/site_info.json", "utf8"),
+) as {
   response: { tariff_content: Record<string, unknown> };
 };
 const content = raw.response.tariff_content;
 const tariff = parseTariff(content)!;
 
 /** UTC ms for a local LA wall-clock time in PDT (UTC-7) or PST (UTC-8). */
-const pdt = (m: number, d: number, h: number, min = 0) => Date.UTC(2026, m - 1, d, h + 7, min);
-const pst = (m: number, d: number, h: number, min = 0) => Date.UTC(2026, m - 1, d, h + 8, min);
+const pdt = (m: number, d: number, h: number, min = 0) =>
+  Date.UTC(2026, m - 1, d, h + 7, min);
+const pst = (m: number, d: number, h: number, min = 0) =>
+  Date.UTC(2026, m - 1, d, h + 8, min);
 
 describe("parseTariff", () => {
   it("parses the SCE fixture", () => {
@@ -31,7 +35,9 @@ describe("parseTariff", () => {
       seasons: { ...(content.seasons as object), ALL: {} },
     })!;
     expect(withEmpty).not.toBeNull();
-    expect(tariffAt(withEmpty, pdt(7, 15, 17), LA)).toEqual(tariffAt(tariff, pdt(7, 15, 17), LA));
+    expect(tariffAt(withEmpty, pdt(7, 15, 17), LA)).toEqual(
+      tariffAt(tariff, pdt(7, 15, 17), LA),
+    );
   });
 });
 
@@ -73,28 +79,59 @@ describe("tariffAt (SCE TOU-D-4-9PM, America/Los_Angeles)", () => {
 
   it("wrapping season Winter (10/1 -> 5/31) matches Jan and the boundary days", () => {
     const winterOff = 35.776;
-    expect(tariffAt(tariff, pst(1, 15, 12), LA).importCentsPerKwh).toBeCloseTo(winterOff, 6);
-    expect(tariffAt(tariff, pdt(5, 31, 12), LA).importCentsPerKwh).toBeCloseTo(winterOff, 6);
-    expect(tariffAt(tariff, pdt(10, 1, 12), LA).importCentsPerKwh).toBeCloseTo(winterOff, 6);
+    expect(tariffAt(tariff, pst(1, 15, 12), LA).importCentsPerKwh).toBeCloseTo(
+      winterOff,
+      6,
+    );
+    expect(tariffAt(tariff, pdt(5, 31, 12), LA).importCentsPerKwh).toBeCloseTo(
+      winterOff,
+      6,
+    );
+    expect(tariffAt(tariff, pdt(10, 1, 12), LA).importCentsPerKwh).toBeCloseTo(
+      winterOff,
+      6,
+    );
     // Summer 6/1 .. 9/30 inclusive
-    expect(tariffAt(tariff, pdt(6, 1, 12), LA).importCentsPerKwh).toBeCloseTo(36.829, 6);
-    expect(tariffAt(tariff, pdt(9, 30, 12), LA).importCentsPerKwh).toBeCloseTo(36.829, 6);
+    expect(tariffAt(tariff, pdt(6, 1, 12), LA).importCentsPerKwh).toBeCloseTo(
+      36.829,
+      6,
+    );
+    expect(tariffAt(tariff, pdt(9, 30, 12), LA).importCentsPerKwh).toBeCloseTo(
+      36.829,
+      6,
+    );
   });
 
   it("uses site-local time, not UTC, for the day of week", () => {
     // Sat 2026-07-18 18:00 local = Sun 01:00Z; still weekend mid-peak
-    expect(tariffAt(tariff, Date.UTC(2026, 6, 19, 1, 0), LA).period).toBe("mid-peak");
+    expect(tariffAt(tariff, Date.UTC(2026, 6, 19, 1, 0), LA).period).toBe(
+      "mid-peak",
+    );
     // Fri 2026-07-17 17:00 local = Sat 00:00Z; still weekday peak
-    expect(tariffAt(tariff, Date.UTC(2026, 6, 18, 0, 0), LA).period).toBe("peak");
+    expect(tariffAt(tariff, Date.UTC(2026, 6, 18, 0, 0), LA).period).toBe(
+      "peak",
+    );
   });
 
   it("endsAt falls back to +8 days when the period never changes; ALL.ALL adds; no sell_tariff -> 0 export", () => {
     const flat = parseTariff({
       seasons: {
         Year: {
-          fromMonth: 1, fromDay: 1, toMonth: 12, toDay: 31,
+          fromMonth: 1,
+          fromDay: 1,
+          toMonth: 12,
+          toDay: 31,
           tou_periods: {
-            OFF_PEAK: [{ fromDayOfWeek: 0, toDayOfWeek: 6, fromHour: 0, fromMinute: 0, toHour: 0, toMinute: 0 }],
+            OFF_PEAK: [
+              {
+                fromDayOfWeek: 0,
+                toDayOfWeek: 6,
+                fromHour: 0,
+                fromMinute: 0,
+                toHour: 0,
+                toMinute: 0,
+              },
+            ],
           },
         },
       },
@@ -112,16 +149,40 @@ describe("tariffAt (SCE TOU-D-4-9PM, America/Los_Angeles)", () => {
 
 describe("costToday", () => {
   const hours = [
-    { hour: new Date(pdt(7, 15, 1)).toISOString(), gridImportWh: 400, gridExportWh: 0 }, // off-peak
-    { hour: new Date(pdt(7, 15, 2)).toISOString(), gridImportWh: 600, gridExportWh: 0 }, // off-peak
-    { hour: new Date(pdt(7, 18, 17)).toISOString(), gridImportWh: 500, gridExportWh: 0 }, // Sat mid-peak
-    { hour: new Date(pdt(7, 15, 16)).toISOString(), gridImportWh: 1500, gridExportWh: 0 }, // peak
-    { hour: new Date(pdt(7, 15, 17)).toISOString(), gridImportWh: 0, gridExportWh: 2000 }, // peak export
+    {
+      hour: new Date(pdt(7, 15, 1)).toISOString(),
+      gridImportWh: 400,
+      gridExportWh: 0,
+    }, // off-peak
+    {
+      hour: new Date(pdt(7, 15, 2)).toISOString(),
+      gridImportWh: 600,
+      gridExportWh: 0,
+    }, // off-peak
+    {
+      hour: new Date(pdt(7, 18, 17)).toISOString(),
+      gridImportWh: 500,
+      gridExportWh: 0,
+    }, // Sat mid-peak
+    {
+      hour: new Date(pdt(7, 15, 16)).toISOString(),
+      gridImportWh: 1500,
+      gridExportWh: 0,
+    }, // peak
+    {
+      hour: new Date(pdt(7, 15, 17)).toISOString(),
+      gridImportWh: 0,
+      gridExportWh: 2000,
+    }, // peak export
   ];
 
   it("returns 3 periods in order with summed Wh and per-period rounding", () => {
     const r = costToday(tariff, hours, LA);
-    expect(r.periods.map((p) => p.period)).toEqual(["off-peak", "mid-peak", "peak"]);
+    expect(r.periods.map((p) => p.period)).toEqual([
+      "off-peak",
+      "mid-peak",
+      "peak",
+    ]);
     expect(r.periods.map((p) => p.importWh)).toEqual([1000, 500, 1500]);
     // 1000*36.829/1000=36.829 -> 37 ; 500*47.816/1000=23.908 -> 24 ; 1500*58.972/1000=88.458 -> 88
     expect(r.periods.map((p) => p.costCents)).toEqual([37, 24, 88]);

@@ -27,7 +27,8 @@ const ROW = eq(credentials.id, 1);
 
 export function createFleetClient(deps: Deps): DataSource {
   const { db, now } = deps;
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const sleep =
+    deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   let token: { value: string; expiresAt: number } | undefined;
   let inflight: Promise<string> | undefined;
 
@@ -64,7 +65,8 @@ export function createFleetClient(deps: Deps): DataSource {
     return db.transaction((tx) => {
       const row = tx.select().from(credentials).where(ROW).get();
       if (!row) throw new AuthExpired("No Tesla credentials stored");
-      if (row.refreshLockUntil && row.refreshLockUntil.getTime() > now()) return undefined;
+      if (row.refreshLockUntil && row.refreshLockUntil.getTime() > now())
+        return undefined;
       tx.update(credentials)
         .set({ refreshLockUntil: new Date(now() + LEASE_MS) })
         .where(ROW)
@@ -75,12 +77,19 @@ export function createFleetClient(deps: Deps): DataSource {
 
   async function refresh(): Promise<string> {
     let refreshToken: string | undefined;
-    for (let waited = 0; !(refreshToken = acquireLease()); waited += WAIT_STEP_MS) {
-      if (waited >= WAIT_MAX_MS) throw new SourceUnavailable("token refresh lock timeout");
+    for (
+      let waited = 0;
+      !(refreshToken = acquireLease());
+      waited += WAIT_STEP_MS
+    ) {
+      if (waited >= WAIT_MAX_MS)
+        throw new SourceUnavailable("token refresh lock timeout");
       await sleep(WAIT_STEP_MS);
     }
     try {
-      const basic = Buffer.from(`${deps.clientId}:${deps.clientSecret}`).toString("base64");
+      const basic = Buffer.from(
+        `${deps.clientId}:${deps.clientSecret}`,
+      ).toString("base64");
       const t = (await call("/oauth2/v3/token", TOKEN_URL, {
         method: "POST",
         headers: {
@@ -92,7 +101,11 @@ export function createFleetClient(deps: Deps): DataSource {
           refresh_token: refreshToken,
           client_id: deps.clientId,
         }),
-      })) as { access_token: string; refresh_token: string; expires_in: number };
+      })) as {
+        access_token: string;
+        refresh_token: string;
+        expires_in: number;
+      };
       const { ciphertext, iv } = encrypt(t.refresh_token);
       const expiresAt = now() + t.expires_in * 1000;
       db.update(credentials)
@@ -108,10 +121,7 @@ export function createFleetClient(deps: Deps): DataSource {
       token = { value: t.access_token, expiresAt };
       return t.access_token;
     } catch (e) {
-      db.update(credentials)
-        .set({ refreshLockUntil: null })
-        .where(ROW)
-        .run();
+      db.update(credentials).set({ refreshLockUntil: null }).where(ROW).run();
       throw e;
     }
   }
@@ -122,9 +132,13 @@ export function createFleetClient(deps: Deps): DataSource {
   }
   async function get(site: string, suffix: string, query = "") {
     const tpl = `/api/1/energy_sites/{siteId}/${suffix}`;
-    return call(tpl, `${deps.baseUrl}/api/1/energy_sites/${site}/${suffix}${query}`, {
-      headers: { Authorization: `Bearer ${await accessToken()}` },
-    });
+    return call(
+      tpl,
+      `${deps.baseUrl}/api/1/energy_sites/${site}/${suffix}${query}`,
+      {
+        headers: { Authorization: `Bearer ${await accessToken()}` },
+      },
+    );
   }
 
   return {
@@ -145,7 +159,8 @@ const lazy = () =>
     fetch,
     db: defaultDb,
     now: Date.now,
-    baseUrl: env.TESLA_FLEET_BASE_URL ?? "https://fleet-api.prd.na.vn.cloud.tesla.com",
+    baseUrl:
+      env.TESLA_FLEET_BASE_URL ?? "https://fleet-api.prd.na.vn.cloud.tesla.com",
     clientId: env.TESLA_CLIENT_ID,
     clientSecret: env.TESLA_CLIENT_SECRET,
   }));

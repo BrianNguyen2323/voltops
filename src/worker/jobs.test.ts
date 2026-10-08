@@ -50,7 +50,12 @@ type Site = typeof schema.sites.$inferSelect;
 function addSite(o: Partial<typeof schema.sites.$inferInsert> = {}): Site {
   return db
     .insert(schema.sites)
-    .values({ source: "fleet-api", externalId: "EXT-SECRET-1", timezone: TZ, ...o })
+    .values({
+      source: "fleet-api",
+      externalId: "EXT-SECRET-1",
+      timezone: TZ,
+      ...o,
+    })
     .returning()
     .get();
 }
@@ -89,8 +94,15 @@ function fakeSource(over: Partial<DataSource> = {}) {
   };
   return { source, calls, getLiveStatus };
 }
-const okFetch = () => vi.fn(() => Promise.resolve(new Response(FIXTURE))) as unknown as typeof fetch;
-const mkDeps = (source: DataSource, now: number, f: typeof fetch = okFetch()) => ({
+const okFetch = () =>
+  vi.fn(() =>
+    Promise.resolve(new Response(FIXTURE)),
+  ) as unknown as typeof fetch;
+const mkDeps = (
+  source: DataSource,
+  now: number,
+  f: typeof fetch = okFetch(),
+) => ({
   db,
   source,
   fetch: f,
@@ -121,7 +133,8 @@ function fillPrev(siteId: number, today: string, skip: string[] = []) {
     if (!skip.includes(d)) fillDay(siteId, d, 288);
   }
 }
-const days = (calls: { range: Range }[]) => calls.map((c) => c.range.start_date.slice(0, 10)).sort();
+const days = (calls: { range: Range }[]) =>
+  calls.map((c) => c.range.start_date.slice(0, 10)).sort();
 
 describe("dayRange", () => {
   it("normal day: local midnight to 1 s before next midnight", () => {
@@ -142,7 +155,9 @@ describe("dayRange", () => {
     expect(r.end_date).toBe("2026-11-01T23:59:59-08:00");
   });
   it("uses endMs as end when given", () => {
-    expect(dayRange("2026-10-05", TZ, NOW).end_date).toBe("2026-10-05T11:00:00-07:00");
+    expect(dayRange("2026-10-05", TZ, NOW).end_date).toBe(
+      "2026-10-05T11:00:00-07:00",
+    );
   });
 });
 
@@ -156,7 +171,9 @@ describe("syncEnergy", () => {
     const d = days(calls);
     expect(d[0]).toBe("2026-09-28");
     expect(d[7]).toBe("2026-10-05");
-    const today = calls.find((c) => c.range.start_date.startsWith("2026-10-05"))!;
+    const today = calls.find((c) =>
+      c.range.start_date.startsWith("2026-10-05"),
+    )!;
     expect(today.range.end_date).toBe("2026-10-05T11:00:00-07:00");
     expect(today.range.time_zone).toBe(TZ);
   });
@@ -205,7 +222,9 @@ describe("syncEnergy", () => {
     const { source } = fakeSource({
       getHistory: vi.fn((_id: string, r: Range) =>
         Promise.resolve(
-          r.start_date.startsWith("2026-10-05") ? [interval(t, v), interval(t + FIVE_MIN, v)] : [],
+          r.start_date.startsWith("2026-10-05")
+            ? [interval(t, v), interval(t + FIVE_MIN, v)]
+            : [],
         ),
       ),
     });
@@ -216,7 +235,11 @@ describe("syncEnergy", () => {
     await syncEnergy(mkDeps(source, NOW), site);
     const all = db.select().from(schema.energyIntervals).all();
     expect(all).toHaveLength(2);
-    expect(all.every((r) => r.solarWh === 99 && r.loadWh === 2 && r.batteryDischargeWh === 6)).toBe(true);
+    expect(
+      all.every(
+        (r) => r.solarWh === 99 && r.loadWh === 2 && r.batteryDischargeWh === 6,
+      ),
+    ).toBe(true);
     expect(all.map((r) => r.start.getTime()).sort()).toEqual([t, t + FIVE_MIN]);
   });
 });
@@ -255,7 +278,12 @@ describe("syncWeather", () => {
 
   it("stores observed rows and forecast rows issued at now", async () => {
     const site = addSite({ latitude: 34.05, longitude: -118.24 });
-    const expected = await fetchWeather({ fetch: okFetch(), lat: 34.05, lon: -118.24, now: FIXTURE_NOW });
+    const expected = await fetchWeather({
+      fetch: okFetch(),
+      lat: 34.05,
+      lon: -118.24,
+      now: FIXTURE_NOW,
+    });
     await syncWeather(mkDeps(fakeSource().source, FIXTURE_NOW), site);
     await syncWeather(mkDeps(fakeSource().source, FIXTURE_NOW), site); // idempotent
     const obs = db.select().from(schema.weatherObserved).all();
@@ -265,14 +293,19 @@ describe("syncWeather", () => {
     expect(fc.length).toBeGreaterThan(0);
     expect(fc).toHaveLength(expected.forecast.length);
     expect(fc.every((r) => r.issuedAt.getTime() === FIXTURE_NOW)).toBe(true);
-    expect(fc.map((r) => r.hour.getTime()).sort()).toEqual(expected.forecast.map((r) => r.hour).sort());
+    expect(fc.map((r) => r.hour.getTime()).sort()).toEqual(
+      expected.forecast.map((r) => r.hour).sort(),
+    );
   });
 
   it("keeps earlier forecasts when run again later (forecast-as-issued)", async () => {
     const site = addSite({ latitude: 34.05, longitude: -118.24 });
     await syncWeather(mkDeps(fakeSource().source, FIXTURE_NOW), site);
     const n = db.select().from(schema.weatherForecast).all().length;
-    await syncWeather(mkDeps(fakeSource().source, FIXTURE_NOW + 3 * 3_600_000), site);
+    await syncWeather(
+      mkDeps(fakeSource().source, FIXTURE_NOW + 3 * 3_600_000),
+      site,
+    );
     const all = db.select().from(schema.weatherForecast).all();
     expect(new Set(all.map((r) => r.issuedAt.getTime())).size).toBe(2);
     expect(all.length).toBeGreaterThan(n);
@@ -283,10 +316,19 @@ describe("applySiteSettings", () => {
   it("writes set values onto every site row", () => {
     addSite({ externalId: "a" });
     addSite({ externalId: "b" });
-    applySiteSettings(db, { SITE_LATITUDE: 34.05, SITE_LONGITUDE: -118.24, TEMPERATURE_UNIT: "F" });
+    applySiteSettings(db, {
+      SITE_LATITUDE: 34.05,
+      SITE_LONGITUDE: -118.24,
+      TEMPERATURE_UNIT: "F",
+    });
     const all = db.select().from(schema.sites).all();
     expect(all).toHaveLength(2);
-    for (const s of all) expect(s).toMatchObject({ latitude: 34.05, longitude: -118.24, temperatureUnit: "F" });
+    for (const s of all)
+      expect(s).toMatchObject({
+        latitude: 34.05,
+        longitude: -118.24,
+        temperatureUnit: "F",
+      });
   });
   it("leaves columns alone when the env vars are unset", () => {
     addSite({ latitude: 1.5, longitude: 2.5, temperatureUnit: "C" });
@@ -312,7 +354,9 @@ describe("error isolation", () => {
   function captureLogs() {
     const lines: string[] = [];
     for (const m of ["log", "warn", "error", "info"] as const)
-      vi.spyOn(console, m).mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
+      vi.spyOn(console, m).mockImplementation(
+        (...a: unknown[]) => void lines.push(a.map(String).join(" ")),
+      );
     return lines;
   }
 
@@ -322,12 +366,26 @@ describe("error isolation", () => {
     const good = addSite({ externalId: "EXT-SECRET-GOOD" });
     const { source } = fakeSource({
       getLiveStatus: vi.fn((id: string) =>
-        id === "EXT-SECRET-BAD" ? Promise.reject(new AuthExpired("token expired")) : Promise.resolve(live),
+        id === "EXT-SECRET-BAD"
+          ? Promise.reject(new AuthExpired("token expired"))
+          : Promise.resolve(live),
       ),
     });
     await runTesla(mkDeps(source, NOW));
-    expect(db.select().from(schema.samples).all().map((s) => s.siteId)).toEqual([good.id]);
-    expect(lines.some((l) => l.includes(`[worker] takeSample site=${bad.id} AuthExpired: token expired`))).toBe(true);
+    expect(
+      db
+        .select()
+        .from(schema.samples)
+        .all()
+        .map((s) => s.siteId),
+    ).toEqual([good.id]);
+    expect(
+      lines.some((l) =>
+        l.includes(
+          `[worker] takeSample site=${bad.id} AuthExpired: token expired`,
+        ),
+      ),
+    ).toBe(true);
     expect(lines.join("\n")).not.toContain("EXT-SECRET");
   });
 
@@ -339,7 +397,11 @@ describe("error isolation", () => {
     });
     await runTesla(mkDeps(source, NOW));
     expect(db.select().from(schema.samples).all()).toHaveLength(1);
-    expect(lines.some((l) => l.includes(`[worker] syncEnergy site=${site.id} Error: boom`))).toBe(true);
+    expect(
+      lines.some((l) =>
+        l.includes(`[worker] syncEnergy site=${site.id} Error: boom`),
+      ),
+    ).toBe(true);
     expect(lines.join("\n")).not.toContain("EXT-SECRET");
   });
 
@@ -354,16 +416,41 @@ describe("error isolation", () => {
   it("weather runs for every site with lat/lon; a failing site does not stop the next", async () => {
     const lines = captureLogs();
     addSite({ externalId: "w0" }); // no lat/lon: skipped
-    const bad = addSite({ externalId: "w1", source: "replay", latitude: 10, longitude: 10 });
-    const good = addSite({ externalId: "w2", latitude: 34.05, longitude: -118.24 });
+    const bad = addSite({
+      externalId: "w1",
+      source: "replay",
+      latitude: 10,
+      longitude: 10,
+    });
+    const good = addSite({
+      externalId: "w2",
+      latitude: 34.05,
+      longitude: -118.24,
+    });
     const f = vi.fn((url: string) =>
-      Promise.resolve(url.includes("latitude=10.00") ? new Response("no", { status: 500 }) : new Response(FIXTURE)),
+      Promise.resolve(
+        url.includes("latitude=10.00")
+          ? new Response("no", { status: 500 })
+          : new Response(FIXTURE),
+      ),
     );
-    await runWeather(mkDeps(fakeSource().source, FIXTURE_NOW, f as unknown as typeof fetch));
+    await runWeather(
+      mkDeps(fakeSource().source, FIXTURE_NOW, f as unknown as typeof fetch),
+    );
     expect(f).toHaveBeenCalledTimes(2);
-    const sites = new Set(db.select().from(schema.weatherObserved).all().map((r) => r.siteId));
+    const sites = new Set(
+      db
+        .select()
+        .from(schema.weatherObserved)
+        .all()
+        .map((r) => r.siteId),
+    );
     expect([...sites]).toEqual([good.id]);
-    expect(lines.some((l) => l.includes(`[worker] syncWeather site=${bad.id} Error:`))).toBe(true);
+    expect(
+      lines.some((l) =>
+        l.includes(`[worker] syncWeather site=${bad.id} Error:`),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -371,7 +458,10 @@ describe("error isolation", () => {
 // -> { SITE_LATITUDE?, SITE_LONGITUDE?, TEMPERATURE_UNIT? }, "" treated as unset;
 // isTeslaIdle(db) -> true when no credentials row OR no fleet-api site (main.ts logs the idle line once).
 describe("B011 syncEnergy order and per-day isolation", () => {
-  const rec = (calls: { id: string; range: Range }[], fail: (d: string) => boolean) =>
+  const rec = (
+    calls: { id: string; range: Range }[],
+    fail: (d: string) => boolean,
+  ) =>
     vi.fn((id: string, r: Range) => {
       calls.push({ id, range: r });
       return fail(r.start_date.slice(0, 10))
@@ -391,8 +481,12 @@ describe("B011 syncEnergy order and per-day isolation", () => {
   it("a failing past day does not stop the others or today; first error rethrown", async () => {
     const site = addSite();
     const calls: { id: string; range: Range }[] = [];
-    const { source } = fakeSource({ getHistory: rec(calls, (d) => d === "2026-10-04" || d === "2026-10-02") });
-    await expect(syncEnergy(mkDeps(source, NOW), site)).rejects.toThrow("rate 2026-10-04");
+    const { source } = fakeSource({
+      getHistory: rec(calls, (d) => d === "2026-10-04" || d === "2026-10-02"),
+    });
+    await expect(syncEnergy(mkDeps(source, NOW), site)).rejects.toThrow(
+      "rate 2026-10-04",
+    );
     expect(calls).toHaveLength(8);
     expect(days(calls)).toContain("2026-10-05");
   });
@@ -400,33 +494,53 @@ describe("B011 syncEnergy order and per-day isolation", () => {
   it("today failing does not skip the backfill days", async () => {
     const site = addSite();
     const calls: { id: string; range: Range }[] = [];
-    const { source } = fakeSource({ getHistory: rec(calls, (d) => d === "2026-10-05") });
-    await expect(syncEnergy(mkDeps(source, NOW), site)).rejects.toThrow("rate 2026-10-05");
+    const { source } = fakeSource({
+      getHistory: rec(calls, (d) => d === "2026-10-05"),
+    });
+    await expect(syncEnergy(mkDeps(source, NOW), site)).rejects.toThrow(
+      "rate 2026-10-05",
+    );
     expect(calls).toHaveLength(8);
   });
 
   it("runTesla logs the failure once and still fetches today", async () => {
     const lines: string[] = [];
     for (const m of ["log", "warn", "error", "info"] as const)
-      vi.spyOn(console, m).mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
+      vi.spyOn(console, m).mockImplementation(
+        (...a: unknown[]) => void lines.push(a.map(String).join(" ")),
+      );
     const site = addSite();
     const calls: { id: string; range: Range }[] = [];
-    const { source } = fakeSource({ getHistory: rec(calls, (d) => d === "2026-10-04" || d === "2026-10-03") });
+    const { source } = fakeSource({
+      getHistory: rec(calls, (d) => d === "2026-10-04" || d === "2026-10-03"),
+    });
     await runTesla(mkDeps(source, NOW));
     expect(days(calls)).toContain("2026-10-05");
-    expect(lines.filter((l) => l.includes(`[worker] syncEnergy site=${site.id}`))).toHaveLength(1);
+    expect(
+      lines.filter((l) => l.includes(`[worker] syncEnergy site=${site.id}`)),
+    ).toHaveLength(1);
   });
 });
 
 describe("B011 parseSiteSettings", () => {
   it("empty strings count as unset, not 0", () => {
-    const r = parseSiteSettings({ SITE_LATITUDE: "", SITE_LONGITUDE: "", TEMPERATURE_UNIT: "" });
+    const r = parseSiteSettings({
+      SITE_LATITUDE: "",
+      SITE_LONGITUDE: "",
+      TEMPERATURE_UNIT: "",
+    });
     expect(r.SITE_LATITUDE).toBeUndefined();
     expect(r.SITE_LONGITUDE).toBeUndefined();
     expect(r.TEMPERATURE_UNIT).toBeUndefined();
   });
   it("parses real values, including a genuine 0", () => {
-    expect(parseSiteSettings({ SITE_LATITUDE: "37.5", SITE_LONGITUDE: "0", TEMPERATURE_UNIT: "C" })).toMatchObject({
+    expect(
+      parseSiteSettings({
+        SITE_LATITUDE: "37.5",
+        SITE_LONGITUDE: "0",
+        TEMPERATURE_UNIT: "C",
+      }),
+    ).toMatchObject({
       SITE_LATITUDE: 37.5,
       SITE_LONGITUDE: 0,
       TEMPERATURE_UNIT: "C",
@@ -434,14 +548,25 @@ describe("B011 parseSiteSettings", () => {
   });
   it("blank coords do not overwrite a site's coords", () => {
     const site = addSite({ latitude: 40, longitude: -100 });
-    applySiteSettings(db, parseSiteSettings({ SITE_LATITUDE: "", SITE_LONGITUDE: "" }));
-    const row = db.select().from(schema.sites).all().find((x) => x.id === site.id)!;
+    applySiteSettings(
+      db,
+      parseSiteSettings({ SITE_LATITUDE: "", SITE_LONGITUDE: "" }),
+    );
+    const row = db
+      .select()
+      .from(schema.sites)
+      .all()
+      .find((x) => x.id === site.id)!;
     expect([row.latitude, row.longitude]).toEqual([40, -100]);
   });
 });
 
 describe("B011 isTeslaIdle", () => {
-  const cred = () => db.insert(schema.credentials).values({ id: 1, encryptedRefreshToken: "x", iv: "y" }).run();
+  const cred = () =>
+    db
+      .insert(schema.credentials)
+      .values({ id: 1, encryptedRefreshToken: "x", iv: "y" })
+      .run();
   it("idle with a fleet-api site but no credentials row", () => {
     addSite();
     expect(isTeslaIdle(db)).toBe(true);
@@ -478,7 +603,10 @@ describe("B017 fillWeatherGaps", () => {
       const past = Number(p.get("past_days"));
       const fut = Number(p.get("forecast_days"));
       const t0 = Math.floor(now / DAY) * DAY - past * DAY;
-      const time = Array.from({ length: (past + fut) * 24 }, (_, i) => (t0 + i * HOUR) / 1000);
+      const time = Array.from(
+        { length: (past + fut) * 24 },
+        (_, i) => (t0 + i * HOUR) / 1000,
+      );
       const col = (v: number) => time.map(() => v);
       return Promise.resolve(
         new Response(
@@ -498,7 +626,8 @@ describe("B017 fillWeatherGaps", () => {
   }
   type Meteo = ReturnType<typeof meteo>;
   const asFetch = (f: Meteo) => f as unknown as typeof fetch;
-  const urlOf = (f: Meteo, i = 0) => new URL(String((f.mock.calls[i] as unknown[])[0]));
+  const urlOf = (f: Meteo, i = 0) =>
+    new URL(String((f.mock.calls[i] as unknown[])[0]));
   const run = (f: Meteo, now: number, site: Site) =>
     fillWeatherGaps(mkDeps(fakeSource().source, now, asFetch(f)), site);
 
@@ -531,7 +660,8 @@ describe("B017 fillWeatherGaps", () => {
 
   it("energy on 3 past days, weather on 1: one call, past_days to oldest gap, rows only for gap days, no forecast rows", async () => {
     const site = addSite(LL);
-    for (const d of ["2026-10-02", "2026-10-03", "2026-10-04"]) seedEnergy(site.id, d);
+    for (const d of ["2026-10-02", "2026-10-03", "2026-10-04"])
+      seedEnergy(site.id, d);
     seedWeather(site.id, "2026-10-04", 24);
     const f = meteo(NOW);
     await run(f, NOW, site);
@@ -539,7 +669,11 @@ describe("B017 fillWeatherGaps", () => {
     const p = urlOf(f).searchParams;
     expect(p.get("past_days")).toBe("3");
     expect(p.get("forecast_days")).toBe("1");
-    expect(obsHours(site.id)).toEqual([...dayHours("2026-10-02"), ...dayHours("2026-10-03"), ...dayHours("2026-10-04")]);
+    expect(obsHours(site.id)).toEqual([
+      ...dayHours("2026-10-02"),
+      ...dayHours("2026-10-03"),
+      ...dayHours("2026-10-04"),
+    ]);
     expect(db.select().from(schema.weatherForecast).all()).toHaveLength(0);
   });
 
@@ -551,8 +685,12 @@ describe("B017 fillWeatherGaps", () => {
     await run(meteo(NOW), NOW, site);
     const rows = db.select().from(schema.weatherObserved).all();
     const d4 = new Set(dayHours("2026-10-04"));
-    expect(rows.filter((r) => d4.has(r.hour.getTime())).every((r) => r.tempC === 1)).toBe(true);
-    expect(rows.some((r) => r.hour.getTime() >= localMidnight("2026-10-05", TZ))).toBe(false);
+    expect(
+      rows.filter((r) => d4.has(r.hour.getTime())).every((r) => r.tempC === 1),
+    ).toBe(true);
+    expect(
+      rows.some((r) => r.hour.getTime() >= localMidnight("2026-10-05", TZ)),
+    ).toBe(false);
   });
 
   it("a day with energy but only 20 observed hours is a gap and gets completed", async () => {
@@ -584,7 +722,10 @@ describe("B017 fillWeatherGaps", () => {
     const f = meteo(NOW);
     await run(f, NOW, site);
     expect(urlOf(f).searchParams.get("past_days")).toBe("3");
-    expect(obsHours(site.id)).toEqual([...dayHours("2026-10-02"), ...dayHours("2026-10-04")]);
+    expect(obsHours(site.id)).toEqual([
+      ...dayHours("2026-10-02"),
+      ...dayHours("2026-10-04"),
+    ]);
   });
 
   it("window is 92 days: day 92 back is filled, day 93 and 100 back are ignored", async () => {
@@ -699,22 +840,36 @@ describe("B017 fillWeatherGaps", () => {
     expect(f).toHaveBeenCalledTimes(2);
     expect(urlOf(f, 0).searchParams.get("past_days")).toBe("1");
     expect(urlOf(f, 1).searchParams.get("past_days")).toBe("3");
-    expect(obsHours(site.id)).toEqual(expect.arrayContaining(dayHours("2026-10-02")));
+    expect(obsHours(site.id)).toEqual(
+      expect.arrayContaining(dayHours("2026-10-02")),
+    );
   });
 
   it("runWeather keeps going when the gap-fill throws, and logs it via guarded", async () => {
     const lines: string[] = [];
     for (const m of ["log", "warn", "error", "info"] as const)
-      vi.spyOn(console, m).mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
+      vi.spyOn(console, m).mockImplementation(
+        (...a: unknown[]) => void lines.push(a.map(String).join(" ")),
+      );
     const bad = addSite({ ...LL, externalId: "bad" });
     seedEnergy(bad.id, "2026-10-02");
     const good = addSite({ latitude: 10, longitude: 10, externalId: "good" });
     const ok = meteo(NOW);
     const f = vi.fn((url: string) =>
-      url.includes("forecast_days=1") ? Promise.resolve(new Response("x", { status: 500 })) : ok(url),
+      url.includes("forecast_days=1")
+        ? Promise.resolve(new Response("x", { status: 500 }))
+        : ok(url),
     );
-    await runWeather(mkDeps(fakeSource().source, NOW, f as unknown as typeof fetch));
-    expect(lines.some((l) => l.includes(`[worker] fillWeatherGaps site=${bad.id} Error: open-meteo: 500`))).toBe(true);
+    await runWeather(
+      mkDeps(fakeSource().source, NOW, f as unknown as typeof fetch),
+    );
+    expect(
+      lines.some((l) =>
+        l.includes(
+          `[worker] fillWeatherGaps site=${bad.id} Error: open-meteo: 500`,
+        ),
+      ),
+    ).toBe(true);
     expect(obsHours(good.id).length).toBeGreaterThan(0);
   });
 
