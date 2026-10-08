@@ -83,3 +83,8 @@ Implementer: `Use skill: frontend-design` (3 tiles, chips, details line in the e
 - **Worktree:** branch from the given hash explicitly (worktrees may start on an older commit). Use a node_modules junction `cmd //c mklink //J node_modules "D:\Programming Projects\voltops\node_modules"`, and `cmd //c rmdir node_modules` before finishing; never `--force`. Keep commands bounded. Prettier only on owned files. **COMMIT and give the hash.**
 
 ## Gate log
+- Tests 2d1140d on `phase2b/your-system-test`:
+  - 30 tests fail plus 1 suite that can't load (`system.ts` missing), all for the right reason.
+  - The helpers in `system.ts` are fixed by the tester: `HealthStatus`, `solarStatus(h)`, `batteryCapacityStatus(h, capacityWh)`, `efficiencyStatus(h)`, `systemSizeW(solar)`, `bestHourPerPanelW(solar)`. They are helpers, not new view fields.
+  - The ⓘ buttons are counted by an `aria-label="About…` prefix.
+  - Implementer spawned.
