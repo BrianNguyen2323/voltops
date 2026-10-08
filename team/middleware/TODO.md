@@ -161,7 +161,7 @@ Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) 
 **Q2. `pnpm format:check` flags 453 files repo-wide** (pre-existing, not in the gate). It touches every scope's files.
 - **A (recommended):** leave it. Do one repo-wide `prettier --write` commit later, when no team has open branches.
 - B: add format:check to the gate now (a one-off reformat first).
-- Answer:
+- Answer (PO, 2026-10-08): **reformat now**, after the lead confirmed no team has open branches (all merged into main 10edebf; nothing in doing/gate). B027.
 
 **Q3. Docker Desktop is not running**, so B026's docker smoke (the last O1 gate) can't run. Lint and the config/Dockerfile review already PASS. Start Docker Desktop (or reply "start it" and I'll launch it), then I re-run `SMOKE_PORT=3100 bash scripts/docker-smoke.sh` and merge B026.
 - Answer (PO, 2026-10-08): Docker is up; smoke re-run started.
