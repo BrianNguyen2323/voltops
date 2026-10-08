@@ -174,6 +174,10 @@ describe("sampleDashboard", () => {
     for (const x of times) expect(isIso(x)).toBe(true);
   });
 
+  it("the reserve window ends when tomorrow's peak starts (4:00 PM PDT)", () => {
+    expect(d.recommendation!.validTo).toBe("2026-07-16T23:00:00Z");
+  });
+
   describe("consistency with the timeline", () => {
     const actuals = d.timeline.filter((r) => r.kind === "actual");
     const last = actuals[actuals.length - 1]!;

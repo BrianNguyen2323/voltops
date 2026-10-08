@@ -411,7 +411,7 @@ describe("buildSnapshot", () => {
       expect(s.recommendation).toBeNull();
     });
 
-    it("historyDays >= 7 and tomorrow set: recommendation with reservePlan, valid until 21:00 tomorrow", () => {
+    it("historyDays >= 7 and tomorrow set: recommendation with reservePlan, valid until tomorrow's peak starts (16:00)", () => {
       const pe = days(7, ph(11000));
       const s = buildSnapshot(input(NORMAL, { peakEstimate: pe }));
       expect(checkSnapshot(s)).toEqual([]);
@@ -427,7 +427,7 @@ describe("buildSnapshot", () => {
       expect(r.action).toBe("Raise backup reserve to 100%");
       expect(r.effectWh).toBe(10800);
       expect(r.validFrom).toBe("2026-05-21T04:00:00.000Z"); // today's peak ends 21:00 PDT, after updatedAt
-      expect(r.validTo).toBe("2026-05-22T04:00:00.000Z"); // tomorrow 21:00 PDT
+      expect(r.validTo).toBe("2026-05-21T23:00:00.000Z"); // tomorrow 16:00 PDT
       expect(r.confidence).toBe("medium");
       expect(r.why).toEqual([
         "Usual peak use: 11.0 kWh over 7 days",
