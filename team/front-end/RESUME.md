@@ -11,7 +11,7 @@
 - **Next action (on "continue"):**
   - ask the PO for the next topic. Options: learning/loading/error states, `accuracy: []` empty state, light theme, chart CSV views, nav + Plan/Trends, or architecture backlog #3;
   - the optimization round is due after M7;
-  - open PO item: commit or revert the modified fleet fixtures (6 fleet-api tests fail with them; middleware owns those tests).
+  - fixtures re-recorded and committed at 856a5b7 at the PO's request. 6 fleet-api tests are red until the middleware team updates them (pointer in their RESUME.md).
 - **Open branches / worktrees:** none from this topic.
 - Previous topic (dashboard v1, M1–M5) is done and on main. The architecture backlog (#3 time module, #2 tariff, #4 flow state, #5) stays parked.
 
