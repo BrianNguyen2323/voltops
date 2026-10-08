@@ -1,5 +1,10 @@
 # Resume board — middleware
 
+- **Hand-off from front-end (2026-10-08, PO-approved, front-end SPEC Rev 8):** three new backlog briefs. The front-end ships the contract + a `build.ts` stub in B035.
+  - `plan/board/backlog/B036-system-info.md` (site_info fields, `SITE_PANEL_*` env, best hour, change log);
+  - `B037-equipment-health.md` (pure health measurements);
+  - `B038-history-backfill.md` (one-time backfill; **PO budget condition**: ≤ 2,500/month, total ≤ 4,500 of ~5,000 free Tesla Data requests).
+
 - **Cross-scope note (front-end lead, 2026-10-08):** front-end B034 (PO-approved, decision round 3 Q1 A) changed `src/lib/advisor/reserve.ts`: `validTo` = start of tomorrow's peak (was the end), plus its expectations in `reserve.test.ts`, `build.test.ts` and `load.test.ts`. SPEC L166 updated. Merged on `front-end-development` at 1f92288. Rebase or merge before touching the advisor.
 
 Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).

@@ -531,7 +531,7 @@ Answer in chat or here, e.g. "all recommended".
 
 ---
 
-## USER INPUT REQUIRED — Decision round 5 (2026-10-08): Equipment health. Research: `research/system-info/HEALTH.md`
+## Decision round 5 — ANSWERED 2026-10-08, all A, Q6 with conditions (see design/revisions/R008.md): Equipment health. Research: `research/system-info/HEALTH.md`
 
 You want to spot declining panel output or battery storage. Everything below except the "later" items uses data VoltOps **already records**: 5-minute energy, battery %, and hourly sunlight + cloud cover. Answer e.g. "all recommended".
 
@@ -546,7 +546,7 @@ You want to spot declining panel output or battery storage. Everything below exc
 - **Later, needs the local-gateway source:**
   - per-string solar comparison, the best way to find one bad panel;
   - Tesla's own per-battery capacity number.
-- Answer:
+- Answer: **A** (PO, 2026-10-08).
 
 **Q6. Baseline: wait for history or backfill it.** A year-over-year solar comparison needs a year of data.
 - **A (recommended): backfill once.**
@@ -554,7 +554,7 @@ You want to spot declining panel output or battery storage. Everything below exc
   - Past weather from Open-Meteo's free archive.
   - Health trends then show within a day of setup.
 - B: no backfill. Battery checks appear after a few weeks and the solar year-over-year after a year. The "sunny day" flag works after ~2 weeks of learning.
-- Answer:
+- Answer: **A**, on the PO's condition: "only if it is a one time backfill and is within the request limit … The backfill should leave enough request for general use of VoltOps as well." Also: backfill **all existing data** so an existing system gets trends right away. → budget rule in SPEC Rev 8 (backfill ≤ 2,500/month, total ≤ 4,500 of ~5,000 free). (PO, 2026-10-08).
 
 **Q7. Where it shows.**
 - **A (recommended): inside "Your system".**
@@ -565,7 +565,7 @@ You want to spot declining panel output or battery storage. Everything below exc
   - The change log sits in the small details line.
 - B: a separate "Equipment health" section below "Your system".
 - C: wait for the Health screen (CLAUDE.md §9). It's not built and has no nav yet.
-- Answer:
+- Answer: **A** (PO, 2026-10-08).
 
 **Q8. When a status becomes Watch / Check.**
 - **A (recommended): fixed, explained thresholds.**
@@ -575,7 +575,7 @@ You want to spot declining panel output or battery storage. Everything below exc
   - A sunny-day miss of > 25% is a Check.
   - The popover shows the math, like the Tonight ⓘ.
 - B: show the numbers only, with no status judgement.
-- Answer:
+- Answer: **A** (PO, 2026-10-08).
 
 **Q9. Who builds what** (same split as Q4).
 - **A (recommended):**
@@ -584,4 +584,4 @@ You want to spot declining panel output or battery storage. Everything below exc
     - the pure health functions;
     - the daily `site_info` log;
     - the backfill job if Q6 A.
-- Answer:
+- Answer: **A** (PO, 2026-10-08).
