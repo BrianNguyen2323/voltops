@@ -7,6 +7,7 @@ import {
   applySiteSettings,
   isTeslaIdle,
   parseSiteSettings,
+  runSiteSync,
   runTesla,
   runWeather,
 } from "./jobs";
@@ -18,6 +19,7 @@ let idleLogged = false;
 let busy = false;
 let lastTesla = Math.floor(Date.now() / HOUR);
 let lastWeather = 0;
+let lastSiteSync = 0;
 
 async function tick(first = false) {
   if (busy) return;
@@ -32,6 +34,10 @@ async function tick(first = false) {
       lastTesla = Math.floor(now / HOUR);
       if (!isTeslaIdle(db)) {
         idleLogged = false;
+        if (now - lastSiteSync >= 24 * HOUR) {
+          lastSiteSync = now;
+          await runSiteSync(deps);
+        }
         await runTesla(deps);
       } else if (!idleLogged) {
         idleLogged = true;
