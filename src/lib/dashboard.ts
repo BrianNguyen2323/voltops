@@ -205,6 +205,59 @@ export type DashboardSnapshot = {
     /** Chance of precipitation, percent 0-100. */
     precipitationChancePct: number;
   };
+  /** null = not synced yet. */
+  system: null | {
+    batteries: {
+      /** Integer >= 1. */
+      count: number;
+      model: string | null;
+      /** Nameplate energy, Wh. */
+      capacityWh: number;
+      /** Nameplate power, W. */
+      maxPowerW: number | null;
+      backupReservePct: number | null;
+    };
+    solar: {
+      /** User-entered (SITE_PANEL_COUNT); Tesla has no panel data. */
+      panelCount: number | null;
+      /** W per panel (SITE_PANEL_WATTS). */
+      panelWatts: number | null;
+      /** Max hourly solar Wh in stored history; null = no history. */
+      bestHourWh: number | null;
+      /** ISO UTC start of that hour. */
+      bestHourAt: string | null;
+    };
+    plan: { utility: string | null; name: string | null };
+    firmware: string | null;
+    /** YYYY-MM-DD, site-local. */
+    installedOn: string | null;
+    /** Newest first, max 5; at is ISO UTC. */
+    changes: Array<{ at: string; text: string }>;
+  };
+  equipmentHealth: {
+    /** Median clear-hour solar Wh per GHI for `month`, as % of `baselineMonth`. null = learning. */
+    solarClearDay: null | {
+      month: string;
+      baselineMonth: string;
+      pctOfBaseline: number;
+      clearHours: number;
+    };
+    /** Latest clear day in the last 7 whose solar was > 25% under expected. */
+    sunnyDayMiss: null | { date: string; expectedWh: number; actualWh: number };
+    /** Median Wh moved per SoC point over swings >= 40 points in `month`. null = learning. */
+    batteryCapacity: null | {
+      month: string;
+      estimatedWh: number;
+      swings: number;
+    };
+    /** Monthly discharge Wh / charge Wh x 100. null = learning. */
+    efficiency: null | { month: string; pct: number };
+    backfill: {
+      state: "off" | "running" | "paused-budget" | "done";
+      daysDone: number;
+      daysTotal: number;
+    };
+  };
 };
 
 export type PeakDay = PeakHistory & {
@@ -457,6 +510,63 @@ export function checkSnapshot(s: DashboardSnapshot): string[] {
         );
     }
   }
+
+  // 8. system and equipment health
+  const ym = (x: string) => /^\d{4}-\d{2}$/.test(x);
+  const ymd = (x: string) => /^\d{4}-\d{2}-\d{2}$/.test(x);
+  const pct200 = (x: number) => isInt(x) && x >= 0 && x <= 200;
+  const sy = s.system;
+  if (sy) {
+    const b = sy.batteries;
+    if (!isInt(b.count) || b.count < 1)
+      out.push("system.batteries.count must be an integer >= 1");
+    for (const [n, v] of [
+      ["batteries.capacityWh", b.capacityWh],
+      ["batteries.maxPowerW", b.maxPowerW],
+      ["solar.panelCount", sy.solar.panelCount],
+      ["solar.panelWatts", sy.solar.panelWatts],
+      ["solar.bestHourWh", sy.solar.bestHourWh],
+    ] as const)
+      if (v !== null && !isCount(v))
+        out.push(`system.${n} must be an integer >= 0`);
+    if (
+      b.backupReservePct !== null &&
+      !(b.backupReservePct >= 0 && b.backupReservePct <= 100)
+    )
+      out.push("system.batteries.backupReservePct must be 0-100");
+    if (sy.installedOn !== null && !ymd(sy.installedOn))
+      out.push("system.installedOn must be YYYY-MM-DD");
+    if (sy.changes.length > 5)
+      out.push("system.changes must have <= 5 entries");
+    for (const [i, ch] of sy.changes.entries())
+      if (Number.isNaN(Date.parse(ch.at)))
+        out.push(`system.changes[${i}].at is not a valid ISO date`);
+  }
+  const eh = s.equipmentHealth;
+  const sc = eh.solarClearDay;
+  if (
+    sc &&
+    (!ym(sc.month) ||
+      !ym(sc.baselineMonth) ||
+      !pct200(sc.pctOfBaseline) ||
+      !isCount(sc.clearHours))
+  )
+    out.push("equipmentHealth.solarClearDay is invalid");
+  const sm = eh.sunnyDayMiss;
+  if (sm && (!ymd(sm.date) || !isCount(sm.expectedWh) || !isCount(sm.actualWh)))
+    out.push("equipmentHealth.sunnyDayMiss is invalid");
+  const bc = eh.batteryCapacity;
+  if (bc && (!ym(bc.month) || !isCount(bc.estimatedWh) || !isCount(bc.swings)))
+    out.push("equipmentHealth.batteryCapacity is invalid");
+  if (eh.efficiency && (!ym(eh.efficiency.month) || !pct200(eh.efficiency.pct)))
+    out.push("equipmentHealth.efficiency is invalid");
+  const bf = eh.backfill;
+  if (
+    !isCount(bf.daysDone) ||
+    !isCount(bf.daysTotal) ||
+    bf.daysDone > bf.daysTotal
+  )
+    out.push("equipmentHealth.backfill needs integers, daysDone <= daysTotal");
 
   return out;
 }

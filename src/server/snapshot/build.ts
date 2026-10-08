@@ -244,5 +244,13 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
       warnings,
     },
     weatherTomorrow,
+    system: null,
+    equipmentHealth: {
+      solarClearDay: null,
+      sunnyDayMiss: null,
+      batteryCapacity: null,
+      efficiency: null,
+      backfill: { state: "off", daysDone: 0, daysTotal: 0 },
+    },
   };
 }

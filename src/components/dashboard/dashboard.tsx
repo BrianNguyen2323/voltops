@@ -18,6 +18,18 @@ import { TimelineChart, WeekChart } from "./charts";
 import { costNow } from "./cost-now";
 import { FlowDiagram } from "./flow-diagram";
 import { InfoPopover } from "./info-popover";
+import {
+  batteryCapacityStatus,
+  batteryInfo,
+  bestHourPerPanelW,
+  dateLabel,
+  efficiencyStatus,
+  monthLabel,
+  solarInfo,
+  solarStatus,
+  systemSizeW,
+  type HealthStatus,
+} from "./system";
 import { clock, confidenceInfo, reserveSteps } from "./tonight";
 
 const PERIOD: Record<TouPeriod, string> = {
@@ -36,6 +48,16 @@ const SOURCE = {
   "local-gateway": "Local gateway",
   replay: "Replay data",
 };
+
+const CHIP: Record<HealthStatus, [string, string]> = {
+  ok: ["OK", "bg-secondary text-secondary-foreground"],
+  watch: ["Watch", "bg-solar/15 text-solar"],
+  check: ["Check", "bg-destructive/10 text-destructive"],
+  learning: ["Learning", "border-border text-foreground"],
+};
+const Chip = ({ status }: { status: HealthStatus }) => (
+  <Badge className={CHIP[status][1]}>{CHIP[status][0]}</Badge>
+);
 
 const H2 = ({ children }: { children: React.ReactNode }) => (
   <h2 className="text-xl font-semibold">{children}</h2>
@@ -83,6 +105,27 @@ export function Dashboard({
     solarOutlook,
   } = view;
   const tz = site.timezone;
+  const sys = view.system;
+  const eq = view.equipmentHealth;
+  // Battery chip: the worse of capacity and efficiency.
+  const ranked: HealthStatus[] = ["learning", "ok", "watch", "check"];
+  const capStatus =
+    ranked[
+      Math.max(
+        ...[
+          sys
+            ? batteryCapacityStatus(eq, sys.batteries.capacityWh)
+            : "learning",
+          efficiencyStatus(eq),
+        ].map((x) => ranked.indexOf(x)),
+      )
+    ]!;
+  const solStatus = solarStatus(eq);
+  const batteryHelp = sys && batteryInfo(eq, sys.batteries.capacityWh);
+  const solarHelp = solarInfo(eq);
+  const sizeW = sys && systemSizeW(sys.solar);
+  const perPanelW = sys && bestHourPerPanelW(sys.solar);
+  const peakDay = view.peakUsage.today ?? view.peakUsage.tomorrow;
   const info = confidenceInfo(view);
   const weather = view.weatherTomorrow;
   const money = (c: number) => formatMoney(c, currency);
@@ -461,6 +504,156 @@ export function Dashboard({
         </section>
       </div>
 
+      <section className="flex flex-col gap-4">
+        <H2>Your system</H2>
+        {sys ? (
+          <>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card>
+                <CardContent className="flex flex-col gap-2">
+                  <h3 className="font-semibold">
+                    {`${sys.batteries.count} ${sys.batteries.count === 1 ? "battery" : "batteries"}${sys.batteries.model ? ` · ${sys.batteries.model}` : ""}`}
+                  </h3>
+                  <p>
+                    Stores{" "}
+                    <span className="reading">
+                      {formatKwh(sys.batteries.capacityWh)}
+                    </span>
+                  </p>
+                  {sys.batteries.maxPowerW !== null && (
+                    <p>
+                      Up to{" "}
+                      <span className="reading">
+                        {formatKw(sys.batteries.maxPowerW)}
+                      </span>
+                    </p>
+                  )}
+                  {sys.batteries.backupReservePct !== null && (
+                    <p>
+                      Backup reserve{" "}
+                      <span className="reading">
+                        {sys.batteries.backupReservePct}%
+                      </span>
+                    </p>
+                  )}
+                  <div className="text-sm">
+                    <Chip status={capStatus} />
+                    {eq.batteryCapacity ? (
+                      <p>
+                        {`Est. capacity ${formatKwh(eq.batteryCapacity.estimatedWh)} (${Math.round((100 * eq.batteryCapacity.estimatedWh) / sys.batteries.capacityWh)}% of ${formatKwh(sys.batteries.capacityWh)})`}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        Learning: needs a few weeks of charge cycles.
+                      </p>
+                    )}
+                    {eq.efficiency && (
+                      <p>{`Round-trip efficiency ${eq.efficiency.pct}%`}</p>
+                    )}
+                    {batteryHelp && (
+                      <InfoPopover
+                        label="About battery health"
+                        sections={batteryHelp}
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="flex flex-col gap-2">
+                  <h3 className="font-semibold">Solar</h3>
+                  {sizeW !== null ? (
+                    <p>
+                      <span className="reading">{`${sys.solar.panelCount} panels × ${sys.solar.panelWatts} W`}</span>{" "}
+                      = <span className="reading">{formatKw(sizeW)}</span>{" "}
+                      system
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Panel details not set. Add <code>SITE_PANEL_COUNT</code>{" "}
+                      and <code>SITE_PANEL_WATTS</code> to your{" "}
+                      <code>.env</code>.
+                    </p>
+                  )}
+                  {sys.solar.bestHourWh !== null && sys.solar.bestHourAt && (
+                    <p>
+                      Best hour so far{" "}
+                      <span className="reading">
+                        {formatKwh(sys.solar.bestHourWh)}
+                      </span>{" "}
+                      ({dateLabel(sys.solar.bestHourAt, tz)})
+                      {perPanelW !== null && ` ≈ ${perPanelW} W per panel`}
+                    </p>
+                  )}
+                  <div className="text-sm">
+                    <Chip status={solStatus} />
+                    {eq.solarClearDay ? (
+                      <p>{`Clear-day output ${eq.solarClearDay.pctOfBaseline}% of ${monthLabel(eq.solarClearDay.baselineMonth)}`}</p>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        {eq.backfill.state === "running"
+                          ? `Loading past data: ${eq.backfill.daysDone} of ${eq.backfill.daysTotal} days`
+                          : "Learning: needs a year of history"}
+                      </p>
+                    )}
+                    {eq.sunnyDayMiss && (
+                      <p>
+                        {`${dateLabel(eq.sunnyDayMiss.date, tz)}: ${formatKwh(eq.sunnyDayMiss.actualWh)} on a clear day, expected ${formatKwh(eq.sunnyDayMiss.expectedWh)}.`}
+                      </p>
+                    )}
+                    {solarHelp && (
+                      <InfoPopover
+                        label="About solar health"
+                        sections={solarHelp}
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="flex flex-col gap-2">
+                  <h3 className="font-semibold">Plan</h3>
+                  {sys.plan.utility && <p>{sys.plan.utility}</p>}
+                  {sys.plan.name && (
+                    <p className="text-muted-foreground">{sys.plan.name}</p>
+                  )}
+                  {peakDay && (
+                    <p>
+                      Peak hours {clock(peakDay.windowStart, tz)}–
+                      {clock(peakDay.windowEnd, tz)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+            <div className="text-muted-foreground flex flex-col gap-1 text-sm">
+              <p>
+                {[
+                  sys.firmware && `Firmware ${sys.firmware}`,
+                  sys.installedOn &&
+                    `Installed ${dateLabel(sys.installedOn, tz)}`,
+                  `Source ${SOURCE[view.source]}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              {sys.changes.length > 0 && (
+                <ul>
+                  {sys.changes.map((c) => (
+                    <li key={c.at}>{`${dateLabel(c.at, tz)}: ${c.text}`}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="text-muted-foreground">
+            System details not available yet.
+          </p>
+        )}
+      </section>
       <footer className="text-muted-foreground flex flex-col gap-1 text-sm">
         <p>
           Source: {SOURCE[view.source]}. Last poll{" "}
