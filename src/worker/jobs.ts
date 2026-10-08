@@ -7,6 +7,7 @@ import { fetchWeather } from "~/lib/weather/open-meteo";
 import type { openDb } from "~/server/db";
 import * as s from "~/server/db/schema";
 import { energyHistory } from "~/server/history";
+import { syncSite } from "~/server/site-sync";
 
 type Db = ReturnType<typeof openDb>;
 type Site = typeof s.sites.$inferSelect;
@@ -208,4 +209,15 @@ export async function runWeather(deps: Deps) {
     await guarded("syncWeather", site, () => syncWeather(deps, site));
     await guarded("fillWeatherGaps", site, () => fillWeatherGaps(deps, site));
   }
+}
+
+export async function runSiteSync(deps: Deps) {
+  for (const site of deps.db
+    .select()
+    .from(s.sites)
+    .where(eq(s.sites.source, "fleet-api"))
+    .all())
+    await guarded("site-sync", site, async () => {
+      await syncSite(deps.db, deps.source, site.externalId);
+    });
 }

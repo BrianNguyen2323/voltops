@@ -17,6 +17,7 @@ import {
   fillWeatherGaps,
   isTeslaIdle,
   parseSiteSettings,
+  runSiteSync,
   runTesla,
   runWeather,
   syncEnergy,
