@@ -23,3 +23,8 @@
 ## Judged by
 - A test: the settings applied, **then** a new `fleet-api` Site inserted (as `syncSite` does: lat/lon null), **then** the per-tick step runs → the new Site has the env lat/lon/unit; with empty settings nothing changes.
 - Full `pnpm vitest run`, `pnpm test:scripts`, tsc, lint, `pnpm format:check`, `pnpm build:worker` green; docker smoke (the lead).
+
+## Follow-up (review FAIL, 2026-10-08)
+- `prepareTick` sits inside `tick()`'s `try { … } finally { busy = false }`, which has **no catch**. `void tick()` then turns a throw (e.g. SQLITE_BUSY after the 5 s busy_timeout, since the web process also writes) into an unhandled rejection, and Node 22 exits the worker. Before B033 the call ran once at boot (fail-fast); now it runs every minute.
+- Fix: add a `catch (e)` to `tick()`'s try that logs `[worker] tick <ErrorName>: <message>` (never tokens) and lets the loop continue. That covers `prepareTick`, `isTeslaIdle` and anything else unguarded in the tick.
+- Implementer only, on `phase2b/middleware-site-settings` (46af0a4); `main.ts` has no tests, and the reviewer verifies by reading.
