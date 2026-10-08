@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { EnergyInterval, LiveSample } from "~/lib/core/types";
+import type { EnergyInterval, LiveSample, SiteInfo } from "~/lib/core/types";
 
 const liveSchema = z.object({
   response: z.object({
@@ -67,4 +67,67 @@ export function mapCalendarHistory(input: unknown): EnergyInterval[] {
       t.battery_energy_imported_from_solar +
       t.battery_energy_imported_from_generator,
   }));
+}
+
+// First numeric nameplate_energy_watts anywhere under `components` (Wh despite the name).
+function findNameplate(v: unknown): number | null {
+  if (typeof v !== "object" || !v) return null;
+  for (const [k, x] of Object.entries(v)) {
+    if (k === "nameplate_energy_watts" && typeof x === "number") return x;
+    const r = findNameplate(x);
+    if (r !== null) return r;
+  }
+  return null;
+}
+
+const siteInfoSchema = z.object({
+  response: z.object({
+    site_name: z.string().nullish(),
+    installation_time_zone: z.string().nullish(),
+    backup_reserve_percent: z.number().nullish(),
+    components: z.unknown().optional(),
+    tariff_id: z.string().nullish(),
+    utility: z.string().nullish(),
+    tariff_content: z
+      .object({ name: z.string().nullish(), currency: z.string().nullish() })
+      .passthrough()
+      .nullish(),
+  }),
+});
+
+export function mapSiteInfo(input: unknown): SiteInfo {
+  const r = siteInfoSchema.parse(input).response;
+  return {
+    name: r.site_name ?? null,
+    timezone: r.installation_time_zone ?? null,
+    usableCapacityWh: findNameplate(r.components),
+    backupReservePct: r.backup_reserve_percent ?? null,
+    tariff: r.tariff_id
+      ? {
+          id: r.tariff_id,
+          name: r.tariff_content?.name ?? null,
+          utility: r.utility ?? null,
+          currency: r.tariff_content?.currency ?? null,
+          content: r.tariff_content ?? null,
+        }
+      : null,
+  };
+}
+
+const productsSchema = z.object({
+  response: z.array(
+    z.object({
+      resource_type: z.string().optional(),
+      energy_site_id: z.union([z.number(), z.string()]).optional(),
+    }),
+  ),
+});
+
+export function mapProducts(input: unknown): string[] {
+  return productsSchema
+    .parse(input)
+    .response.filter(
+      (p) => p.resource_type === "battery" && p.energy_site_id !== undefined,
+    )
+    .map((p) => String(p.energy_site_id));
 }

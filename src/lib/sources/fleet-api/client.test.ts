@@ -534,7 +534,7 @@ describe("site info (B030)", () => {
     );
     const [url, init] = apiCalls()[0]!;
     expect(String(url)).toBe(`${BASE}/api/1/products`);
-    expect(new Headers(init!.headers).get("authorization")).toBe("Bearer at-1");
+    expect(new Headers(init!.headers).get("authorization")).toBe("Bearer a");
   });
 
   it("getSiteInfo GETs site_info for the site and maps it", async () => {

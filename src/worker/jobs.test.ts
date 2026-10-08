@@ -85,6 +85,8 @@ function fakeSource(over: Partial<DataSource> = {}) {
   const getLiveStatus = vi.fn((_id: string) => Promise.resolve(live));
   const source: DataSource = {
     id: "fleet-api",
+    listSites: () => Promise.resolve([]),
+    getSiteInfo: () => Promise.reject(new Error("unused")),
     getLiveStatus,
     getHistory: vi.fn((id: string, range: Range) => {
       calls.push({ id, range });
