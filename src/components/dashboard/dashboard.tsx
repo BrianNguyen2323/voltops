@@ -17,6 +17,8 @@ import { cn } from "~/lib/utils";
 import { TimelineChart, WeekChart } from "./charts";
 import { costNow } from "./cost-now";
 import { FlowDiagram } from "./flow-diagram";
+import { InfoPopover } from "./info-popover";
+import { clock, confidenceInfo, reserveSteps } from "./tonight";
 
 const PERIOD: Record<TouPeriod, string> = {
   "off-peak": "Off-peak",
@@ -34,13 +36,6 @@ const SOURCE = {
   "local-gateway": "Local gateway",
   replay: "Replay data",
 };
-
-const clock = (iso: string, tz: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: tz,
-  }).format(Date.parse(iso));
 
 const H2 = ({ children }: { children: React.ReactNode }) => (
   <h2 className="text-xl font-semibold">{children}</h2>
@@ -88,6 +83,7 @@ export function Dashboard({
     solarOutlook,
   } = view;
   const tz = site.timezone;
+  const info = confidenceInfo(view);
   const weather = view.weatherTomorrow;
   const money = (c: number) => formatMoney(c, currency);
   const imp = tariffNow.importCentsPerKwh;
@@ -282,8 +278,14 @@ export function Dashboard({
                           ` That covers about ${formatKwh(rec.reserve.coveredWh)} of it.`}
                       </p>
                       <p className="text-muted-foreground text-sm">
-                        From {clock(rec.validFrom, tz)} until{" "}
-                        {clock(rec.validTo, tz)}.
+                        {reserveSteps(view).map((s) => (
+                          <span key={s.lead} className="block">
+                            <span className="text-foreground font-medium">
+                              {s.lead}
+                            </span>
+                            {s.rest}
+                          </span>
+                        ))}
                       </p>
                     </>
                   ) : (
@@ -310,6 +312,7 @@ export function Dashboard({
                   <p className="text-sm">
                     <span className="capitalize">{rec.confidence}</span>{" "}
                     confidence. {rec.wouldChange}
+                    {info && <InfoPopover sections={info} />}
                   </p>
                 </>
               ) : (
