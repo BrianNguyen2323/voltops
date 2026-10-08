@@ -1,7 +1,9 @@
 // Pure: turns rows already read from the DB (see load.ts) into a DashboardSnapshot. No I/O.
+import { reserveRecommendation } from "~/lib/advisor/reserve";
 import type { LiveSample } from "~/lib/core/types";
 import type {
   DashboardSnapshot,
+  PeakHistory,
   TimelineHour,
   TouPeriod,
 } from "~/lib/dashboard";
@@ -53,6 +55,8 @@ export type BuildInput = {
     ghiWm2: number;
     precipProbPct: number;
   }[];
+  /** Computed by load.ts (peak.ts queries); the recommendation is derived from it here. */
+  peakEstimate?: { historyDays: number; today: PeakHistory | null; tomorrow: PeakHistory | null };
 };
 
 const sum = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
@@ -66,6 +70,7 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
   const t0 = localMidnight(today, tz);
   const t1 = localMidnight(tomorrow, tz);
   const t2 = localMidnight(addDays(today, 2), tz);
+  const peakEstimate = i.peakEstimate ?? { historyDays: 0, today: null, tomorrow: null };
   const socNow = Math.round(i.live.socPct);
   const capacityWh = i.site.usableCapacityWh ?? 13_500;
   const periodAt = (ms: number): TouPeriod =>
@@ -213,8 +218,16 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
           exportCentsPerKwh: 0,
           endsAt: new Date(t1).toISOString(),
         },
-    recommendation: null,
-    peakEstimate: { historyDays: 0, today: null, tomorrow: null }, // placeholder until middleware B013
+    recommendation: reserveRecommendation({
+      historyDays: peakEstimate.historyDays,
+      tomorrow: peakEstimate.tomorrow,
+      usableCapacityWh: capacityWh,
+      temperatureUnit: i.site.temperatureUnit === "C" ? "C" : "F",
+      tz,
+      updatedMs,
+      tariff: i.tariff,
+    }),
+    peakEstimate,
     timeline: [...actual, ...forecast],
     costToday: cost,
     previousDays,
