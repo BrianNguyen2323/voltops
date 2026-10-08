@@ -2,7 +2,7 @@
 
 Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).
 
-- **M4 (Rev 3) STARTED 2026-10-08: Energy history + Site sync.** O1 done (main 10edebf; B027 prettier aad9419 on `middleware`, PO to open the PR). Grilling done (all recommended). SPEC Rev 3, R003, briefs B028–B031. Wave 1: B028 tester DONE (`phase2b/middleware-history-tests` f6874e2, 28 cases), B028 implementer running + B030 tester DONE (`phase2b/middleware-site-sync-tests` 6c23c07, 17 failing + site-sync.test import-fails; the implementer waits for B029, then rebases). Then the B028 implementer → B029 → the B030 implementer (rebased after B029) → B031. **Gate includes `pnpm format:check`.**
+- **M4 (Rev 3) STARTED 2026-10-08: Energy history + Site sync.** O1 done (main 10edebf; B027 prettier aad9419 on `middleware`, PO to open the PR). Grilling done (all recommended). SPEC Rev 3, R003, briefs B028–B031. B028 DONE (merge 8a309a9; gate green: vitest 590, format, tsc, lint, builds). B029 rewire running + B030 tester DONE (`phase2b/middleware-site-sync-tests` 6c23c07, 17 failing + site-sync.test import-fails; the implementer waits for B029, then rebases). Then the B028 implementer → B029 → the B030 implementer (rebased after B029) → B031. **Gate includes `pnpm format:check`.**
   - **Done + merged into `middleware`** (reviewer PASS each; gate green after each: vitest 563, test:scripts 71, tsc, lint 0/0, build:worker, build): B023 worker 39ccf88 (gap-fill reads distinct hours), B025 tariff df00880, B024 sources d92b6be (map test uses the fixture residual), B022 snapshot 6f6be2f (`peakEstimate` required, one weather_observed read). Worktrees + branches removed.
   - B026 chores 5c3277f (lint 0/0 incl. dist ignored; image ships only runtime fixtures), smoke PASS 305 MB.
   - Reviewer nit (non-blocking, B023): no test puts intervals across a DST day for the distinct-hour bucket. Candidate for the next round.
@@ -60,3 +60,4 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - smoke: `SMOKE_PORT=3100`, from Git Bash on D:;
   - members often forget to commit or hit test-file lint errors (`no-base-to-string`, `unbound-method`). Say "COMMIT and give the hash" in every spawn;
   - Agent isolation sometimes fails ("git could not be run"); retry later with fewer members running.
+- **M4 follow-up (B028 review nit):** inside the history module, `isComplete` uses `count >= slots` and `completeDays` uses `COUNT(*) = slots` (both ported as-is). They're equal under the PK + 5-min alignment; unify them to one rule after B029 (now a one-line change in one module).
