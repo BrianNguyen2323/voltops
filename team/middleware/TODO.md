@@ -172,3 +172,9 @@ Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) 
 3. Callers pass a Site and Site-local dates (`YYYY-MM-DD`); all UTC/midnight/DST math is inside. Stored times stay UTC ms.
 4. No behavior change: a pure restructure. Non-whole-hour time zones and the 92-day gap edge stay in the backlog.
 5. Replace, don't layer: one module test file on in-memory SQLite (incl. DST days); `peak.test.ts` and the energy parts of the load/jobs tests move there.
+
+### Grilling #1 round 2 + Site sync round 1 — ANSWERED 2026-10-08 (all recommended)
+Q1 Site-bound handle; Q2 the operation list, peak averages inside; Q3 `src/server/history/`; Q4 observed and forecast as two separate writes; Q5 split B028 module → B029 rewire. Site sync: Q6 `getSiteInfo` on the DataSource + `mapSiteInfo`; Q7 at login + daily (~30 req/month); Q8 all 5 facts, tariff replaced whole; Q9 login stores creds, then syncs via the client with the fresh token; Q10 a failure never blocks login; Q11 the seed uses the mapper.
+→ SPEC Revision 3, `design/revisions/R003.md`, milestone M4 (B028–B031).
+
+**FYI (no action needed):** for Q10 I said a failed sync would show "as a Health warning". There's no job-run table, so the worker can't put anything on the dashboard. A failed site-sync is a log line, like every other worker job; the dashboard still says "No tariff from Tesla" when a tariff is missing. Say so if you want a job-run table (a later item).
