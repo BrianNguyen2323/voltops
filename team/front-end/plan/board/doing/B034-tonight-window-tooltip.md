@@ -64,3 +64,10 @@ Implementer: `Use skill: frontend-design` (the line and the popover must fit the
   - The n = 0 copy keeps the "Until then …" tail.
   - Implementer spawned.
 - Impl 32dbde9 on `phase2b/tonight-clarity-impl`: vitest 627, scripts 71, typecheck, lint clean, build OK. No edits outside the owned files. `clock` moved into `tonight.ts` and is re-imported by the dashboard. The docs don't describe `validTo` (unchanged). Reviewer spawned.
+- Reviewer (32dbde9): **FAIL**, one must-fix.
+  - The must-fix: a popover opened by hover can't be closed. Radix returns focus to the trigger on close, the trigger's `onFocus` reopens it, and so mouse-leave, Escape and outside click all fail. Fix: `onCloseAutoFocus={(e) => e.preventDefault()}` on `PopoverContent`.
+  - Everything else verified, and the gate is green. Screenshots in `data/shots/b034-*.png`.
+  - Nits:
+    - the ⓘ wraps alone onto its own line at 1440;
+    - at 390 the popover touches the left edge (`collisionPadding={8}`).
+  - Fix-up implementer spawned on `phase2b/tonight-clarity-fix` (the must-fix + both nits).
