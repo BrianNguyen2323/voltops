@@ -2,7 +2,7 @@
   "response": {
     "id": "REDACTED",
     "site_name": "REDACTED",
-    "backup_reserve_percent": 70,
+    "backup_reserve_percent": 20,
     "default_real_mode": "self_consumption",
     "installation_date": "2025-09-15T11:07:01-07:00",
     "user_settings": {
@@ -514,7 +514,7 @@
       },
       "version": 1
     },
-    "vpp_backup_reserve_percent": 70,
+    "vpp_backup_reserve_percent": 20,
     "utility": "Southern California Edison",
     "island_config": {
       "low_soe_limit": 0,
