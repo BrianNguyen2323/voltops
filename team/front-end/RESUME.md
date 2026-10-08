@@ -3,7 +3,10 @@
 - **Topic 4 (PO, 2026-10-08, before the optimization round): a "Your system" section.**
   - It covers battery count, storage, panel count, panel rating and other details. Placeholders only; the middleware connects the real data.
   - Research `research/system-info/README.md`: Fleet API has battery count, model, storage, power, reserve, plan, firmware and install date. It has **no** panel count, rating or solar size (user-entered per CLAUDE.md section 6).
-  - **Status: Decision round 4 in TODO.md, waiting on the PO.** M7's review item is also still open.
+  - Decision round 4 ANSWERED: all A, "the outline looks good".
+  - **The PO added Equipment health** (spot declining panel output and battery storage). Research: `research/system-info/HEALTH.md`.
+  - **Status: Decision round 5 (Q5-Q9) in TODO.md, waiting on the PO.** M7's review item is also still open.
+  - Plan once answered: one milestone M8 holds "Your system" + the equipmentHealth placeholders (front-end), plus middleware backlog briefs (site_info fields + panel env, then the health functions, the site_info log and the backfill).
   - **Next:**
     - record the answers;
     - SPEC Rev 8 + R008;

@@ -473,7 +473,7 @@ Screenshots: `data/shots/b034-fix-*.png`.
 
 ---
 
-## USER INPUT REQUIRED — Decision round 4 (2026-10-08): "Your system" section. Research: `research/system-info/README.md`
+## Decision round 4 — ANSWERED 2026-10-08, all recommended ("The outline you have looks good"): "Your system" section. Research: `research/system-info/README.md`
 
 **What exists.** Checked against the data recorded from your real site:
 - **Tesla gives us:**
@@ -505,18 +505,18 @@ Answer in chat or here, e.g. "all recommended".
   - **Details** (small, muted): firmware, installed date, data source.
   - The panel numbers above are sample placeholders.
 - B: batteries and solar only. No plan or details.
-- Answer:
+- Answer: **A** (PO, 2026-10-08: "the outline looks good").
 
 **Q2. Where panel count and rating come from.**
 - **A (recommended): two env vars, `SITE_PANEL_COUNT` and `SITE_PANEL_WATTS`.** Same pattern as the existing `SITE_*` settings the worker applies, documented in `.env.example`. A Settings screen can replace them later.
 - B: no input until a Settings screen exists. Solar shows only the best measured hour.
 - C: guess the system size from the best measured hour (no panel count). It's always available, but it's an estimate and can't give a panel count.
-- Answer:
+- Answer: **A** (PO, 2026-10-08: "the outline looks good").
 
 **Q3. Where the section goes.**
 - **A (recommended):** a "Your system" section at the bottom of `/home`, above the status line. It's reference info, so it shouldn't push the live data down. It's a 3-tile row on desktop (Batteries · Solar · Plan) that stacks on a phone.
 - B: its own `/system` page. That needs navigation, which we deferred in round 1 (Q7).
-- Answer:
+- Answer: **A** (PO, 2026-10-08: "the outline looks good").
 
 **Q4. Who does what** (same split as topic 2).
 - **A (recommended):**
@@ -527,4 +527,61 @@ Answer in chat or here, e.g. "all recommended".
     - store the new columns;
     - fill the best solar hour from history.
 - B: the front-end does both. That crosses into middleware-owned DB and adapter code, so they'd have to review it.
+- Answer: **A** (PO, 2026-10-08: "the outline looks good").
+
+---
+
+## USER INPUT REQUIRED — Decision round 5 (2026-10-08): Equipment health. Research: `research/system-info/HEALTH.md`
+
+You want to spot declining panel output or battery storage. Everything below except the "later" items uses data VoltOps **already records**: 5-minute energy, battery %, and hourly sunlight + cloud cover. Answer e.g. "all recommended".
+
+**Q5. Which health checks to build first.**
+- **A (recommended), all from existing data:**
+  1. **Solar, clear-day output.** Output per unit of sunlight on cloud-free hours, as a monthly median compared with the same month last year. Normal ageing is ~0.5%/year, so a bigger drop flags soiling, shading or a failed panel.
+  2. **Solar, "sunny day, low output" flag.** Yesterday was clear but solar came in well under what the sunlight predicted. This catches sudden faults (a tripped breaker, a dead string) quickly.
+  3. **Battery, estimated capacity.** kWh moved ÷ % moved on long charges or discharges, as a monthly median compared with the 27.0 kWh nameplate. Noisy per event, so the trend is what counts.
+  4. **Battery, round-trip efficiency.** Monthly discharge ÷ charge (PW3 spec ~89%).
+  5. **Change log.** Firmware and hardware changes (from a daily `site_info` record) and grid outages, so sudden shifts have an explanation.
+- B: only 1 and 3 (the two "decline" trends you named).
+- **Later, needs the local-gateway source:**
+  - per-string solar comparison, the best way to find one bad panel;
+  - Tesla's own per-battery capacity number.
+- Answer:
+
+**Q6. Baseline: wait for history or backfill it.** A year-over-year solar comparison needs a year of data.
+- **A (recommended): backfill once.**
+  - Past energy from Tesla's history endpoint: 1 request per day of history, so 2 years ≈ 730 requests one time. Fleet API usage is billed, so you set the limit, default **2 years**.
+  - Past weather from Open-Meteo's free archive.
+  - Health trends then show within a day of setup.
+- B: no backfill. Battery checks appear after a few weeks and the solar year-over-year after a year. The "sunny day" flag works after ~2 weeks of learning.
+- Answer:
+
+**Q7. Where it shows.**
+- **A (recommended): inside "Your system".**
+  - Each tile gets a health line with a status chip (**OK / Watch / Check**):
+    - Batteries: "Est. capacity 26.1 kWh (97% of 27.0) · efficiency 88%";
+    - Solar: "Clear-day output 98% of last October".
+  - A "learning" state appears when there isn't enough data yet.
+  - The change log sits in the small details line.
+- B: a separate "Equipment health" section below "Your system".
+- C: wait for the Health screen (CLAUDE.md §9). It's not built and has no nav yet.
+- Answer:
+
+**Q8. When a status becomes Watch / Check.**
+- **A (recommended): fixed, explained thresholds.**
+  - Solar clear-day output: Watch at < 95%, Check at < 85% of the baseline.
+  - Battery capacity: Watch at < 90%, Check at < 80% of nameplate.
+  - Efficiency: Watch at < 85%.
+  - A sunny-day miss of > 25% is a Check.
+  - The popover shows the math, like the Tonight ⓘ.
+- B: show the numbers only, with no status judgement.
+- Answer:
+
+**Q9. Who builds what** (same split as Q4).
+- **A (recommended):**
+  - The front-end adds `equipmentHealth` placeholders to the contract and the UI on sample data, in the same milestone as "Your system".
+  - The middleware gets a backlog brief:
+    - the pure health functions;
+    - the daily `site_info` log;
+    - the backfill job if Q6 A.
 - Answer:
