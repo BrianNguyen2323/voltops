@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, localDate, localMidnight, localParts } from "~/lib/time";
+import { addDays, localDate, localMidnight, localParts, localTime } from "~/lib/time";
 
 const LA = "America/Los_Angeles";
 const H = 3_600_000;
@@ -70,5 +70,36 @@ describe("localMidnight", () => {
     const ms = localMidnight("2026-11-01", LA);
     expect(localDate(ms, LA)).toBe("2026-11-01");
     expect(localParts(ms, LA)).toMatchObject({ hour: 0, minute: 0 });
+  });
+});
+
+describe("localTime", () => {
+  it("is 16:00 local on a normal day", () => {
+    expect(localTime("2026-07-15", 960, LA)).toBe(Date.UTC(2026, 6, 15, 23, 0));
+    expect(localTime("2026-01-15", 960, LA)).toBe(Date.UTC(2026, 0, 16, 0, 0));
+  });
+
+  it("uses the right offset on spring-forward (2026-03-08, PDT at 16:00)", () => {
+    expect(localTime("2026-03-08", 960, LA)).toBe(Date.UTC(2026, 2, 8, 23, 0));
+  });
+
+  it("uses the right offset on fall-back (2026-11-01, PST at 16:00)", () => {
+    expect(localTime("2026-11-01", 960, LA)).toBe(Date.UTC(2026, 10, 2, 0, 0));
+  });
+
+  it("treats 1440 as the next local midnight", () => {
+    expect(localTime("2026-07-15", 1440, LA)).toBe(localMidnight("2026-07-16", LA));
+    expect(localTime("2026-03-08", 1440, LA)).toBe(Date.UTC(2026, 2, 9, 7, 0));
+    expect(localTime("2026-11-01", 1440, LA)).toBe(Date.UTC(2026, 10, 2, 8, 0));
+  });
+
+  it("matches localMidnight at 0 minutes", () => {
+    for (const d of ["2026-07-15", "2026-03-08", "2026-11-01"]) {
+      expect(localTime(d, 0, LA)).toBe(localMidnight(d, LA));
+    }
+  });
+
+  it("round-trips through localParts", () => {
+    expect(localParts(localTime("2026-11-01", 960, LA), LA)).toMatchObject({ day: 1, hour: 16, minute: 0 });
   });
 });
