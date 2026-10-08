@@ -11,16 +11,17 @@ afterEach(() => vi.restoreAllMocks());
 describe("mapLiveStatus", () => {
   it("maps the fixture 1:1 with no sign flips", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const r = live.response as Record<string, number | string>;
     expect(mapLiveStatus(live)).toEqual({
-      ts: "2026-10-05T18:06:04.000Z",
-      solarW: 5469,
-      loadW: 4202,
-      batteryW: -1267,
-      gridW: 0,
-      socPct: 26.879699248120303,
+      ts: new Date(r.timestamp as string).toISOString(),
+      solarW: r.solar_power,
+      loadW: r.load_power,
+      batteryW: r.battery_power,
+      gridW: r.grid_power,
+      socPct: r.percentage_charged,
       gridStatus: "connected",
     });
-    expect(warn).not.toHaveBeenCalled(); // 5469-1267+0-4202 = 0
+    expect(warn).not.toHaveBeenCalled(); // fixture balances: solar+battery+grid = load
   });
 
   it("rounds watts to integers", () => {
@@ -65,31 +66,56 @@ describe("mapCalendarHistory", () => {
   const kwh = (k: keyof (typeof out)[number]) =>
     out.reduce((s, i) => s + (i[k] as number), 0) / 1000;
 
+  const raw = (
+    fx("calendar_history_energy") as {
+      response: { time_series: Record<string, number | string>[] };
+    }
+  ).response.time_series;
+  const rawSum = (...keys: string[]) =>
+    raw.reduce((s, t) => s + keys.reduce((a, k) => a + (t[k] as number), 0), 0) /
+    1000;
+
   it("returns one interval per time_series entry with UTC ISO starts", () => {
     expect(out).toHaveLength(288);
-    expect(out[0]!.start).toBe("2026-10-04T07:00:00.000Z");
-    expect(out[1]!.start).toBe("2026-10-04T07:05:00.000Z");
+    expect(out[0]!.start).toBe(new Date(raw[0]!.timestamp as string).toISOString());
+    expect(out[1]!.start).toBe(new Date(raw[1]!.timestamp as string).toISOString());
+    expect(out[1]!.start).toBe("2026-10-06T07:05:00.000Z");
   });
 
   it("maps the first interval's fields", () => {
+    const t = raw[0]!;
     expect(out[0]).toEqual({
-      start: "2026-10-04T07:00:00.000Z",
-      solarWh: 0,
-      loadWh: 257,
-      gridImportWh: 255,
+      start: new Date(t.timestamp as string).toISOString(),
+      solarWh: t.solar_energy_exported,
+      loadWh: t.total_home_usage,
+      gridImportWh: t.grid_energy_imported,
       gridExportWh: 0,
       batteryChargeWh: 0,
-      batteryDischargeWh: 2,
+      batteryDischargeWh: t.battery_energy_exported,
     });
   });
 
   it("matches the fixture day totals", () => {
-    expect(kwh("solarWh")).toBeCloseTo(40.0, 1);
-    expect(kwh("loadWh")).toBeCloseTo(95.3, 1);
-    expect(kwh("gridImportWh")).toBeCloseTo(59.1, 1);
-    expect(kwh("batteryDischargeWh")).toBeCloseTo(21.7, 1);
-    expect(kwh("batteryChargeWh")).toBeCloseTo(24.7, 1);
-    expect(kwh("gridExportWh")).toBeCloseTo(0.9, 1);
+    expect(kwh("solarWh")).toBeCloseTo(rawSum("solar_energy_exported"), 3);
+    expect(kwh("loadWh")).toBeCloseTo(rawSum("total_home_usage"), 3);
+    expect(kwh("gridImportWh")).toBeCloseTo(rawSum("grid_energy_imported"), 3);
+    expect(kwh("batteryDischargeWh")).toBeCloseTo(rawSum("battery_energy_exported"), 3);
+    expect(kwh("batteryChargeWh")).toBeCloseTo(
+      rawSum(
+        "battery_energy_imported_from_grid",
+        "battery_energy_imported_from_solar",
+        "battery_energy_imported_from_generator",
+      ),
+      3,
+    );
+    expect(kwh("gridExportWh")).toBeCloseTo(
+      rawSum(
+        "grid_energy_exported_from_solar",
+        "grid_energy_exported_from_generator",
+        "grid_energy_exported_from_battery",
+      ),
+      3,
+    );
   });
 
   it("balances every interval exactly", () => {
