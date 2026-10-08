@@ -422,3 +422,36 @@ Merged into `front-end-development` at b66599f. Typecheck, lint and build are gr
 - Answer: **a, approved** (PO, 2026-10-07). The PO merges `front-end-development` → `main`.
   - Fixtures: the PO asked in chat whether committed fixtures are seen by others. Answered: only via the repo and demo mode; the real DB never leaves the instance.
   - The PO hasn't yet decided whether to commit or revert the modified `fixtures/fleet-api/*.json`. If committed, the middleware team must update the 6 fleet-api tests.
+
+---
+
+## USER INPUT REQUIRED — Decision round 3 (2026-10-08): Tonight card clarity. Research: `research/tonight-clarity/README.md`
+
+**Answer to your question.** "From 9:00 PM until 9:00 PM" means **9 PM tonight** (when today's 4-9 PM peak ends) **until 9 PM tomorrow** (when tomorrow's peak ends). The UI shows only the clock time, so both ends look the same. And yes, 9 PM tonight is when you'd raise the reserve.
+
+The end time is also **wrong**. The reserve is a floor, so the battery won't go below it. To spend the extra x% during tomorrow's 4-9 PM peak, the reserve has to drop back to 20% **at 4 PM tomorrow**. If you keep it raised until 9 PM, the saved energy stays locked in the battery through the peak.
+
+Answer in chat or here, e.g. "all recommended" or "Q2 B, rest recommended".
+
+**Q1. The valid-window line.**
+- **A (recommended): fix the window and say both steps.**
+  - The advisor's `validTo` becomes the **start** of tomorrow's peak. This is a one-line change in `src/lib/advisor/reserve.ts` (middleware-owned). I'd take it in this brief with a note in their SPEC/RESUME, because it's small and a hand-off would leave the UI waiting.
+  - The line reads: "**Tonight at 9:00 PM**, after today's peak hours end, raise it to 65%. **Tomorrow at 4:00 PM**, when peak hours start, lower it back to 20% so the battery covers the peak." The day words come from comparing local dates (today / tonight / tomorrow).
+  - The sample data changes to match.
+- B: same as A, but I put the `reserve.ts` change in the middleware backlog. The UI ships the new wording against the sample data, and real data shows the wrong end time until they land it.
+- C: wording only: "From 9:00 PM tonight until 9:00 PM tomorrow." Clear, but it keeps the advice that locks the energy away.
+- Answer:
+
+**Q2. What the info tooltip says.**
+- **A (recommended): built from the real numbers already in the snapshot.** No contract change.
+  - *Confidence:* why it's low or medium, e.g. "Low: only 1 past day had a high near 75°F (3 needed). Until then this uses your usual peak use, 9.3 kWh over 30 days." Medium: "Based on 8 past days with a high near 75°F (±5°F)."
+  - *If the forecast high changes:* "This estimate uses days within ±5°F of 75°F. If tomorrow's forecast moves outside 70-80°F, other days are used. Hotter or colder days usually mean more AC or heat, so a higher reserve. The advice updates on its own."
+  - *If the tariff changes:* "Your peak hours are 4-9 PM. If they move, the raise and lower times move with them. The saving is the gap between peak and off-peak prices: a smaller gap means a smaller saving, and no gap means no advice."
+- B: A, plus numbers for each scenario ("at 85°F: 72%, saves $1.40"; "the peak rate is 45¢ vs 25¢ off-peak"). This needs new snapshot fields (peak averages for the neighbouring temperature bands, plus tomorrow's peak/off-peak rates), so it's a contract change plus a middleware brief. Slower; it can come after A.
+- C: one fixed paragraph that explains the idea in general, with no numbers.
+- Answer:
+
+**Q3. How the tooltip opens.** A hover-only tooltip doesn't open on phones.
+- **A (recommended):** an ⓘ icon button after the confidence line. It opens on hover and keyboard focus (desktop) **and** on tap (phone). Built on shadcn Popover, which adds `src/components/ui/popover.tsx`. `radix-ui` is already installed, so no new dependency.
+- B: a shadcn Tooltip, hover/focus only. On a phone it never opens.
+- Answer:

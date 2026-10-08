@@ -1,5 +1,19 @@
 # Resume board — front-end
 
+- **Topic 3 (PO, 2026-10-08): Tonight card clarity.**
+  - (1) "From 9:00 PM until 9:00 PM" is confusing.
+  - (2) An info tooltip on the confidence/"what would change it" line that explains the confidence level and the scenarios.
+  - Research: `research/tonight-clarity/README.md`. Finding: `validTo` = end of tomorrow's peak. It should be the peak *start*: the reserve must drop back to 20% so the battery covers the peak.
+- **Status: Decision round 3 in TODO.md, waiting on the PO.**
+- **Next action:**
+  - record the answers;
+  - SPEC Rev 7 + R007;
+  - M7 brief B034-tonight-window-tooltip (IDs are shared across scopes; B033 is the last), tester → implementer → reviewer with screenshots. Use skill `frontend-design`.
+  - If Q1 A, the owned files include `src/lib/advisor/reserve.ts` (+ test). Then note the change in `team/middleware/design/SPEC.md` L166 and their RESUME.
+  - **The optimization round is due after M7.**
+- **Open branches / worktrees:** none.
+
+## Topic 2 record
 - **Topic 2 (PO, 2026-10-07): peak-hours usage estimate + reserve advice.**
   - A "Peak hours" tile next to "Your home now": estimated kWh in today's and tomorrow's peak window;
   - the Tonight advice sentence: "Raise your backup reserve to x%. With 20% as reserve for emergencies an additional x% will help you save $x for tomorrow's estimated x kWh usage during peak hours".
