@@ -137,3 +137,29 @@ describe("fetchWeather", () => {
     ).rejects.toThrow("open-meteo: bad response");
   });
 });
+
+describe("fetchWeather pastDays / forecastDays (B017)", () => {
+  const paramsFor = async (extra: { pastDays?: number; forecastDays?: number }) => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify(fixture)));
+    await fetchWeather({ fetch, lat: 34.05, lon: -118.24, now: FETCHED_AT, ...extra });
+    return new URL(String((fetch.mock.calls[0] as unknown[])[0])).searchParams;
+  };
+
+  it("defaults to past_days=1 and forecast_days=3", async () => {
+    const p = await paramsFor({});
+    expect(p.get("past_days")).toBe("1");
+    expect(p.get("forecast_days")).toBe("3");
+  });
+
+  it("uses the given pastDays and forecastDays", async () => {
+    const p = await paramsFor({ pastDays: 45, forecastDays: 1 });
+    expect(p.get("past_days")).toBe("45");
+    expect(p.get("forecast_days")).toBe("1");
+  });
+
+  it("overriding one keeps the other default", async () => {
+    const p = await paramsFor({ pastDays: 7 });
+    expect(p.get("past_days")).toBe("7");
+    expect(p.get("forecast_days")).toBe("3");
+  });
+});

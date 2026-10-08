@@ -53,11 +53,13 @@ export async function fetchWeather(o: {
   lat: number;
   lon: number;
   now: number;
+  pastDays?: number;
+  forecastDays?: number;
 }) {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${o.lat.toFixed(2)}&longitude=${o.lon.toFixed(2)}` +
     "&hourly=temperature_2m,cloud_cover,shortwave_radiation,precipitation,precipitation_probability" +
-    "&past_days=1&forecast_days=3&timezone=UTC&timeformat=unixtime";
+    `&past_days=${o.pastDays ?? 1}&forecast_days=${o.forecastDays ?? 3}&timezone=UTC&timeformat=unixtime`;
   const res = await o.fetch(url);
   if (!res.ok) throw new Error(`open-meteo: ${res.status}`);
   return mapForecast(await res.json(), o.now);
