@@ -5,10 +5,13 @@
   - the Tonight advice sentence: "Raise your backup reserve to x%. With 20% as reserve for emergencies an additional x% will help you save $x for tomorrow's estimated x kWh usage during peak hours".
   - The front-end builds placeholders only (sample data in the snapshot contract). The middleware team computes the numbers from 2 SQL averages: (1) peak usage over all history; (2) peak usage on days with similar temperatures.
   - Research: `research/peak-estimate/README.md`.
-- **Status: M6 DONE 2026-10-07 (b66599f on `front-end-development`) — waiting on the PO.** TODO.md has "Review: M6" under USER INPUT REQUIRED. SPEC Rev 6 / R006.
+- **Status: M6 DONE and APPROVED 2026-10-07 (b66599f). The PO merges `front-end-development` → `main`. Idle until the PO's next topic.**
 - **Gate:** typecheck, lint, build green; vitest 484/484 on the committed tree (clean worktree). In the main checkout, 6 fleet-api fixture tests fail because of the PO's uncommitted `fixtures/fleet-api/*.json` edits (asked in TODO.md).
 - **Middleware hand-off:** `team/middleware/plan/board/backlog/B013-peak-estimate.md` (2 SQL averages, advisor, weather gap-fill) + a pointer in their RESUME.md. Doc copy refreshed. Until it lands, real data shows "Learning your usage: 0 of 7 days" and no reserve advice.
-- **Next action:** record the PO's M6 review. Review notes become the next round. The optimization round is due after M7 (M5, M6, M7 since the last one).
+- **Next action (on "continue"):**
+  - ask the PO for the next topic. Options: learning/loading/error states, `accuracy: []` empty state, light theme, chart CSV views, nav + Plan/Trends, or architecture backlog #3;
+  - the optimization round is due after M7;
+  - open PO item: commit or revert the modified fleet fixtures (6 fleet-api tests fail with them; middleware owns those tests).
 - **Open branches / worktrees:** none from this topic.
 - Previous topic (dashboard v1, M1–M5) is done and on main. The architecture backlog (#3 time module, #2 tariff, #4 flow state, #5) stays parked.
 

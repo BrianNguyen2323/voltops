@@ -386,7 +386,7 @@ Research: `research/peak-estimate/README.md`. Answer e.g. "all recommended" or "
     - Today is excluded until it is complete.
   - **Q4:** A, with a condition: backfill past weather **only for days that have stored energy data but no observed weather**. It's a gap-fill, up to 92 days back; nothing beyond the energy history.
 
-## USER INPUT REQUIRED — Review: M6 peak-hours tile + reserve advice (2026-10-07)
+## Review: M6 peak-hours tile + reserve advice — ANSWERED 2026-10-07
 Merged into `front-end-development` at b66599f. Typecheck, lint and build are green, and the reviewer passed it with phone and desktop screenshots. The page size is unchanged (217 / 320 kB). No new dependencies.
 
 **How to run it**
@@ -419,3 +419,6 @@ Merged into `front-end-development` at b66599f. Typecheck, lint and build are gr
 - **a.** "approved": you merge `front-end-development` into `main`;
 - **b.** changes;
 - **c.** the next topic, or hand B013 to the middleware team.
+- Answer: **a, approved** (PO, 2026-10-07). The PO merges `front-end-development` → `main`.
+  - Fixtures: the PO asked in chat whether committed fixtures are seen by others. Answered: only via the repo and demo mode; the real DB never leaves the instance.
+  - The PO hasn't yet decided whether to commit or revert the modified `fixtures/fleet-api/*.json`. If committed, the middleware team must update the 6 fleet-api tests.
