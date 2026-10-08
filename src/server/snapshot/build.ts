@@ -56,7 +56,7 @@ export type BuildInput = {
     precipProbPct: number;
   }[];
   /** Computed by load.ts (peak.ts queries); the recommendation is derived from it here. */
-  peakEstimate?: { historyDays: number; today: PeakHistory | null; tomorrow: PeakHistory | null };
+  peakEstimate: { historyDays: number; today: PeakHistory | null; tomorrow: PeakHistory | null };
 };
 
 const sum = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
@@ -70,7 +70,7 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
   const t0 = localMidnight(today, tz);
   const t1 = localMidnight(tomorrow, tz);
   const t2 = localMidnight(addDays(today, 2), tz);
-  const peakEstimate = i.peakEstimate ?? { historyDays: 0, today: null, tomorrow: null };
+  const unit = i.site.temperatureUnit === "C" ? "C" : "F";
   const socNow = Math.round(i.live.socPct);
   const capacityWh = i.site.usableCapacityWh ?? 13_500;
   const periodAt = (ms: number): TouPeriod =>
@@ -196,7 +196,7 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
     site: {
       name: i.site.name ?? "My home",
       timezone: tz,
-      temperatureUnit: i.site.temperatureUnit === "C" ? "C" : "F",
+      temperatureUnit: unit,
     },
     source: i.source,
     updatedAt,
@@ -219,15 +219,15 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
           endsAt: new Date(t1).toISOString(),
         },
     recommendation: reserveRecommendation({
-      historyDays: peakEstimate.historyDays,
-      tomorrow: peakEstimate.tomorrow,
+      historyDays: i.peakEstimate.historyDays,
+      tomorrow: i.peakEstimate.tomorrow,
       usableCapacityWh: capacityWh,
-      temperatureUnit: i.site.temperatureUnit === "C" ? "C" : "F",
+      temperatureUnit: unit,
       tz,
       updatedMs,
       tariff: i.tariff,
     }),
-    peakEstimate,
+    peakEstimate: i.peakEstimate,
     timeline: [...actual, ...forecast],
     costToday: cost,
     previousDays,
