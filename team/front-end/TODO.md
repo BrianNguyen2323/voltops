@@ -326,3 +326,99 @@ Merged into `front-end-development` at 10f2f7f. Gate: 243 app tests + 58 script 
 - **b.** changes.
 - **c.** next topic: backlog #3, learning/loading/error states, the light theme, chart table/CSV views, nav + Plan/Trends, or call the **middleware** team.
 - Answer: **a, approved** (PO, 2026-10-06). The PO merges `front-end-development` → `main` now. The remaining architecture backlog waits until the PO prompts this team again ("continue" → read RESUME.md).
+
+## Decision round 4: peak-hours estimate + reserve advice — ANSWERED 2026-10-07 (see design/revisions/R006.md)
+Research: `research/peak-estimate/README.md`. Answer e.g. "all recommended" or "Q3 B, rest recommended". After your answers, I write SPEC Rev 6. The front-end then builds the placeholder tile and the advice sentence on sample data, and I hand the middleware team a brief: the two SQL averages, the reserve rule, and filling the new fields.
+
+**Q1. What the tile shows** (3rd cell next to "Your home now"; on a phone it stacks under it).
+- **A (recommended):** heading **"Peak hours"**, then one row per day:
+  - "**Today** 4–9 PM · **12.4 kWh** expected · 5.1 kWh used so far" (the "so far" part only once the window has started; it's derived from the timeline);
+  - "**Tomorrow** 4–9 PM · **13.8 kWh** expected";
+  - one small line under them: "Usual: 11.2 kWh (30 days). On days near 95°F: 15.4 kWh (8 days)", so you can see both averages.
+- B: only the two estimates, no breakdown line.
+
+**Q2. Combining the two averages.**
+- **A (recommended):** estimate = the plain mean of (all-history average, similar-temperature average).
+  - With fewer than 3 similar-temperature days, use the all-history average alone, and the tile says "not enough days near 95°F yet".
+- B: weight each average by its number of days. More days → more say, but the temperature average would almost never win against the full history, which defeats the point.
+- C: use the similar-temperature average whenever it exists (history only as fallback).
+
+**Q3. What counts as "similar temperature".**
+- **A (recommended):** the day's **high** is within **±3 °C (≈ ±5 °F)** of the target day's forecast high. That's the same high the Tomorrow weather tile shows.
+- B: the average temperature **during the peak window** (closer to when the AC actually runs, but harder to explain).
+- C: another band width (say it).
+
+**Q4. Backfill past temperatures** (today only 1 day of observed weather is stored, so query 2 has nothing to match for weeks).
+- **A (recommended):** the middleware fetches up to 92 days of past hourly weather from Open-Meteo, once at first run and for any gap. It's free and keyless; nothing to Tesla.
+- B: no backfill. The temperature average fills in naturally as days pass (about 3+ weeks before it's useful).
+
+**Q5. Learning state.**
+- **A (recommended):** under 7 complete days of history, the tile shows "Learning your usage: N of 7 days" instead of numbers, and the Tonight advice falls back to "No changes needed tonight" (CLAUDE.md §7 cold start).
+- B: show numbers from day 1.
+
+**Q6. The reserve number.**
+- **A (recommended):**
+  - extra % = tomorrow's peak estimate ÷ usable battery capacity, rounded **up** to a whole %;
+  - reserve = **20%** (fixed emergency floor) + extra, capped at 100%;
+  - if capped, the sentence says it covers only part of the peak.
+  - Example: 27 kWh battery, 11 kWh peak → 20% + 41% = **61%**.
+- B: also round to the nearest 5% (61% → 65%; easier to set in the Tesla app).
+- C: make the 20% a per-site setting (needs a settings screen; later).
+
+**Q7. The "$x" saving.**
+- **A (recommended):** covered kWh × (peak rate − off-peak rate). Holding energy for peak means buying it off-peak instead; this is the real difference. Example: 11 kWh × ($0.48 − $0.25) ≈ **$2.53**.
+- B: covered kWh × the full peak rate (≈ $5.28). Bigger number, but it ignores what you pay to buy that energy off-peak.
+
+**Q8. Who writes the sentence.**
+- **A (recommended):**
+  - the snapshot gets structured fields: `recommendation.reserve = { targetPct, emergencyPct, extraPct, peakWh, savingsCents }` plus the new `peakEstimate`;
+  - the middleware computes the numbers (pure function, CLAUDE.md §8 advisor);
+  - the front-end renders your exact wording from them: *"Raise your backup reserve to 61%. With 20% as reserve for emergencies, an additional 41% will help you save $2.53 for tomorrow's estimated 11.0 kWh usage during peak hours."*
+  - the why-list and confidence stay under it.
+- B: the middleware sends the whole sentence as free text in `action` (wording changes then need the middleware team).
+
+**Note (no decision needed):** the 48 h chart's forecast for 4–9 PM won't match the tile exactly. The chart uses a 7-day median with no temperature term. Adding temperature to the chart forecast is a later round (CLAUDE.md §7 "load model v1").
+- Answer (PO, 2026-10-07):
+  - **Q1–Q3 and Q5–Q8:** A.
+  - **Q2 question, answered in chat:** both averages use the whole stored history.
+    - Average 1 covers every complete stored day.
+    - Average 2 covers every complete stored day whose high is within ±3 °C of the target day's forecast high.
+    - Today is excluded until it is complete.
+  - **Q4:** A, with a condition: backfill past weather **only for days that have stored energy data but no observed weather**. It's a gap-fill, up to 92 days back; nothing beyond the energy history.
+
+## Review: M6 peak-hours tile + reserve advice — ANSWERED 2026-10-07
+Merged into `front-end-development` at b66599f. Typecheck, lint and build are green, and the reviewer passed it with phone and desktop screenshots. The page size is unchanged (217 / 320 kB). No new dependencies.
+
+**How to run it**
+- Local: `pnpm dev`, then open http://localhost:3000/home. The new tile and sentence show with the **sample data**, so use a DB with no Tesla site, or look at the screenshots `data/shots/b012-390.png`, `b012-1440.png` and `b012-fix-1440.png`.
+- On your real instance (Docker), the tile reads **"Learning your usage: 0 of 7 days"** and Tonight shows no reserve advice. That is expected until the middleware team does its B013 (the two SQL averages + the advice).
+
+**What to look at**
+1. **The "Peak hours" tile**, the 3rd item next to "Grid price now" and "Your home now" (on a phone it stacks under them):
+   - Today 4:00 PM–9:00 PM: **10.9 kWh** expected, with "2.1 kWh used so far" on its own line;
+   - Tomorrow: **9.3 kWh** expected;
+   - under each, the two averages: "Usual 10.2 kWh (30 days). On days near 91°F: 11.6 kWh (8 days)."
+2. **Tonight**, your wording: "Raise your backup reserve to 89%." then "With 20% as reserve for emergencies, an additional 69% will help you save $1.67 for tomorrow's estimated 9.3 kWh usage during peak hours." then "From 9:00 PM until 9:00 PM." The why list and the weather tile stay below.
+   - The sample tells a story: today is hot (91°F), so it uses more than usual; tomorrow is cooler and cloudy (75°F), so it uses less.
+   - The sample battery is 13.5 kWh, so 9.3 kWh is 69% of it.
+3. If the 20% + extra would go over 100%, the sentence says 100% and adds "That covers about X kWh of it."
+
+**Middleware hand-off:** `team/middleware/plan/board/backlog/B013-peak-estimate.md`.
+- The exact SQL plan: each day's 4–9 PM window is computed in code (SQLite has no time zones), then
+  - query 1 averages over all complete days;
+  - query 2 over days whose high is within ±5°F of the forecast high.
+- The reserve/savings advice, which stays advice only.
+- The weather gap-fill for days that have energy data but no weather.
+- Ask the middleware team to start it ("continue" in a middleware session).
+
+**Please check, not part of this work:** your checkout has **uncommitted changes to `fixtures/fleet-api/*.json`** (about 4,900 lines in `calendar_history_energy.json`). With them, 6 fleet-api tests fail; on the committed files all 484 pass.
+- If these are newly recorded data from your system, make sure site IDs, addresses and coordinates are anonymized (CLAUDE.md §12) before committing.
+- Tell me whether the tests should follow the new fixtures (that's a middleware task), or whether you'll revert them.
+
+**Your call:**
+- **a.** "approved": you merge `front-end-development` into `main`;
+- **b.** changes;
+- **c.** the next topic, or hand B013 to the middleware team.
+- Answer: **a, approved** (PO, 2026-10-07). The PO merges `front-end-development` → `main`.
+  - Fixtures: the PO asked in chat whether committed fixtures are seen by others. Answered: only via the repo and demo mode; the real DB never leaves the instance.
+  - The PO hasn't yet decided whether to commit or revert the modified `fixtures/fleet-api/*.json`. If committed, the middleware team must update the 6 fleet-api tests.

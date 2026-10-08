@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { checkSnapshot, toDashboardView } from "../../../lib/dashboard";
+import {
+  checkSnapshot,
+  peakEstimateWh,
+  reservePlan,
+  toDashboardView,
+} from "../../../lib/dashboard";
 import { sampleSnapshot } from "./data";
 
 const d = toDashboardView(sampleSnapshot);
@@ -273,5 +278,42 @@ describe("weather contract", () => {
       timeZone: d.site.timezone,
     }).format(new Date(row.hour));
     expect(d.weatherTomorrow?.date).toBe(local);
+  });
+});
+
+describe("peak estimate sample (Rev 6)", () => {
+  const p = sampleSnapshot.peakEstimate;
+  it("has 30 history days and the documented days", () => {
+    expect(p.historyDays).toBe(30);
+    expect(p.today).toEqual({
+      historyAvgWh: 10200,
+      highC: 33,
+      similarTempDays: 8,
+      similarTempAvgWh: 11600,
+    });
+    expect(p.tomorrow).toEqual({
+      historyAvgWh: 10200,
+      highC: 24,
+      similarTempDays: 6,
+      similarTempAvgWh: 8400,
+    });
+    expect(peakEstimateWh(p.today!)).toBe(10900);
+    expect(peakEstimateWh(p.tomorrow!)).toBe(9300);
+  });
+  it("tomorrow's high matches the weather tile", () => {
+    expect(p.tomorrow?.highC).toBe(sampleSnapshot.weatherTomorrow?.highC);
+  });
+  it("recommends raising the reserve to 89%", () => {
+    const r = sampleSnapshot.recommendation!;
+    expect(r.action).toBe("Raise backup reserve to 89%");
+    expect(r.reserve).toEqual(reservePlan(9300, 13500));
+    expect(r.reserve).toMatchObject({ extraPct: 69, targetPct: 89 });
+    expect(r.savingsCents).toBe(167);
+    expect(r.effectWh).toBe(9300);
+  });
+  it("says about 9.3 kWh in the why list, not 11", () => {
+    const why = sampleSnapshot.recommendation!.why.join(" ");
+    expect(why).toContain("about 9.3 kWh");
+    expect(why).not.toContain("11 kWh");
   });
 });
