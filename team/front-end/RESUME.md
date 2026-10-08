@@ -8,8 +8,14 @@
     - Rule: backfill ≤ 2,500/month, monthly total ≤ 4,500, 1 per tick.
   - SPEC Rev 8 + R008.
   - Middleware backlog: B036 (system info), B037 (health measurements), B038 (backfill) + a pointer in their RESUME.
-  - **Status: M8 / B035 in doing; tester spawned on `phase2b/your-system-test`.** M7's review item is still open for the PO.
-  - **Next:** tester → implementer → reviewer → merge → a PO review; then the optimization round.
+  - **Status: M8 DONE 2026-10-08 (merge af94a16 on `front-end-development`).** The PO reviews M7 + M8 (TODO.md "Review: M8").
+    - Gate: vitest 677, scripts 71, tsc, lint, build; `/home` 219/321 kB.
+    - Nits open: the ⓘ is not inline on the health lines; OK chip contrast.
+  - **Next action:**
+    - fold in the PO's review notes;
+    - then the **optimization round** (overdue since M7; the PO asked for M8 first): a `cleaner` per area (`src/components/dashboard/**`, `src/lib/dashboard.ts` + `format.ts`, `src/components/ui/**`), a perf/size pass, and a TODO item asking the PO to run `/improve-codebase-architecture`.
+    - Middleware B036–B038 sit in their backlog. Until they land, real data shows "System details not available yet."
+  - **Open branches / worktrees:** none from this topic.
 
 ## Topic 3 record
 - **Topic 3 (PO, 2026-10-08): Tonight card clarity.**

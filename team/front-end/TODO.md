@@ -585,3 +585,26 @@ You want to spot declining panel output or battery storage. Everything below exc
     - the daily `site_info` log;
     - the backfill job if Q6 A.
 - Answer: **A** (PO, 2026-10-08).
+
+## USER INPUT REQUIRED — Review: M8 "Your system" + Equipment health (2026-10-08)
+Built and merged on `front-end-development` (af94a16). Gate green: 677 tests, typecheck, lint, build. The **M7 review above is still open too**; you can answer both together.
+
+**Run it:** `pnpm dev`, then `/home`, and scroll to the bottom. It shows sample data. Real data shows "System details not available yet." until the middleware lands B036–B038 (their backlog).
+
+**What to try:**
+1. "Your system" sits at the bottom with 3 tiles: **Batteries**, **Solar** and **Plan**. They're in a row on desktop and stacked on a phone.
+   - Batteries: "2 batteries · Powerwall 3", 27.0 kWh, 11.5 kW, reserve 20%, est. capacity 26.1 kWh (97%), efficiency 88%, OK chip.
+   - Solar: "24 panels × 400 W = 9.6 kW", best hour 7.9 kWh (≈ 329 W per panel), clear-day output 98% of June 2025, OK chip.
+   - Plan: SCE, TOU-D 4-9 PM, peak hours.
+   - The details line has the firmware, install date and the change log (a firmware update, a grid outage).
+2. Hover or tap the ⓘ on Batteries and Solar: it shows how each number is computed and the Watch/Check thresholds.
+3. Panel numbers are placeholders. For real data you'll set `SITE_PANEL_COUNT` and `SITE_PANEL_WATTS` in `.env` (documented in `.env.example`).
+
+**Reviewer nits I left for you to judge:**
+- the ⓘ sits on its own line under the health text, not at the end of it;
+- the OK chip is low contrast on the dark card.
+Say if you want either fixed.
+
+Screenshots: `data/shots/b035-*.png`.
+
+**Answer:** "approved", or list changes. Then you merge `front-end-development` → `main`. Next on my side: the optimization round.

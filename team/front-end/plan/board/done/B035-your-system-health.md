@@ -95,3 +95,13 @@ Implementer: `Use skill: frontend-design` (3 tiles, chips, details line in the e
     - `dashboard.test.tsx` h2 count 7 → 8 (stale assertion).
   - Deviation: the Batteries chip = the worse of capacity and efficiency (the SPEC implies one chip).
   - Reviewer spawned.
+- Reviewer (d5ea186): **PASS**.
+  - The gate ran clean (677/71/tsc/lint/build); `build.ts` = base + the stub lines.
+  - The out-of-scope edits and the one-chip deviation were accepted.
+  - Screenshots: `data/shots/b035-{1440,1440-info-open,390,390-info-open}.png`.
+  - Nits (open):
+    - the ⓘ sits on its own line under the health text (not inline);
+    - the OK chip has low contrast (`bg-secondary`);
+    - a capacity shown as "90%" can read Watch (unrounded compare, per SPEC);
+    - change-log dates are site-local (correct).
+- **Merged af94a16** into `front-end-development`. Gate there: vitest 677, scripts 71, tsc, lint, build OK; `/home` 219 / 321 kB (unchanged). Worktrees and branches removed.
