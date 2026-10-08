@@ -122,9 +122,8 @@ it("products non-OK logs status + error code only", async () => {
   stubFetch({ products: () => Response.json(leakyBody, { status: 403 }) });
   await run();
   expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch products:",
-    403,
-    "forbidden",
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
   ]);
   expectNoMarkers();
 });
@@ -135,11 +134,7 @@ it("site_info non-OK logs status + error code only", async () => {
     siteInfo: () => Response.json(leakyBody, { status: 429 }),
   });
   await run();
-  expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch site_info:",
-    429,
-    "forbidden",
-  ]);
+  expect(warns()).toContainEqual(["[Tesla OAuth] site sync", "RateLimited"]);
   expectNoMarkers();
 });
 
@@ -153,9 +148,8 @@ it('non-JSON error body logs "unknown" and does not crash', async () => {
   });
   await run();
   expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch site_info:",
-    500,
-    "unknown",
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
   ]);
   expectNoMarkers();
 });
@@ -167,9 +161,8 @@ it('non-string error field logs "unknown"', async () => {
   });
   await run();
   expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch products:",
-    400,
-    "unknown",
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
   ]);
   expectNoMarkers();
 });
@@ -193,13 +186,12 @@ it('JSON null error body logs "unknown" and does not throw', async () => {
   stubFetch({ products: () => new Response("null", { status: 502 }) });
   await run();
   expect(warns()).toContainEqual([
-    "[Tesla OAuth] Could not fetch products:",
-    502,
-    "unknown",
+    "[Tesla OAuth] site sync",
+    "SourceUnavailable",
   ]);
 });
 
-it("success path logs timezone and site status but no tariff ID", async () => {
+it("success path logs nothing about the site and no tariff ID", async () => {
   stubFetch({
     products,
     siteInfo: () =>
@@ -213,12 +205,8 @@ it("success path logs timezone and site status but no tariff ID", async () => {
       }),
   });
   await run();
-  const logs = spies[0]!.mock.calls;
-  expect(logs).toContainEqual(["[Tesla OAuth] Energy site:", "found"]);
-  expect(logs).toContainEqual([
-    "[Tesla OAuth] Timezone:",
-    "America/Los_Angeles",
-  ]);
+  expect(warns()).toEqual([]);
+  expect(await siteRow()).toHaveLength(1);
   expect(logged()).not.toContain("Tariff");
   expectNoMarkers();
 });

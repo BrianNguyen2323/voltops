@@ -9,7 +9,12 @@ import {
 import { decrypt, encrypt } from "~/lib/crypto";
 import { db as defaultDb, type openDb } from "~/server/db";
 import { credentials } from "~/server/db/schema";
-import { mapCalendarHistory, mapLiveStatus } from "./map";
+import {
+  mapCalendarHistory,
+  mapLiveStatus,
+  mapProducts,
+  mapSiteInfo,
+} from "./map";
 
 type Deps = {
   fetch: typeof fetch;
@@ -25,7 +30,11 @@ const TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token";
 const MIN_LIFE_MS = 5 * 60_000;
 const ROW = eq(credentials.id, 1);
 
-export function createFleetClient(deps: Deps): DataSource {
+export type FleetClient = DataSource & {
+  primeToken(value: string, expiresAt: number): void;
+};
+
+export function createFleetClient(deps: Deps): FleetClient {
   const { db, now } = deps;
   const sleep =
     deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -143,6 +152,19 @@ export function createFleetClient(deps: Deps): DataSource {
 
   return {
     id: "fleet-api",
+    primeToken(value, expiresAt) {
+      token = { value, expiresAt };
+    },
+    async listSites() {
+      return mapProducts(
+        await call("/api/1/products", `${deps.baseUrl}/api/1/products`, {
+          headers: { Authorization: `Bearer ${await accessToken()}` },
+        }),
+      );
+    },
+    async getSiteInfo(siteId) {
+      return mapSiteInfo(await get(siteId, "site_info"));
+    },
     async getLiveStatus(siteId) {
       return mapLiveStatus(await get(siteId, "live_status"));
     },
@@ -153,10 +175,10 @@ export function createFleetClient(deps: Deps): DataSource {
   };
 }
 
-let instance: DataSource | undefined;
+let instance: FleetClient | undefined;
 const lazy = () =>
   (instance ??= createFleetClient({
-    fetch,
+    fetch: (...a) => fetch(...a),
     db: defaultDb,
     now: Date.now,
     baseUrl:
@@ -165,8 +187,11 @@ const lazy = () =>
     clientSecret: env.TESLA_CLIENT_SECRET,
   }));
 
-export const fleetClient: DataSource = {
+export const fleetClient: FleetClient = {
   id: "fleet-api",
+  primeToken: (v, e) => lazy().primeToken(v, e),
+  listSites: () => lazy().listSites(),
+  getSiteInfo: (s) => lazy().getSiteInfo(s),
   getLiveStatus: (s) => lazy().getLiveStatus(s),
   getHistory: (s, d) => lazy().getHistory(s, d),
 };

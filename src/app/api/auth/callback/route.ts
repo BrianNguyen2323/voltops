@@ -4,9 +4,9 @@ import { env } from "~/env";
 import { encrypt } from "~/lib/crypto";
 import { requireAdminApi } from "~/lib/auth";
 import { db } from "~/server/db";
-import { credentials, sites, tariffSchedule } from "~/server/db/schema";
-
-const FLEET_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
+import { credentials } from "~/server/db/schema";
+import { fleetClient } from "~/lib/sources/fleet-api/client";
+import { syncSite } from "~/server/site-sync";
 
 // Log only Tesla's error code, never the raw body.
 async function errorCode(res: Response): Promise<string> {
@@ -16,17 +16,6 @@ async function errorCode(res: Response): Promise<string> {
       ? (body as { error?: unknown }).error
       : undefined;
   return typeof error === "string" ? error : "unknown";
-}
-
-// First numeric nameplate_energy_watts anywhere under `components` (Wh despite the name).
-function findNameplate(v: unknown): number | null {
-  if (typeof v !== "object" || !v) return null;
-  for (const [k, x] of Object.entries(v)) {
-    if (k === "nameplate_energy_watts" && typeof x === "number") return x;
-    const r = findNameplate(x);
-    if (r !== null) return r;
-  }
-  return null;
 }
 
 export async function GET(request: NextRequest) {
@@ -101,118 +90,6 @@ export async function GET(request: NextRequest) {
     scope: string;
   };
 
-  // --- Fetch energy site using the fresh access token (no separate refresh needed) ---
-
-  type ProductsResponse = {
-    response: { energy_site_id?: number; resource_type?: string }[];
-  };
-  type SiteInfoResponse = {
-    response: {
-      site_name?: string;
-      backup_reserve_percent?: number;
-      components?: unknown;
-      installation_time_zone?: string;
-      tariff_id?: string;
-      utility?: string;
-      tariff_content?: {
-        name?: string;
-        currency?: string;
-        [key: string]: unknown;
-      };
-    };
-  };
-
-  let teslaEnergySiteId: string | null = null;
-  let siteInfo: SiteInfoResponse["response"] | null = null;
-
-  const productsRes = await fetch(`${FLEET_BASE}/api/1/products`, {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  });
-
-  if (productsRes.ok) {
-    const products = (await productsRes.json()) as ProductsResponse;
-    const site = products.response.find((p) => p.resource_type === "battery");
-    if (site?.energy_site_id) {
-      teslaEnergySiteId = String(site.energy_site_id);
-
-      const infoRes = await fetch(
-        `${FLEET_BASE}/api/1/energy_sites/${teslaEnergySiteId}/site_info`,
-        { headers: { Authorization: `Bearer ${tokens.access_token}` } },
-      );
-      if (infoRes.ok) {
-        siteInfo = ((await infoRes.json()) as SiteInfoResponse).response;
-      } else {
-        console.warn(
-          "[Tesla OAuth] Could not fetch site_info:",
-          infoRes.status,
-          await errorCode(infoRes),
-        );
-      }
-    }
-  } else {
-    console.warn(
-      "[Tesla OAuth] Could not fetch products:",
-      productsRes.status,
-      await errorCode(productsRes),
-    );
-  }
-
-  console.log(
-    "[Tesla OAuth] Energy site:",
-    teslaEnergySiteId ? "found" : "none found",
-  );
-  console.log(
-    "[Tesla OAuth] Timezone:",
-    siteInfo?.installation_time_zone ?? "none",
-  );
-
-  // --- Upsert site (keyed on Tesla's site ID so re-logins stay idempotent) ---
-
-  const now = new Date();
-  let siteRowId: number | null = null;
-
-  if (teslaEnergySiteId) {
-    const tz = siteInfo?.installation_time_zone ?? null;
-    const facts = {
-      name: siteInfo?.site_name ?? null,
-      usableCapacityWh: findNameplate(siteInfo?.components),
-      backupReservePct: siteInfo?.backup_reserve_percent ?? null,
-    };
-    const [siteRow] = await db
-      .insert(sites)
-      .values({
-        source: "fleet-api",
-        externalId: teslaEnergySiteId,
-        timezone: tz,
-        ...facts,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: sites.externalId,
-        set: { timezone: tz, ...facts, updatedAt: now },
-      })
-      .returning({ id: sites.id });
-    siteRowId = siteRow?.id ?? null;
-  }
-
-  // --- Upsert tariff schedule (one per site, refreshed on each login) ---
-
-  if (siteRowId && siteInfo?.tariff_id) {
-    const row = {
-      tariffId: siteInfo.tariff_id,
-      name: siteInfo.tariff_content?.name ?? null,
-      utility: siteInfo.utility ?? null,
-      currency: siteInfo.tariff_content?.currency ?? null,
-      content: siteInfo.tariff_content ?? null,
-      updatedAt: now,
-    };
-    await db
-      .insert(tariffSchedule)
-      .values({ siteId: siteRowId, ...row })
-      .onConflictDoUpdate({ target: tariffSchedule.siteId, set: row });
-  }
-
   // --- Encrypt and upsert refresh token (single row, id=1) ---
 
   const { ciphertext: encryptedRefreshToken, iv } = encrypt(
@@ -223,12 +100,27 @@ export async function GET(request: NextRequest) {
     iv,
     scope: tokens.scope,
     accessTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-    updatedAt: now,
+    updatedAt: new Date(),
   };
   await db
     .insert(credentials)
     .values({ id: 1, ...cred })
     .onConflictDoUpdate({ target: credentials.id, set: cred });
+
+  // Credentials are stored; a failed site sync must not fail the login.
+  try {
+    fleetClient.primeToken(
+      tokens.access_token,
+      Date.now() + tokens.expires_in * 1000,
+    );
+    const [first] = await fleetClient.listSites();
+    if (first) await syncSite(db, fleetClient, first);
+  } catch (err) {
+    console.warn(
+      "[Tesla OAuth] site sync",
+      err instanceof Error ? err.name : "unknown",
+    );
+  }
 
   return NextResponse.redirect(new URL("/home", env.TESLA_REDIRECT_URI));
 }
