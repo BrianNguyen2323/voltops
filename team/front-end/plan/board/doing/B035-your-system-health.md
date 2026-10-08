@@ -88,3 +88,10 @@ Implementer: `Use skill: frontend-design` (3 tiles, chips, details line in the e
   - The helpers in `system.ts` are fixed by the tester: `HealthStatus`, `solarStatus(h)`, `batteryCapacityStatus(h, capacityWh)`, `efficiencyStatus(h)`, `systemSizeW(solar)`, `bestHourPerPanelW(solar)`. They are helpers, not new view fields.
   - The ⓘ buttons are counted by an `aria-label="About…` prefix.
   - Implementer spawned.
+- Impl d5ea186 on `phase2b/your-system-impl`: vitest 677, scripts, tsc, lint, build green (no clean `.next`; the reviewer re-runs it clean).
+  - Edits outside the owned files:
+    - `info-popover.tsx` gets a `label` prop (I asked for this);
+    - stub fields in the `dashboard.test.ts` literal;
+    - `dashboard.test.tsx` h2 count 7 → 8 (stale assertion).
+  - Deviation: the Batteries chip = the worse of capacity and efficiency (the SPEC implies one chip).
+  - Reviewer spawned.
