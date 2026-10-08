@@ -52,7 +52,10 @@ export function InfoPopover({
         className="max-w-[min(20rem,calc(100vw-2rem))] space-y-3"
         onMouseEnter={() => hover(true)}
         onMouseLeave={() => hover(false)}
+        collisionPadding={8}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        // else focus returns to the trigger and its onFocus reopens the popover
+        onCloseAutoFocus={(e) => e.preventDefault()}
       >
         {sections.map((s) => (
           <div key={s.title}>
