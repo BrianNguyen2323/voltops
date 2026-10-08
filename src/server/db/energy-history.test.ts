@@ -12,15 +12,14 @@ let siteId: number;
 const now = Date.now();
 const run = (q: string, ...p: unknown[]) => db.$client.prepare(q).run(...p);
 const count = (t: string) =>
-  (db.$client.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number }).n;
+  (db.$client.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number })
+    .n;
 const cols = (t: string) =>
-  (
-    db.$client.prepare(`PRAGMA table_info(${t})`).all() as {
-      name: string;
-      notnull: number;
-      pk: number;
-    }[]
-  );
+  db.$client.prepare(`PRAGMA table_info(${t})`).all() as {
+    name: string;
+    notnull: number;
+    pk: number;
+  }[];
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "voltops-eh-"));
@@ -71,13 +70,22 @@ const tables: [string, string[], (s: number, a: number) => unknown][] = [
   ["energy_intervals", ["site_id", "start"], (s, a) => insInterval(s, a)],
   ["samples", ["site_id", "ts"], (s, a) => insSample(s, a)],
   ["weather_observed", ["site_id", "hour"], (s, a) => insObserved(s, a)],
-  ["weather_forecast", ["site_id", "issued_at", "hour"], (s, a) => insForecast(s, a, a)],
+  [
+    "weather_forecast",
+    ["site_id", "issued_at", "hour"],
+    (s, a) => insForecast(s, a, a),
+  ],
 ];
 
 describe.each(tables)("%s", (table, pk, insert) => {
   it("exists with the expected primary key", () => {
     const c = cols(table);
-    expect(c.filter((x) => x.pk > 0).map((x) => x.name).sort()).toEqual([...pk].sort());
+    expect(
+      c
+        .filter((x) => x.pk > 0)
+        .map((x) => x.name)
+        .sort(),
+    ).toEqual([...pk].sort());
   });
 
   it("has all columns not null", () => {
@@ -126,8 +134,11 @@ describe("energy_intervals", () => {
     );
     expect(count("energy_intervals")).toBe(1);
     expect(
-      (db.$client.prepare("SELECT solar_wh FROM energy_intervals").get() as { solar_wh: number })
-        .solar_wh,
+      (
+        db.$client.prepare("SELECT solar_wh FROM energy_intervals").get() as {
+          solar_wh: number;
+        }
+      ).solar_wh,
     ).toBe(99);
   });
 
@@ -152,7 +163,9 @@ describe("weather_forecast", () => {
 describe("samples", () => {
   it("stores soc_pct as a real and keeps negative battery_w", () => {
     insSample(siteId, 1000);
-    const r = db.$client.prepare("SELECT soc_pct, battery_w FROM samples").get() as {
+    const r = db.$client
+      .prepare("SELECT soc_pct, battery_w FROM samples")
+      .get() as {
       soc_pct: number;
       battery_w: number;
     };
@@ -169,7 +182,9 @@ describe("sites new columns", () => {
       expect(col!.notnull).toBe(0);
     }
     const r = db.$client
-      .prepare("SELECT backup_reserve_pct, temperature_unit FROM sites WHERE id=?")
+      .prepare(
+        "SELECT backup_reserve_pct, temperature_unit FROM sites WHERE id=?",
+      )
       .get(siteId);
     expect(r).toEqual({ backup_reserve_pct: null, temperature_unit: null });
   });

@@ -12,7 +12,8 @@ const lr = live.response as {
   grid_power: number;
 };
 const balancedGrid = lr.load_power - lr.solar_power - lr.battery_power;
-const residual = lr.solar_power + lr.battery_power + lr.grid_power - lr.load_power;
+const residual =
+  lr.solar_power + lr.battery_power + lr.grid_power - lr.load_power;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -35,7 +36,13 @@ describe("mapLiveStatus", () => {
 
   it("rounds watts to integers", () => {
     const r = mapLiveStatus({
-      response: { ...live.response, solar_power: 100.6, load_power: 100.4, battery_power: 0, grid_power: 0 },
+      response: {
+        ...live.response,
+        solar_power: 100.6,
+        load_power: 100.4,
+        battery_power: 0,
+        grid_power: 0,
+      },
     });
     expect(r.solarW).toBe(101);
     expect(r.loadW).toBe(100);
@@ -43,23 +50,31 @@ describe("mapLiveStatus", () => {
 
   it("maps non-on_grid island_status to islanded", () => {
     expect(
-      mapLiveStatus({ response: { ...live.response, island_status: "island_status_unknown" } }).gridStatus,
+      mapLiveStatus({
+        response: { ...live.response, island_status: "island_status_unknown" },
+      }).gridStatus,
     ).toBe("islanded");
     expect(
-      mapLiveStatus({ response: { ...live.response, island_status: "off_grid" } }).gridStatus,
+      mapLiveStatus({
+        response: { ...live.response, island_status: "off_grid" },
+      }).gridStatus,
     ).toBe("islanded");
   });
 
   it("warns once on imbalance > 50 W and leaves data untouched", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const r = mapLiveStatus({ response: { ...live.response, grid_power: balancedGrid + 500 } });
+    const r = mapLiveStatus({
+      response: { ...live.response, grid_power: balancedGrid + 500 },
+    });
     expect(warn).toHaveBeenCalledTimes(1);
     expect(r.gridW).toBe(balancedGrid + 500);
   });
 
   it("does not warn at exactly 50 W imbalance", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    mapLiveStatus({ response: { ...live.response, grid_power: balancedGrid + 50 } });
+    mapLiveStatus({
+      response: { ...live.response, grid_power: balancedGrid + 50 },
+    });
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -81,15 +96,26 @@ describe("mapCalendarHistory", () => {
     }
   ).response.time_series;
   const rawSum = (...keys: string[]) =>
-    raw.reduce((s, t) => s + keys.reduce((a, k) => a + (t[k] as number), 0), 0) /
-    1000;
+    raw.reduce(
+      (s, t) => s + keys.reduce((a, k) => a + (t[k] as number), 0),
+      0,
+    ) / 1000;
 
   it("returns one interval per time_series entry with UTC ISO starts", () => {
     expect(out).toHaveLength(raw.length);
-    expect(out[0]!.start).toBe(new Date(raw[0]!.timestamp as string).toISOString());
-    expect(out[1]!.start).toBe(new Date(raw[1]!.timestamp as string).toISOString());
+    expect(out[0]!.start).toBe(
+      new Date(raw[0]!.timestamp as string).toISOString(),
+    );
+    expect(out[1]!.start).toBe(
+      new Date(raw[1]!.timestamp as string).toISOString(),
+    );
     expect(
-      out.slice(1).every((i, k) => Date.parse(i.start) - Date.parse(out[k]!.start) === 5 * 60_000),
+      out
+        .slice(1)
+        .every(
+          (i, k) =>
+            Date.parse(i.start) - Date.parse(out[k]!.start) === 5 * 60_000,
+        ),
     ).toBe(true);
     expect(out.every((i) => i.start.endsWith("Z"))).toBe(true);
   });
@@ -111,7 +137,10 @@ describe("mapCalendarHistory", () => {
     expect(kwh("solarWh")).toBeCloseTo(rawSum("solar_energy_exported"), 3);
     expect(kwh("loadWh")).toBeCloseTo(rawSum("total_home_usage"), 3);
     expect(kwh("gridImportWh")).toBeCloseTo(rawSum("grid_energy_imported"), 3);
-    expect(kwh("batteryDischargeWh")).toBeCloseTo(rawSum("battery_energy_exported"), 3);
+    expect(kwh("batteryDischargeWh")).toBeCloseTo(
+      rawSum("battery_energy_exported"),
+      3,
+    );
     expect(kwh("batteryChargeWh")).toBeCloseTo(
       rawSum(
         "battery_energy_imported_from_grid",

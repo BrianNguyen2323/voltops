@@ -27,7 +27,9 @@ export function forecastHours(input: ForecastInput) {
   // history hours with observed ghi > 0
   const used = history.flatMap((h) => {
     const ghi = obs.get(h.hour) ?? 0;
-    return ghi > 0 ? [{ ...h, ghi, hod: hod(h.hour), day: localDate(h.hour, tz) }] : [];
+    return ghi > 0
+      ? [{ ...h, ghi, hod: hod(h.hour), day: localDate(h.hour, tz) }]
+      : [];
   });
   const kOf = (hs: typeof used) => {
     const g = hs.reduce((s, h) => s + h.ghi, 0);
@@ -35,7 +37,8 @@ export function forecastHours(input: ForecastInput) {
   };
   const kAll = kOf(used);
   const kByHod = new Map<number, number>();
-  for (const x of new Set(used.map((h) => h.hod))) kByHod.set(x, kOf(used.filter((h) => h.hod === x))!);
+  for (const x of new Set(used.map((h) => h.hod)))
+    kByHod.set(x, kOf(used.filter((h) => h.hod === x))!);
   const kFor = (x: number) => kByHod.get(x) ?? kAll;
 
   // per-day actual / predicted ratios, each history hour using its own k
@@ -46,7 +49,9 @@ export function forecastHours(input: ForecastInput) {
     d.pred += kFor(h.hod)! * h.ghi;
     days.set(h.day, d);
   }
-  const ratios = sorted([...days.values()].filter((d) => d.pred > 0).map((d) => d.actual / d.pred));
+  const ratios = sorted(
+    [...days.values()].filter((d) => d.pred > 0).map((d) => d.actual / d.pred),
+  );
 
   let energy = (startSocPct / 100) * capacityWh;
   return hours.map((hour) => {
@@ -69,12 +74,28 @@ export function forecastHours(input: ForecastInput) {
       } else solarP10Wh = solarP90Wh = solarWh;
     }
 
-    const socPct = Math.min(100, Math.max(0, Math.round((energy / capacityWh) * 100)));
+    const socPct = Math.min(
+      100,
+      Math.max(0, Math.round((energy / capacityWh) * 100)),
+    );
     // ponytail: no inverter power cap
     const net = solarWh - loadWh;
     if (net > 0) energy += Math.min(net, capacityWh - energy);
-    else energy -= Math.min(-net, Math.max(0, energy - (reservePct / 100) * capacityWh));
+    else
+      energy -= Math.min(
+        -net,
+        Math.max(0, energy - (reservePct / 100) * capacityWh),
+      );
 
-    return { hour: new Date(hour).toISOString(), loadWh, loadP10Wh, loadP90Wh, solarWh, solarP10Wh, solarP90Wh, socPct };
+    return {
+      hour: new Date(hour).toISOString(),
+      loadWh,
+      loadP10Wh,
+      loadP90Wh,
+      solarWh,
+      solarP10Wh,
+      solarP90Wh,
+      socPct,
+    };
   });
 }

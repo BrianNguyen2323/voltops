@@ -20,32 +20,54 @@ const day = (d: string) => {
 };
 
 /** Complete site-local days before `today`, oldest first (YYYY-MM-DD). */
-export function completeDays(db: Db, siteId: number, tz: string, today: string): string[] {
-  const first = db.select({ m: min(s.energyIntervals.start) }).from(s.energyIntervals)
-    .where(eq(s.energyIntervals.siteId, siteId)).get()?.m;
+export function completeDays(
+  db: Db,
+  siteId: number,
+  tz: string,
+  today: string,
+): string[] {
+  const first = db
+    .select({ m: min(s.energyIntervals.start) })
+    .from(s.energyIntervals)
+    .where(eq(s.energyIntervals.siteId, siteId))
+    .get()?.m;
   if (first == null) return [];
   const rows: string[] = [];
   for (let d = localDate(first.getTime(), tz); d < today; d = addDays(d, 1)) {
-    const a = localMidnight(d, tz), b = localMidnight(addDays(d, 1), tz);
+    const a = localMidnight(d, tz),
+      b = localMidnight(addDays(d, 1), tz);
     rows.push(`('${day(d)}',${lit(a)},${lit(b)},${lit((b - a) / FIVE)})`);
   }
   if (!rows.length) return [];
-  return db.all<{ day: string }>(sql`
+  return db
+    .all<{ day: string }>(
+      sql`
     WITH days(day, a, b, slots) AS (VALUES ${sql.raw(rows.join(","))})
     SELECT day FROM days JOIN energy_intervals e ON e.site_id = ${siteId} AND e.start >= a AND e.start < b
-    GROUP BY day HAVING COUNT(*) = slots ORDER BY day`).map((r) => r.day);
+    GROUP BY day HAVING COUNT(*) = slots ORDER BY day`,
+    )
+    .map((r) => r.day);
 }
 
 /** null when days is empty. fromMin/toMin = local minutes after midnight. */
 export function peakHistory(
   db: Db,
   siteId: number,
-  o: { tz: string; days: string[]; fromMin: number; toMin: number; highC: number },
+  o: {
+    tz: string;
+    days: string[];
+    fromMin: number;
+    toMin: number;
+    highC: number;
+  },
 ): PeakHistory | null {
   if (!o.days.length) return null;
-  const rows = o.days.map((d) =>
-    `('${day(d)}',${lit(localTime(d, o.fromMin, o.tz))},${lit(localTime(d, o.toMin, o.tz))},${lit(localMidnight(d, o.tz))},${lit(localMidnight(addDays(d, 1), o.tz))})`);
-  const q = (similar: boolean) => db.get<{ n: number; avg: number | null }>(sql`
+  const rows = o.days.map(
+    (d) =>
+      `('${day(d)}',${lit(localTime(d, o.fromMin, o.tz))},${lit(localTime(d, o.toMin, o.tz))},${lit(localMidnight(d, o.tz))},${lit(localMidnight(addDays(d, 1), o.tz))})`,
+  );
+  const q = (similar: boolean) =>
+    db.get<{ n: number; avg: number | null }>(sql`
     WITH days(day, f, t, d0, d1) AS (VALUES ${sql.raw(rows.join(","))}),
     per AS (
       SELECT day, d0, d1, SUM(e.load_wh) AS wh FROM days
@@ -54,7 +76,8 @@ export function peakHistory(
     )
     SELECT COUNT(*) AS n, AVG(wh) AS avg FROM per
     WHERE ${similar ? sql`ABS((SELECT MAX(w.temp_c) FROM weather_observed w WHERE w.site_id = ${siteId} AND w.hour >= d0 AND w.hour < d1) - ${o.highC}) <= 3` : sql`1`}`);
-  const all = q(false), sim = q(true);
+  const all = q(false),
+    sim = q(true);
   const similarTempDays = sim?.n ?? 0;
   return {
     historyAvgWh: Math.round(all?.avg ?? 0),

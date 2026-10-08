@@ -40,7 +40,8 @@ const hourRow = (start: number) => {
     local >= 7 && local <= 18
       ? Math.round(3000 * Math.sin((Math.PI * (local - 6)) / 13))
       : 0;
-  const loadWh = 600 + 40 * (local % 7) + (local >= 16 && local <= 21 ? 900 : 0);
+  const loadWh =
+    600 + 40 * (local % 7) + (local >= 16 && local <= 21 ? 900 : 0);
   return {
     start,
     solarWh,
@@ -121,7 +122,11 @@ function input(now: number, o: Opts = {}): BuildInput {
       ? hourly.map((h) => ({ hour: h.start, ghiWm2: h.solarWh / 5 }))
       : [],
     forecast,
-    peakEstimate: o.peakEstimate ?? { historyDays: 0, today: null, tomorrow: null },
+    peakEstimate: o.peakEstimate ?? {
+      historyDays: 0,
+      today: null,
+      tomorrow: null,
+    },
   };
 }
 
@@ -167,7 +172,9 @@ describe("buildSnapshot", () => {
     const o = input(NORMAL, { dataUntil: NORMAL - 5 * HOUR });
     const s = buildSnapshot(o);
     const mid = localMidnight(localDate(NORMAL, TZ), TZ);
-    const seeded = s.timeline.find((r) => Date.parse(r.hour) === mid + 5 * HOUR)!;
+    const seeded = s.timeline.find(
+      (r) => Date.parse(r.hour) === mid + 5 * HOUR,
+    )!;
     const { start, ...sums } = hourRow(mid + 5 * HOUR);
     expect(start).toBe(mid + 5 * HOUR);
     expect(seeded).toMatchObject({ kind: "actual", ...sums });
@@ -358,26 +365,37 @@ describe("buildSnapshot", () => {
     const at = (iso: string) => Date.parse(iso);
     // hour bucket 09:00 would say 3 h; the interval start 10:00 says 2 h 30 min.
     const behind = buildSnapshot({
-      ...input(at("2026-05-20T12:30:00Z"), { dataUntil: at("2026-05-20T09:00:00Z") }),
+      ...input(at("2026-05-20T12:30:00Z"), {
+        dataUntil: at("2026-05-20T09:00:00Z"),
+      }),
       latestIntervalStart: at("2026-05-20T10:00:00Z"),
     });
     expect(behind.health.warnings).toEqual(["Energy history is 2 h behind"]);
     // hour bucket 10:00 would say 2 h 50 min; the interval start 10:55 says 1 h 55 min.
     const fine = buildSnapshot({
-      ...input(at("2026-05-20T12:50:00Z"), { dataUntil: at("2026-05-20T10:00:00Z") }),
+      ...input(at("2026-05-20T12:50:00Z"), {
+        dataUntil: at("2026-05-20T10:00:00Z"),
+      }),
       latestIntervalStart: at("2026-05-20T10:55:00Z"),
     });
     expect(fine.health.warnings).toEqual([]);
   });
 
   describe("peakEstimate and recommendation", () => {
-    const ph = (avg: number, similarDays = 7, similarAvg: number | null = avg) => ({
+    const ph = (
+      avg: number,
+      similarDays = 7,
+      similarAvg: number | null = avg,
+    ) => ({
       historyAvgWh: avg,
       highC: 22,
       similarTempDays: similarDays,
       similarTempAvgWh: similarAvg,
     });
-    const days = (historyDays: number, tomorrow: ReturnType<typeof ph> | null) => ({
+    const days = (
+      historyDays: number,
+      tomorrow: ReturnType<typeof ph> | null,
+    ) => ({
       historyDays,
       today: ph(9000),
       tomorrow,
@@ -385,7 +403,11 @@ describe("buildSnapshot", () => {
 
     it("copies peakEstimate through; the default stub gives no recommendation", () => {
       const s = buildSnapshot(input(NORMAL));
-      expect(s.peakEstimate).toEqual({ historyDays: 0, today: null, tomorrow: null });
+      expect(s.peakEstimate).toEqual({
+        historyDays: 0,
+        today: null,
+        tomorrow: null,
+      });
       expect(s.recommendation).toBeNull();
     });
 
@@ -434,7 +456,11 @@ describe("buildSnapshot", () => {
       o.site.usableCapacityWh = 27000;
       const s = buildSnapshot(o);
       expect(checkSnapshot(s)).toEqual([]);
-      expect(s.recommendation?.reserve).toMatchObject({ extraPct: 19, targetPct: 39, coveredWh: 5000 });
+      expect(s.recommendation?.reserve).toMatchObject({
+        extraPct: 19,
+        targetPct: 39,
+        coveredWh: 5000,
+      });
       expect(s.recommendation?.confidence).toBe("low");
       expect(s.recommendation?.why).toEqual([
         "Usual peak use: 5.0 kWh over 7 days",

@@ -91,7 +91,8 @@ describe("fleet client", () => {
     seed();
     const s = await mk().getLiveStatus(SITE);
     expect(s.solarW).toBe(
-      (fx("live_status") as { response: { solar_power: number } }).response.solar_power,
+      (fx("live_status") as { response: { solar_power: number } }).response
+        .solar_power,
     );
     const [tUrl, tInit] = tokenCalls()[0]!;
     expect(String(tUrl)).toBe("https://auth.tesla.com/oauth2/v3/token");
@@ -100,7 +101,9 @@ describe("fleet client", () => {
     expect(h.get("authorization")).toBe(
       `Basic ${Buffer.from("cid:csecret").toString("base64")}`,
     );
-    const body = new URLSearchParams((tInit!.body as URLSearchParams).toString());
+    const body = new URLSearchParams(
+      (tInit!.body as URLSearchParams).toString(),
+    );
     expect(body.get("grant_type")).toBe("refresh_token");
     expect(body.get("refresh_token")).toBe("rt-0");
     const [aUrl, aInit] = apiCalls()[0]!;
@@ -248,7 +251,11 @@ describe("fleet client", () => {
         Promise.resolve(
           String(u).startsWith(BASE)
             ? json(
-                { error: "boom_reason", secret: "BODY-LEAK", detail: "at-LEAK" },
+                {
+                  error: "boom_reason",
+                  secret: "BODY-LEAK",
+                  detail: "at-LEAK",
+                },
                 500,
               )
             : json({
@@ -362,7 +369,9 @@ describe("fleet client", () => {
     const lease = (d: typeof db) =>
       (
         d.$client
-          .prepare("SELECT refresh_lock_until AS v FROM credentials WHERE id = 1")
+          .prepare(
+            "SELECT refresh_lock_until AS v FROM credentials WHERE id = 1",
+          )
           .get() as { v: number | null }
       ).v;
     const mkOn = (d: typeof db, sleep: (ms: number) => Promise<void>) =>
@@ -391,7 +400,9 @@ describe("fleet client", () => {
           if (url.startsWith(TOKEN)) {
             const n = ++tokenN;
             bodies.push(
-              new URLSearchParams((init!.body as URLSearchParams).toString()).get("refresh_token")!,
+              new URLSearchParams(
+                (init!.body as URLSearchParams).toString(),
+              ).get("refresh_token")!,
             );
             maxInflight = Math.max(maxInflight, ++inflight);
             if (n === 1) await gate;
@@ -425,9 +436,7 @@ describe("fleet client", () => {
     it("takes over a stale lease and clears it on success", async () => {
       seed();
       setLease(db, now - 1000);
-      await expect(
-        mkOn(db, tick).getLiveStatus(SITE),
-      ).resolves.toBeDefined();
+      await expect(mkOn(db, tick).getLiveStatus(SITE)).resolves.toBeDefined();
       expect(tokenCalls()).toHaveLength(1);
       expect(lease(db)).toBeNull();
     });

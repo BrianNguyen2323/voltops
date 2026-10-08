@@ -47,13 +47,20 @@ function seedDay(date: string, w: number, offsetH: number, skip = 0) {
   const rows = [];
   for (let t = from; t < to - skip * FIVE; t += FIVE) {
     rows.push({
-      siteId, start: new Date(t), solarWh: 0, gridImportWh: 0, gridExportWh: 0,
-      batteryChargeWh: 0, batteryDischargeWh: 0,
+      siteId,
+      start: new Date(t),
+      solarWh: 0,
+      gridImportWh: 0,
+      gridExportWh: 0,
+      batteryChargeWh: 0,
+      batteryDischargeWh: 0,
       loadWh: t >= winFrom && t < winTo ? w : 1,
     });
   }
   for (let i = 0; i < rows.length; i += 500) {
-    db.insert(schema.energyIntervals).values(rows.slice(i, i + 500)).run();
+    db.insert(schema.energyIntervals)
+      .values(rows.slice(i, i + 500))
+      .run();
   }
   return rows.length;
 }
@@ -65,14 +72,24 @@ function seedWeather(date: string, high: number) {
   const rows = [];
   for (let t = from, i = 0; t < to; t += H, i++) {
     rows.push({
-      siteId, hour: new Date(t), tempC: i === 14 ? high : high - 5,
-      cloudPct: 0, ghiWm2: 0, precipMm: 0,
+      siteId,
+      hour: new Date(t),
+      tempC: i === 14 ? high : high - 5,
+      cloudPct: 0,
+      ghiWm2: 0,
+      precipMm: 0,
     });
   }
   db.insert(schema.weatherObserved).values(rows).run();
 }
 
-const opts = (days: string[], highC = 20) => ({ tz: TZ, days, fromMin: FROM, toMin: TO, highC });
+const opts = (days: string[], highC = 20) => ({
+  tz: TZ,
+  days,
+  fromMin: FROM,
+  toMin: TO,
+  highC,
+});
 
 describe("completeDays", () => {
   it("counts a full day, rejects one missing an interval, excludes today even if full", () => {
@@ -80,14 +97,21 @@ describe("completeDays", () => {
     seedDay("2026-05-11", 1, 7, 1); // 287 slots
     seedDay("2026-05-12", 1, 7);
     seedDay("2026-05-13", 1, 7); // today
-    expect(completeDays(db, siteId, TZ, "2026-05-13")).toEqual(["2026-05-10", "2026-05-12"]);
+    expect(completeDays(db, siteId, TZ, "2026-05-13")).toEqual([
+      "2026-05-10",
+      "2026-05-12",
+    ]);
   });
 
   it("uses 276/300 slots on DST days", () => {
     expect(seedDay("2026-03-08", 1, 7)).toBe(276);
     expect(seedDay("2026-11-01", 1, 8)).toBe(300);
     seedDay("2026-05-10", 1, 7);
-    expect(completeDays(db, siteId, TZ, "2026-11-02")).toEqual(["2026-03-08", "2026-05-10", "2026-11-01"]);
+    expect(completeDays(db, siteId, TZ, "2026-11-02")).toEqual([
+      "2026-03-08",
+      "2026-05-10",
+      "2026-11-01",
+    ]);
   });
 
   it("rejects a DST day with the wrong slot count", () => {
@@ -127,19 +151,36 @@ describe("peakHistory: query 1 (historyAvgWh)", () => {
 });
 
 describe("peakHistory: query 2 (similar temperature)", () => {
-  const days = ["2026-05-01", "2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06"];
+  const days = [
+    "2026-05-01",
+    "2026-05-02",
+    "2026-05-03",
+    "2026-05-04",
+    "2026-05-05",
+    "2026-05-06",
+  ];
   beforeEach(() => {
-    seedDay("2026-05-01", 10, 7); seedWeather("2026-05-01", 20.0); // 600
-    seedDay("2026-05-02", 20, 7); seedWeather("2026-05-02", 23.0); // 1200, +3 in
-    seedDay("2026-05-03", 31, 7); seedWeather("2026-05-03", 17.0); // 1860, -3 in
-    seedDay("2026-05-04", 1000, 7); seedWeather("2026-05-04", 23.1); // out
-    seedDay("2026-05-05", 1000, 7); seedWeather("2026-05-05", 16.9); // out
+    seedDay("2026-05-01", 10, 7);
+    seedWeather("2026-05-01", 20.0); // 600
+    seedDay("2026-05-02", 20, 7);
+    seedWeather("2026-05-02", 23.0); // 1200, +3 in
+    seedDay("2026-05-03", 31, 7);
+    seedWeather("2026-05-03", 17.0); // 1860, -3 in
+    seedDay("2026-05-04", 1000, 7);
+    seedWeather("2026-05-04", 23.1); // out
+    seedDay("2026-05-05", 1000, 7);
+    seedWeather("2026-05-05", 16.9); // out
     seedDay("2026-05-06", 1000, 7); // no weather: never matches
   });
 
   it("includes |diff| = 3 exactly, excludes 3.1, skips days without weather", () => {
     const r = peakHistory(db, siteId, opts(days, 20));
-    expect(r).toEqual({ historyAvgWh: 30610, highC: 20, similarTempDays: 3, similarTempAvgWh: 1220 });
+    expect(r).toEqual({
+      historyAvgWh: 30610,
+      highC: 20,
+      similarTempDays: 3,
+      similarTempAvgWh: 1220,
+    });
   });
 
   it("gives null average when fewer than 3 days match, with the right count", () => {
