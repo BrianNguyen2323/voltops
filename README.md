@@ -64,6 +64,7 @@ Your Tesla credentials and energy data stay on your instance.
 
 - **Home dashboard (`/home`)**: live power flow (solar, home, Powerwall, grid); today's cost by time-of-use period from your tariff; a 48-hour timeline with a forecast range; the last 7 days; tomorrow's weather; a "peak hours" estimate; and a backup-reserve recommendation.
 - **Background worker**: each hour, syncs Tesla energy history and takes a live sample per Fleet API site; every 3 hours, fetches Open-Meteo weather, gap-filling past weather up to 92 days.
+- **Request estimate**: in steady state this is about 1,440 Tesla requests per month per site (one `calendar_history` plus one `live_status` per hour). The `/home` footer shows the same estimate.
 - **Permanent history**: energy history is kept in SQLite and not pruned.
 - **Demo mode**: runs without a Powerwall, using bundled replay data.
 
@@ -123,6 +124,8 @@ pnpm worker
 > [!WARNING]
 > The demo needs its **own database**. The `/home` page shows the first site in the database, so do not seed the demo into your real `./data/voltops.db`.
 
+The demo still needs a filled-in `.env`. `src/env.js` validates `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `TESLA_REDIRECT_URI`, `SESSION_SECRET` and `VOLTOPS_SECRET_KEY` at startup. Placeholder Tesla values are fine. Generate the two secrets as shown in [Configuration](#configuration).
+
 PowerShell:
 
 ```powershell
@@ -131,6 +134,8 @@ pnpm db:migrate
 pnpm seed:replay
 pnpm dev -p 3001
 ```
+
+When you are done, run `Remove-Item Env:DATABASE_PATH` (or close the terminal) to go back to your real DB.
 
 bash:
 
@@ -162,7 +167,7 @@ Generate the two secrets with:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Use the output as `VOLTOPS_SECRET_KEY` (64 hex characters). For `SESSION_SECRET`, run it again or use any random string of 32 or more characters.
+Use the output as `VOLTOPS_SECRET_KEY` (64 hex characters). The same hex command also gives a valid `SESSION_SECRET`; run it again for a second value.
 
 Optional:
 
@@ -210,7 +215,7 @@ VoltOps uses the official **Tesla Fleet API**. You bring your own developer app:
 4. Start the app and click **Connect Tesla**.
 
 > [!NOTE]
-> Tesla bills the Fleet API per request, so polling frequency affects your bill. The worker syncs each Fleet API site once an hour. Check your Tesla developer dashboard for your actual usage.
+> Tesla bills the Fleet API per request, so polling frequency affects your bill. The worker syncs each Fleet API site once an hour. In steady state this is about 1,440 Tesla requests per month per site (one `calendar_history` plus one `live_status` per hour). The `/home` footer shows the same estimate. Check your Tesla developer dashboard for your actual usage.
 
 ## Development commands
 
