@@ -4,9 +4,9 @@ import { db } from "~/server/db";
 import { sites } from "~/server/db/schema";
 import { seedReplay } from "~/server/replay/seed";
 import {
-  applySiteSettings,
   isTeslaIdle,
   parseSiteSettings,
+  prepareTick,
   runSiteSync,
   runTesla,
   runWeather,
@@ -25,6 +25,7 @@ async function tick(first = false) {
   if (busy) return;
   busy = true;
   try {
+    prepareTick(db, settings);
     const now = Date.now();
     const deps = { db, source: fleetClient, fetch, now };
     const teslaDue =
@@ -66,7 +67,6 @@ if (
   seedReplay(db, Date.now());
   console.log("[worker] demo data seeded");
 }
-applySiteSettings(db, settings);
 void tick(true);
 const timer = setInterval(() => void tick(), 60_000);
 for (const sig of ["SIGTERM", "SIGINT"] as const)
