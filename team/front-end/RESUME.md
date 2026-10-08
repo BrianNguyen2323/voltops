@@ -1,5 +1,21 @@
 # Resume board — front-end
 
+- **Topic 2 (PO, 2026-10-07): peak-hours usage estimate + reserve advice.**
+  - A "Peak hours" tile next to "Your home now": estimated kWh in today's and tomorrow's peak window;
+  - the Tonight advice sentence: "Raise your backup reserve to x%. With 20% as reserve for emergencies an additional x% will help you save $x for tomorrow's estimated x kWh usage during peak hours".
+  - The front-end builds placeholders only (sample data in the snapshot contract). The middleware team computes the numbers from 2 SQL averages: (1) peak usage over all history; (2) peak usage on days with similar temperatures.
+  - Research: `research/peak-estimate/README.md`.
+- **Status: M6 DONE and APPROVED 2026-10-07 (b66599f). The PO merges `front-end-development` → `main`. Idle until the PO's next topic.**
+- **Gate:** typecheck, lint, build green; vitest 484/484 on the committed tree (clean worktree). In the main checkout, 6 fleet-api fixture tests fail because of the PO's uncommitted `fixtures/fleet-api/*.json` edits (asked in TODO.md).
+- **Middleware hand-off:** `team/middleware/plan/board/backlog/B013-peak-estimate.md` (2 SQL averages, advisor, weather gap-fill) + a pointer in their RESUME.md. Doc copy refreshed. Until it lands, real data shows "Learning your usage: 0 of 7 days" and no reserve advice.
+- **Next action (on "continue"):**
+  - ask the PO for the next topic. Options: learning/loading/error states, `accuracy: []` empty state, light theme, chart CSV views, nav + Plan/Trends, or architecture backlog #3;
+  - the optimization round is due after M7;
+  - fixtures re-recorded and committed at 856a5b7 at the PO's request. 6 fleet-api tests are red until the middleware team updates them (pointer in their RESUME.md).
+- **Open branches / worktrees:** none from this topic.
+- Previous topic (dashboard v1, M1–M5) is done and on main. The architecture backlog (#3 time module, #2 tariff, #4 flow state, #5) stays parked.
+
+## Topic 1 record
 - **Topic (PO, 2026-10-06):** the `/home` route becomes an overview dashboard of the MVP's key features (CLAUDE.md §9 Now/Plan/Trends/Accuracy/Health), using placeholders only.
   - Keep the existing colour theme. Use shadcn where it applies.
   - Use skill `frontend-design` in planning **and** in implementation (put `Use skill: frontend-design` in every UI brief; add `dataviz` for chart briefs).

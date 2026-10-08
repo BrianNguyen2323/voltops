@@ -214,6 +214,7 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
           endsAt: new Date(t1).toISOString(),
         },
     recommendation: null,
+    peakEstimate: { historyDays: 0, today: null, tomorrow: null }, // placeholder until middleware B013
     timeline: [...actual, ...forecast],
     costToday: cost,
     previousDays,
