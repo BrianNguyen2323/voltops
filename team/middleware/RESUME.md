@@ -2,7 +2,7 @@
 
 Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).
 
-- **O1 DONE + in main (PR #12, 10edebf).** Now: B027 prettier --write (cleaner running, branch `phase2b/middleware-prettier`; PO OK, no team had open branches). Grilling architecture pick 1 (Energy history) then 2 (Site sync) → SPEC Revision 3: round 1 Q1–Q5 re-asked in chat, awaiting PO.
+- **O1 DONE + in main (PR #12, 10edebf). B027 prettier merged into `middleware` aad9419** (format:check 0 incl. CRLF checkouts via `endOfLine: "auto"`; gate green). **Gate now includes `pnpm format:check`.** The PO opens the next PR. Grilling: #1 Energy history round 1 ANSWERED (all recommended, TODO); round 2 (#1 interface + work split) and Site sync round 1 asked in chat, awaiting PO. Then SPEC Revision 3 + briefs.
   - **Done + merged into `middleware`** (reviewer PASS each; gate green after each: vitest 563, test:scripts 71, tsc, lint 0/0, build:worker, build): B023 worker 39ccf88 (gap-fill reads distinct hours), B025 tariff df00880, B024 sources d92b6be (map test uses the fixture residual), B022 snapshot 6f6be2f (`peakEstimate` required, one weather_observed read). Worktrees + branches removed.
   - B026 chores 5c3277f (lint 0/0 incl. dist ignored; image ships only runtime fixtures), smoke PASS 305 MB.
   - Reviewer nit (non-blocking, B023): no test puts intervals across a DST day for the distinct-hour bucket. Candidate for the next round.

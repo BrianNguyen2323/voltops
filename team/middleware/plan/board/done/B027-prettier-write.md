@@ -23,3 +23,9 @@
 - `pnpm format:check` exits 0.
 - `pnpm vitest run`, `pnpm test:scripts`, `pnpm tsc --noEmit`, `SKIP_ENV_VALIDATION=1 pnpm lint`: same as baseline (563, 71, 0, clean).
 - `git diff --stat` shows only `.prettierignore` + formatting changes (the reviewer spot-checks with `git diff -w`).
+
+## Follow-up (review FAIL, 2026-10-08)
+- On a fresh Windows checkout `pnpm format:check` still fails on 88 files: `core.autocrlf=true` checks files out as CRLF, and Prettier 3 defaults to `endOfLine: "lf"`. The 33 files with real drift are fixed on the branch.
+- Fix: add `endOfLine: "auto"` to `prettier.config.js` (the smallest change; git stores LF in the index anyway). **Owned files now also include `prettier.config.js`.**
+- Base: `phase2b/middleware-prettier` (5efcf6d). Commit on that branch.
+- Judged by: in a **fresh** worktree of the new commit (with the junction), `pnpm format:check` exits 0; the other checks are unchanged.
