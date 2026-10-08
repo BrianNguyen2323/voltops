@@ -27,17 +27,6 @@ export async function loadSnapshot(
   const site = db.select().from(s.sites).where(eq(s.sites.id, siteId)).get();
   if (!site) throw new Error(`site ${siteId} not found`);
 
-  const stored = () => {
-    const r = db
-      .select()
-      .from(s.samples)
-      .where(eq(s.samples.siteId, siteId))
-      .orderBy(desc(s.samples.ts))
-      .limit(1)
-      .get();
-    return r ?? null;
-  };
-
   let live: LiveSample | undefined;
   let liveUnavailable = false;
   if (site.source === "fleet-api") {
@@ -52,7 +41,9 @@ export async function loadSnapshot(
         liveUnavailable = true;
       }
   } else liveUnavailable = true;
-  const lastRow = stored();
+  const lastRow =
+    db.select().from(s.samples).where(eq(s.samples.siteId, siteId)).orderBy(desc(s.samples.ts)).limit(1).get() ??
+    null;
   if (!live) {
     if (!lastRow) throw new Error("no live reading and no stored sample");
     live = {
@@ -99,18 +90,26 @@ export async function loadSnapshot(
     .all()
     .map((r) => ({ ts: r.ts.getTime(), socPct: r.socPct }));
 
-  const observed = db
-    .select({ hour: s.weatherObserved.hour, ghiWm2: s.weatherObserved.ghiWm2 })
+  // One read of weather_observed (PK site+hour) covers both the GHI history (before today) and temps (today, tomorrow).
+  const wx = db
+    .select({
+      hour: s.weatherObserved.hour,
+      ghiWm2: s.weatherObserved.ghiWm2,
+      tempC: s.weatherObserved.tempC,
+    })
     .from(s.weatherObserved)
     .where(
       and(
         eq(s.weatherObserved.siteId, siteId),
         gte(s.weatherObserved.hour, from),
-        lt(s.weatherObserved.hour, t0),
+        lt(s.weatherObserved.hour, t2),
       ),
     )
     .all()
-    .map((r) => ({ hour: r.hour.getTime(), ghiWm2: r.ghiWm2 }));
+    .map((r) => ({ hour: r.hour.getTime(), ghiWm2: r.ghiWm2, tempC: r.tempC }));
+  const observed = wx
+    .filter((r) => r.hour < t0.getTime())
+    .map((r) => ({ hour: r.hour, ghiWm2: r.ghiWm2 }));
 
   // Oldest issue first, so the Map keeps the latest-issued row per target hour.
   const latest = new Map<number, (typeof s.weatherForecast.$inferSelect)>();
@@ -135,18 +134,9 @@ export async function loadSnapshot(
     precipProbPct: r.precipProbPct,
   }));
 
-  const observedTemps = db
-    .select({ hour: s.weatherObserved.hour, tempC: s.weatherObserved.tempC })
-    .from(s.weatherObserved)
-    .where(
-      and(
-        eq(s.weatherObserved.siteId, siteId),
-        gte(s.weatherObserved.hour, t0),
-        lt(s.weatherObserved.hour, t2),
-      ),
-    )
-    .all()
-    .map((r) => ({ hour: r.hour.getTime(), tempC: r.tempC }));
+  const observedTemps = wx
+    .filter((r) => r.hour >= t0.getTime())
+    .map((r) => ({ hour: r.hour, tempC: r.tempC }));
 
   const sched = db
     .select()
