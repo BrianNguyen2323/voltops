@@ -155,6 +155,84 @@ export async function syncWeather({ db, fetch, now }: Deps, site: Site) {
   });
 }
 
+const GAP_DAYS = 92;
+const HOUR = 3_600_000;
+
+/** Backfill observed weather for past site-local days that have energy but incomplete weather. */
+export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
+  if (site.latitude == null || site.longitude == null) return;
+  const tz = site.timezone ?? "UTC";
+  const today = localDate(now, tz);
+  const from = localMidnight(addDays(today, -GAP_DAYS), tz);
+  const to = localMidnight(today, tz);
+  const energyDays = new Set(
+    db
+      .select({ start: s.energyIntervals.start })
+      .from(s.energyIntervals)
+      .where(
+        and(
+          eq(s.energyIntervals.siteId, site.id),
+          gte(s.energyIntervals.start, new Date(from)),
+          lt(s.energyIntervals.start, new Date(to)),
+        ),
+      )
+      .all()
+      .map((r) => localDate(r.start.getTime(), tz)),
+  );
+  if (!energyDays.size) return;
+  const have = new Map<string, number>();
+  for (const r of db
+    .select({ hour: s.weatherObserved.hour })
+    .from(s.weatherObserved)
+    .where(
+      and(
+        eq(s.weatherObserved.siteId, site.id),
+        gte(s.weatherObserved.hour, new Date(from)),
+        lt(s.weatherObserved.hour, new Date(to)),
+      ),
+    )
+    .all()) {
+    const d = localDate(r.hour.getTime(), tz);
+    have.set(d, (have.get(d) ?? 0) + 1);
+  }
+  const gaps = [...energyDays]
+    .filter(
+      (d) =>
+        (have.get(d) ?? 0) <
+        (localMidnight(addDays(d, 1), tz) - localMidnight(d, tz)) / HOUR,
+    )
+    .sort();
+  if (!gaps.length) return;
+  const w = await fetchWeather({
+    fetch,
+    lat: site.latitude,
+    lon: site.longitude,
+    now,
+    pastDays: Math.round((to - localMidnight(gaps[0]!, tz)) / 86_400_000),
+    forecastDays: 1,
+  });
+  const gapSet = new Set(gaps);
+  db.transaction((tx) => {
+    for (const r of w.observed) {
+      if (!gapSet.has(localDate(r.hour, tz))) continue;
+      const v = {
+        siteId: site.id,
+        hour: new Date(r.hour),
+        tempC: r.tempC,
+        cloudPct: r.cloudPct,
+        ghiWm2: r.ghiWm2,
+        precipMm: r.precipMm,
+      };
+      tx.insert(s.weatherObserved)
+        .values(v)
+        .onConflictDoUpdate({
+          target: [s.weatherObserved.siteId, s.weatherObserved.hour],
+          set: v,
+        })
+        .run();
+    }
+  });
+}
 /** "" counts as unset; "0" is a real 0. */
 export function parseSiteSettings(env: Record<string, string | undefined>) {
   const pick = (k: string) => (env[k] === "" ? undefined : env[k]);
@@ -218,6 +296,8 @@ export async function runTesla(deps: Deps) {
 }
 
 export async function runWeather(deps: Deps) {
-  for (const site of deps.db.select().from(s.sites).all())
+  for (const site of deps.db.select().from(s.sites).all()) {
     await guarded("syncWeather", site, () => syncWeather(deps, site));
+    await guarded("fillWeatherGaps", site, () => fillWeatherGaps(deps, site));
+  }
 }
