@@ -77,7 +77,7 @@ Research: `research/mvp-scope/README.md`. **Headline:** the DB has no energy, we
 
 Answer inline or in chat, e.g. "all recommended" or "Q6 B, rest recommended".
 
-## USER INPUT REQUIRED — Review: M1 + M2, real data on `/home` (2026-10-06)
+## Review: M1 + M2, real data on `/home` (2026-10-06) — PROBE ANSWERED 2026-10-08
 
 All of it is on `main` (last merge 0166a1b). Gate on main: vitest 448/448, typecheck, lint, test:scripts 70/70, `build:worker`, `build`. Docker smoke PASS (image 305 MB, ≤ 400). Every brief had a tester, an implementer and a reviewer PASS.
 
@@ -111,8 +111,9 @@ All of it is on `main` (last merge 0166a1b). Gate on main: vitest 448/448, typec
 `git worktree unlock .claude/worktrees/agent-acef4e3717147cf8b; git worktree remove --force .claude/worktrees/agent-acef4e3717147cf8b` (the same for `agent-a1fb976491a87f4dd`). Also delete `.claude/worktrees/rv-b001` and the old branch `worktree-agent-a85ac516cb7dc60dd` (it predates this team).
 
 Reply with: (a) approved; (b) changes (list them); or (c) the probe result plus anything you saw.
+- Answer (PO, 2026-10-08): **probe result** `today intervals: 9 (expected about 8 so far)`, live_status invariant ok (residual 0 W). So Tesla returns today's partial day, and the hourly `calendar_history` plan works as designed; no fetch-plan change needed. The M1+M2 code shipped inside the approved M3 (below).
 
-## USER INPUT REQUIRED — Review: M3, peak hours + reserve advice from real data (2026-10-07)
+## Review: M3, peak hours + reserve advice from real data (2026-10-07) — ANSWERED 2026-10-08
 
 All of it is on the **`middleware`** branch (last merge e7f48a9). It isn't on `main` yet: **you open the PR `middleware` → `main`**, the same way as with front-end-development. Gate on `middleware`: vitest 563/563, test:scripts 70/70, typecheck, lint, `build:worker`, `build`. Docker smoke PASS (305 MB). Every brief had a tester, an implementer and a reviewer PASS.
 
@@ -143,3 +144,4 @@ All of it is on the **`middleware`** branch (last merge e7f48a9). It isn't on `m
 **Next:** an optimization round is due now (after 3 milestones). That's a cleaner pass per package plus a perf/size pass. Please also run **`/improve-codebase-architecture`** in this session when you're ready; your pick becomes the next design revision.
 
 Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw, plus the probe result.
+- Answer: **a, approved** (PO, 2026-10-08). The PO opens the PR `middleware` → `main`. B019 (README) is on `middleware` too. `scripts/generate-tesla-keypair.mjs`: leave as is (the PO has plans for it). The fixtures re-recorded by this probe are still uncommitted; the PO decides.
