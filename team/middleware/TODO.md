@@ -178,3 +178,26 @@ Q1 Site-bound handle; Q2 the operation list, peak averages inside; Q3 `src/serve
 → SPEC Revision 3, `design/revisions/R003.md`, milestone M4 (B028–B031).
 
 **FYI (no action needed):** for Q10 I said a failed sync would show "as a Health warning". There's no job-run table, so the worker can't put anything on the dashboard. A failed site-sync is a log line, like every other worker job; the dashboard still says "No tariff from Tesla" when a tariff is missing. Say so if you want a job-run table (a later item).
+
+## USER INPUT REQUIRED — Review: M4, Energy history + Site sync (2026-10-08)
+
+Everything is on **`middleware`** (last merge 5b5f119). **You open the PR `middleware` → `main`**; it also carries B027 (repo-wide prettier). Gate on `middleware`: vitest 601/601, test:scripts 71/71, typecheck, lint 0/0, **format:check**, `build:worker`, `build`. Docker smoke PASS (305 MB). Every brief had a tester (where new behavior), an implementer and a reviewer PASS.
+
+**What's new**
+- **Energy history** (`src/server/history/`): one module owns every read and write of stored energy and observed weather. "Complete day" is one rule now. `peak.ts` is gone. This is a pure restructure: the dashboard, the worker and the demo show the same numbers as before.
+- **Site sync:** your site name, timezone, battery capacity, backup reserve and tariff are refreshed **daily by the worker** and at login, through the Tesla client. So a tariff or reserve change in the Tesla app shows up within a day, with no re-login. It costs ~30 extra Tesla requests/month.
+- **Login** no longer hard-codes the North America Fleet API URL (it uses `TESLA_FLEET_BASE_URL`). If the site sync fails at login, you're still logged in and land on `/home`.
+- **Demo** (`VOLTOPS_DEMO`/`seed:replay`): the demo Site's timezone, capacity, reserve and tariff now come from `fixtures/fleet-api/site_info.json`.
+
+**How to try it**
+1. **Demo (no Tesla):** in a throwaway checkout, run `pnpm db:migrate`, `pnpm seed:replay`, `pnpm dev`, then open `/home`. It should look exactly as before: 7 days of history, the Peak hours tile and the Tonight advice.
+2. **Your system (Docker):** `docker compose up -d --build`, then `docker compose logs -f worker`. On the first tick you should see no `site-sync` error. `/home` should look as before.
+3. **Site sync for real:** change the backup reserve in the Tesla app, then restart the worker (`docker compose restart worker`; it syncs on its first tick). The reserve on `/home` (Tonight's advice) should follow.
+4. **Optional:** click "Connect Tesla" again. The login should land on `/home` as before.
+
+**Things to know**
+- A failed site sync shows only in the worker log (`[worker] site-sync site=<n> <ErrorName>`), not on the dashboard. There's no job-run table yet (see the FYI above).
+- The demo tariff id is now the fixture's real plan name (a public SCE plan id, already in the committed fixtures) instead of `replay`.
+
+Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw.
+- Answer:

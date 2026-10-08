@@ -41,7 +41,7 @@ Cleaner per package plus a perf/size pass; no behavior change.
 Order: wave 1 = B022–B025 (disjoint) → wave 2 = B026. Each gets a reviewer. Plus `/improve-codebase-architecture` with the PO; the PO's pick becomes Revision 3.
 Skipped: `pnpm format:check` (453 files, repo-wide, touches other scopes' files) is flagged to the PO instead.
 
-## M4: Energy history + Site sync (Rev 3, R003)
+## M4: Energy history + Site sync (Rev 3, R003) — DONE 2026-10-08 on `middleware` (5b5f119)
 - B028 Energy history module (tester → implementer; new files only)
 - B029 Rewire the worker, the snapshot and the seed to it; delete `peak.ts` (needs B028)
 - B030 `listSites`/`getSiteInfo` + `mapSiteInfo` + `syncSite` + login path (tester → implementer; implementer after B029)
