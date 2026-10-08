@@ -45,6 +45,7 @@ Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from th
   - non-whole-hour timezones (India etc.) would mis-bucket hours;
   - `verify:tesla` refreshes without the lease;
   - the 2 old lint warnings (postcss/prettier) are for a cleaner.
+- **Standing rule (PO, 2026-10-08): fixture re-records get committed each time.** `pnpm verify:tesla` rewrites `fixtures/fleet-api/*.json`. Before committing them, a **Haiku** reviewer (Agent `model: "haiku"`) scans them for sensitive data (site IDs, serials, DIN, gateway IDs, names, addresses, coordinates, emails, account numbers, tokens). Commit only on PASS, as `chore(fixtures): …`; then fix any tests pinned to the old recording.
 - **Env lessons:**
   - worktrees need the node_modules junction; remove it with `cmd /c rmdir node_modules` BEFORE `git worktree remove`, and never `--force` with a junction;
   - a real node_modules: `cmd /c rmdir /s /q "\\?\<literal full path>\node_modules"` (a literal path; a variable in the path gets blocked);
