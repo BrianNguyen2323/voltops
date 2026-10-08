@@ -81,7 +81,9 @@ describe("mapCalendarHistory", () => {
     expect(out).toHaveLength(raw.length);
     expect(out[0]!.start).toBe(new Date(raw[0]!.timestamp as string).toISOString());
     expect(out[1]!.start).toBe(new Date(raw[1]!.timestamp as string).toISOString());
-    expect(Date.parse(out[1]!.start) - Date.parse(out[0]!.start)).toBe(5 * 60_000);
+    expect(
+      out.slice(1).every((i, k) => Date.parse(i.start) - Date.parse(out[k]!.start) === 5 * 60_000),
+    ).toBe(true);
     expect(out.every((i) => i.start.endsWith("Z"))).toBe(true);
   });
 
