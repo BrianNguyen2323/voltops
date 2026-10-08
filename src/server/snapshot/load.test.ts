@@ -477,6 +477,9 @@ const prior = (now: number, n = 7) =>
   Array.from({ length: n }, (_, i) => addDays(localDate(now, TZ), i - n));
 const endOf = (date: string) =>
   new Date(localMidnight(addDays(date, 1), TZ) - 3 * HOUR).toISOString(); // 21:00 local
+// validTo is the START of tomorrow's peak window: 16:00 local (8 h before the next midnight).
+const startOf = (date: string) =>
+  new Date(localMidnight(addDays(date, 1), TZ) - 8 * HOUR).toISOString();
 
 describe("loadSnapshot peakEstimate and recommendation", () => {
   const snap = async (now: number, o: Partial<Seed> = {}) => {
@@ -501,7 +504,7 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
     expect(r.reserve).toEqual(reservePlan(peakEstimateWh(want), 13500, 20));
     expect(r.action).toBe(`Raise backup reserve to ${r.reserve!.targetPct}%`);
     expect(r.effectWh).toBe(r.reserve!.coveredWh);
-    expect(r.validTo).toBe(endOf("2026-05-21")); // tomorrow 21:00 local
+    expect(r.validTo).toBe(startOf("2026-05-21")); // tomorrow 16:00 local, when peak starts
     expect(r.validFrom).toBe(endOf("2026-05-20")); // today's window end is later than updatedAt
     // peak 52.028 c/kWh, lowest off-peak 35.776 c/kWh
     const want$ = Math.round((r.effectWh * (52.028 - 35.776)) / 1000);
@@ -524,7 +527,7 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
     const s = await snap(now);
     expect(checkSnapshot(s)).toEqual([]);
     expect(s.recommendation?.validFrom).toBe(new Date(now).toISOString());
-    expect(s.recommendation?.validTo).toBe(endOf("2026-05-21"));
+    expect(s.recommendation?.validTo).toBe(startOf("2026-05-21"));
   });
 
   it("6 complete days: peakEstimate is filled but there is no recommendation", async () => {
@@ -673,12 +676,12 @@ describe("loadSnapshot peakEstimate and recommendation", () => {
     ["2026-03-08", SPRING],
     ["2026-11-01", FALL],
   ])(
-    "DST day %s: recommendation windows are local 21:00, checkSnapshot clean",
+    "DST day %s: validFrom is local 21:00, validTo is local 16:00 tomorrow, checkSnapshot clean",
     async (d, now) => {
       const s = await snap(now);
       expect(checkSnapshot(s)).toEqual([]);
       expect(s.peakEstimate.historyDays).toBe(7);
-      expect(s.recommendation?.validTo).toBe(endOf(addDays(d, 1)));
+      expect(s.recommendation?.validTo).toBe(startOf(addDays(d, 1)));
       expect(s.recommendation?.validFrom).toBe(endOf(d));
     },
   );

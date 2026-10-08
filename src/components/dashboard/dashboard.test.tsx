@@ -690,3 +690,43 @@ describe("Tonight reserve sentence", () => {
     expect(out).not.toContain("Raise your backup reserve to");
   });
 });
+
+// --- Rev 7: two-step line and the info button -------------------------------
+
+describe("Tonight card clarity", () => {
+  const t = (view?: DashboardView) => squash(text(tonight(render({ view }))));
+  const infoButton = /aria-label="About this advice"/;
+
+  it("renders the two-step line instead of 'From ... until ...'", () => {
+    const out = t();
+    expect(out).toContain(
+      squash(
+        "Tonight at 9:00 PM, after today's peak hours end, raise it to 89%.",
+      ),
+    );
+    expect(out).toContain(
+      squash(
+        "Tomorrow at 4:00 PM, when peak hours start, lower it back to 20% so the battery covers the peak.",
+      ),
+    );
+    expect(out).not.toContain(squash("From 9:00 PM until"));
+  });
+
+  it("has the info button after the confidence line", () => {
+    const html = tonight(render());
+    expect(html).toMatch(infoButton);
+    expect(html.indexOf("confidence.")).toBeLessThan(html.search(infoButton));
+  });
+
+  it("has no info button when tomorrow has no peak hours", () => {
+    const view = withSnapshot((s) => (s.peakEstimate.tomorrow = null));
+    expect(tonight(render({ view }))).not.toMatch(infoButton);
+  });
+
+  it("keeps the plain 'From ... until ...' card, without a button, when there is no reserve", () => {
+    const view = withSnapshot((s) => delete s.recommendation!.reserve);
+    const html = tonight(render({ view }));
+    expect(squash(text(html))).toContain(squash("From 9:00 PM until"));
+    expect(html).not.toMatch(infoButton);
+  });
+});
