@@ -35,7 +35,7 @@
 - B034 advisor `validTo` = peak start, the two-step line with day words, the ⓘ popover (shadcn Popover) with confidence and scenario copy, sample `validTo`. Tester → implementer → reviewer with screenshots.
 - Then: the lead updates middleware SPEC L166 and their RESUME, then a PO review. **The optimization round is due after M7.**
 
-## M8 — Your system + Equipment health (placeholders) — SPEC Rev 8
+## M8 — Your system + Equipment health (placeholders) — SPEC Rev 8 — DONE 2026-10-08 (af94a16 on `front-end-development`)
 - B035 contract (`system`, `equipmentHealth`), the view statuses, the section with 3 tiles + ⓘ + details/change log, sample values, the `build.ts` stub, `.env.example` panel vars, and the doc. Tester → implementer → reviewer with screenshots.
 - Middleware backlog (their board): B036 site_info fields + panel env + best hour + change log; B037 health measurements; B038 one-time backfill within the request budget.
 - Then: a PO review, then the **optimization round** (overdue since M7, by PO request).
