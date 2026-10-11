@@ -74,7 +74,7 @@ describe("Dashboard structure", () => {
     expect(h1).toEqual([sampleDashboard.site.name]);
   });
 
-  it("renders the seven h2 sections in order", () => {
+  it("renders the eight h2 sections in order", () => {
     expect(h2s(html)).toEqual([
       "Right now",
       "Tonight",
@@ -83,6 +83,7 @@ describe("Dashboard structure", () => {
       "Cost today",
       "Last 7 days",
       "Forecast accuracy",
+      "Your system",
     ]);
   });
 
@@ -106,7 +107,7 @@ describe("Dashboard header flags", () => {
     expect(text(off)).toContain("Connect Tesla");
     expect(off).toContain('href="/api/auth/tesla"');
     // sections still render
-    expect(h2s(off)).toHaveLength(7);
+    expect(h2s(off)).toHaveLength(8);
 
     const on = render({ connected: true });
     expect(text(on)).not.toContain("Connect Tesla");
@@ -688,5 +689,121 @@ describe("Tonight reserve sentence", () => {
     const out = text(tonight(render({ view })));
     expect(out).toContain(view.recommendation!.action);
     expect(out).not.toContain("Raise your backup reserve to");
+  });
+});
+
+// --- Rev 7: two-step line and the info button -------------------------------
+
+describe("Tonight card clarity", () => {
+  const t = (view?: DashboardView) => squash(text(tonight(render({ view }))));
+  const infoButton = /aria-label="About this advice"/;
+
+  it("renders the two-step line instead of 'From ... until ...'", () => {
+    const out = t();
+    expect(out).toContain(
+      squash(
+        "Tonight at 9:00 PM, after today's peak hours end, raise it to 89%.",
+      ),
+    );
+    expect(out).toContain(
+      squash(
+        "Tomorrow at 4:00 PM, when peak hours start, lower it back to 20% so the battery covers the peak.",
+      ),
+    );
+    expect(out).not.toContain(squash("From 9:00 PM until"));
+  });
+
+  it("has the info button after the confidence line", () => {
+    const html = tonight(render());
+    expect(html).toMatch(infoButton);
+    expect(html.indexOf("confidence.")).toBeLessThan(html.search(infoButton));
+  });
+
+  it("has no info button when tomorrow has no peak hours", () => {
+    const view = withSnapshot((s) => (s.peakEstimate.tomorrow = null));
+    expect(tonight(render({ view }))).not.toMatch(infoButton);
+  });
+
+  it("keeps the plain 'From ... until ...' card, without a button, when there is no reserve", () => {
+    const view = withSnapshot((s) => delete s.recommendation!.reserve);
+    const html = tonight(render({ view }));
+    expect(squash(text(html))).toContain(squash("From 9:00 PM until"));
+    expect(html).not.toMatch(infoButton);
+  });
+});
+
+describe("Your system section (Rev 8)", () => {
+  const html = render();
+  const t = text(html);
+  const aboutCount = (h: string) =>
+    (h.match(/aria-label="About/g) ?? []).length;
+
+  it("has an H2 'Your system', last", () => {
+    const all = h2s(html);
+    expect(all[all.length - 1]).toBe("Your system");
+  });
+  it.each([
+    "2 batteries · Powerwall 3",
+    "27.0 kWh",
+    "11.5 kW",
+    "20%",
+    "24 panels × 400 W",
+    "9.6 kW",
+    "Best hour so far",
+    "7.9 kWh",
+    "Est. capacity 26.1 kWh (97% of 27.0 kWh)",
+    "Round-trip efficiency 88%",
+    "Clear-day output 98% of June 2025",
+    "Southern California Edison",
+    "Firmware 26.26.11",
+    "Grid outage, 2 h 10 min",
+  ])("shows %s", (s) => expect(t).toContain(s));
+
+  it("shows OK chips", () => expect(t).toMatch(/\bOK\b/));
+  it("adds two About buttons for the health lines", () => {
+    const without = render({ view: { ...sampleDashboard, system: null } });
+    expect(aboutCount(html) - aboutCount(without)).toBe(2);
+  });
+
+  it("panels null -> 'Panel details not set'", () => {
+    const sys = structuredClone(sampleDashboard.system!);
+    sys.solar.panelCount = null;
+    sys.solar.panelWatts = null;
+    expect(
+      text(render({ view: { ...sampleDashboard, system: sys } })),
+    ).toContain("Panel details not set");
+  });
+  it("system null -> 'System details not available yet.'", () => {
+    const h = render({ view: { ...sampleDashboard, system: null } });
+    expect(h2s(h)).toContain("Your system");
+    expect(text(h)).toContain("System details not available yet.");
+  });
+  it("all health null + backfill running -> 'Loading past data: 230 of 730 days'", () => {
+    const equipmentHealth = {
+      solarClearDay: null,
+      sunnyDayMiss: null,
+      batteryCapacity: null,
+      efficiency: null,
+      backfill: { state: "running" as const, daysDone: 230, daysTotal: 730 },
+    };
+    const h = text(render({ view: { ...sampleDashboard, equipmentHealth } }));
+    expect(h).toContain("Loading past data: 230 of 730 days");
+    expect(h).toContain("Learning");
+  });
+  it("batteryCapacity null -> Learning", () => {
+    const equipmentHealth = {
+      ...sampleDashboard.equipmentHealth,
+      batteryCapacity: null,
+    };
+    expect(
+      text(render({ view: { ...sampleDashboard, equipmentHealth } })),
+    ).toContain("Learning");
+  });
+  it("one battery is singular", () => {
+    const sys = structuredClone(sampleDashboard.system!);
+    sys.batteries.count = 1;
+    const h = text(render({ view: { ...sampleDashboard, system: sys } }));
+    expect(h).toContain("1 battery");
+    expect(h).not.toContain("1 batteries");
   });
 });

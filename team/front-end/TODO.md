@@ -422,3 +422,189 @@ Merged into `front-end-development` at b66599f. Typecheck, lint and build are gr
 - Answer: **a, approved** (PO, 2026-10-07). The PO merges `front-end-development` → `main`.
   - Fixtures: the PO asked in chat whether committed fixtures are seen by others. Answered: only via the repo and demo mode; the real DB never leaves the instance.
   - The PO hasn't yet decided whether to commit or revert the modified `fixtures/fleet-api/*.json`. If committed, the middleware team must update the 6 fleet-api tests.
+
+---
+
+## Decision round 3 — ANSWERED 2026-10-08, all recommended (see design/revisions/R007.md): Tonight card clarity. Research: `research/tonight-clarity/README.md`
+
+**Answer to your question.** "From 9:00 PM until 9:00 PM" means **9 PM tonight** (when today's 4-9 PM peak ends) **until 9 PM tomorrow** (when tomorrow's peak ends). The UI shows only the clock time, so both ends look the same. And yes, 9 PM tonight is when you'd raise the reserve.
+
+The end time is also **wrong**. The reserve is a floor, so the battery won't go below it. To spend the extra x% during tomorrow's 4-9 PM peak, the reserve has to drop back to 20% **at 4 PM tomorrow**. If you keep it raised until 9 PM, the saved energy stays locked in the battery through the peak.
+
+Answer in chat or here, e.g. "all recommended" or "Q2 B, rest recommended".
+
+**Q1. The valid-window line.**
+- **A (recommended): fix the window and say both steps.**
+  - The advisor's `validTo` becomes the **start** of tomorrow's peak. This is a one-line change in `src/lib/advisor/reserve.ts` (middleware-owned). I'd take it in this brief with a note in their SPEC/RESUME, because it's small and a hand-off would leave the UI waiting.
+  - The line reads: "**Tonight at 9:00 PM**, after today's peak hours end, raise it to 65%. **Tomorrow at 4:00 PM**, when peak hours start, lower it back to 20% so the battery covers the peak." The day words come from comparing local dates (today / tonight / tomorrow).
+  - The sample data changes to match.
+- B: same as A, but I put the `reserve.ts` change in the middleware backlog. The UI ships the new wording against the sample data, and real data shows the wrong end time until they land it.
+- C: wording only: "From 9:00 PM tonight until 9:00 PM tomorrow." Clear, but it keeps the advice that locks the energy away.
+- Answer: **A** (PO, 2026-10-08).
+
+**Q2. What the info tooltip says.**
+- **A (recommended): built from the real numbers already in the snapshot.** No contract change.
+  - *Confidence:* why it's low or medium, e.g. "Low: only 1 past day had a high near 75°F (3 needed). Until then this uses your usual peak use, 9.3 kWh over 30 days." Medium: "Based on 8 past days with a high near 75°F (±5°F)."
+  - *If the forecast high changes:* "This estimate uses days within ±5°F of 75°F. If tomorrow's forecast moves outside 70-80°F, other days are used. Hotter or colder days usually mean more AC or heat, so a higher reserve. The advice updates on its own."
+  - *If the tariff changes:* "Your peak hours are 4-9 PM. If they move, the raise and lower times move with them. The saving is the gap between peak and off-peak prices: a smaller gap means a smaller saving, and no gap means no advice."
+- B: A, plus numbers for each scenario ("at 85°F: 72%, saves $1.40"; "the peak rate is 45¢ vs 25¢ off-peak"). This needs new snapshot fields (peak averages for the neighbouring temperature bands, plus tomorrow's peak/off-peak rates), so it's a contract change plus a middleware brief. Slower; it can come after A.
+- C: one fixed paragraph that explains the idea in general, with no numbers.
+- Answer: **A** (PO, 2026-10-08).
+
+**Q3. How the tooltip opens.** A hover-only tooltip doesn't open on phones.
+- **A (recommended):** an ⓘ icon button after the confidence line. It opens on hover and keyboard focus (desktop) **and** on tap (phone). Built on shadcn Popover, which adds `src/components/ui/popover.tsx`. `radix-ui` is already installed, so no new dependency.
+- B: a shadcn Tooltip, hover/focus only. On a phone it never opens.
+- Answer: **A** (PO, 2026-10-08).
+
+## USER INPUT REQUIRED — Review: M7 Tonight card clarity (2026-10-08)
+Built and merged on `front-end-development` (1f92288). Gate green: 627 tests, typecheck, lint, build.
+
+**Run it:** `pnpm dev`, then open `/home`. The sample data shows the reserve advice.
+
+**What to try:**
+1. The Tonight card shows "**Tonight at 9:00 PM**, after today's peak hours end, raise it to 89%. **Tomorrow at 4:00 PM**, when peak hours start, lower it back to 20% so the battery covers the peak." The old "From 9:00 PM until 9:00 PM" is gone.
+2. Hover the ⓘ after "…reserve needed." on desktop. It opens and closes when you move away or press Escape. On a phone (or at a narrow width), tap it, then tap outside.
+3. Read the 3 sections: "Why medium confidence", "If tomorrow's forecast high changes" (70°F–81°F for the sample), "If your tariff changes" (4:00 PM–9:00 PM).
+4. Real data: the advisor's end time is now the **start** of tomorrow's peak. If your instance has ≥ 7 days of history, the card should read "Tomorrow at 4:00 PM".
+
+Screenshots: `data/shots/b034-fix-*.png`.
+
+**Answer:** "approved", or list changes (these become the next round). Then you merge `front-end-development` → `main`. Next on my side: the optimization round (due after M7).
+
+---
+
+## Decision round 4 — ANSWERED 2026-10-08, all recommended ("The outline you have looks good"): "Your system" section. Research: `research/system-info/README.md`
+
+**What exists.** Checked against the data recorded from your real site:
+- **Tesla gives us:**
+  - battery count: **2**;
+  - model: **Powerwall 3**;
+  - total storage: **27 kWh**;
+  - max battery power: **11.5 kW**;
+  - backup reserve: **20%**;
+  - utility and rate plan: **SCE TOU-D 4-9PM**;
+  - firmware;
+  - install date.
+- **Tesla does not give us:** solar panel count, panel rating, or solar system size. They aren't in any Fleet API response. The local gateway reports solar *strings*, not panels, and that source isn't built yet.
+- **Panel ratings are power (W), not energy (kWh).** A 400 W panel makes 400 W in full sun; its kWh depends on how many hours of sun it gets. So the section shows "panel rating (W)" and "best hour so far (kWh)" rather than a "max kWh per panel".
+
+Answer in chat or here, e.g. "all recommended".
+
+**Q1. What the section shows.**
+- **A (recommended):**
+  - **Batteries:**
+    - "2 batteries · Powerwall 3";
+    - stores **27.0 kWh**;
+    - up to **11.5 kW**;
+    - backup reserve **20%**.
+  - **Solar:**
+    - "**24 panels × 400 W** = **9.6 kW** system";
+    - best hour so far **7.9 kWh** (≈ 330 W per panel);
+    - when panels aren't entered: "Panel details not set" with how to set them.
+  - **Plan:** utility + rate plan, peak hours.
+  - **Details** (small, muted): firmware, installed date, data source.
+  - The panel numbers above are sample placeholders.
+- B: batteries and solar only. No plan or details.
+- Answer: **A** (PO, 2026-10-08: "the outline looks good").
+
+**Q2. Where panel count and rating come from.**
+- **A (recommended): two env vars, `SITE_PANEL_COUNT` and `SITE_PANEL_WATTS`.** Same pattern as the existing `SITE_*` settings the worker applies, documented in `.env.example`. A Settings screen can replace them later.
+- B: no input until a Settings screen exists. Solar shows only the best measured hour.
+- C: guess the system size from the best measured hour (no panel count). It's always available, but it's an estimate and can't give a panel count.
+- Answer: **A** (PO, 2026-10-08: "the outline looks good").
+
+**Q3. Where the section goes.**
+- **A (recommended):** a "Your system" section at the bottom of `/home`, above the status line. It's reference info, so it shouldn't push the live data down. It's a 3-tile row on desktop (Batteries · Solar · Plan) that stacks on a phone.
+- B: its own `/system` page. That needs navigation, which we deferred in round 1 (Q7).
+- Answer: **A** (PO, 2026-10-08: "the outline looks good").
+
+**Q4. Who does what** (same split as topic 2).
+- **A (recommended):**
+  - The front-end adds `system` to the snapshot contract, sample values, the section, a `null`/"not available" state, and a stub in `build.ts`.
+  - The middleware gets a backlog brief:
+    - parse `battery_count`, gateway `part_name`, `nameplate_power`, `version` and `installation_date` from `site_info`;
+    - add the panel env vars;
+    - store the new columns;
+    - fill the best solar hour from history.
+- B: the front-end does both. That crosses into middleware-owned DB and adapter code, so they'd have to review it.
+- Answer: **A** (PO, 2026-10-08: "the outline looks good").
+
+---
+
+## Decision round 5 — ANSWERED 2026-10-08, all A, Q6 with conditions (see design/revisions/R008.md): Equipment health. Research: `research/system-info/HEALTH.md`
+
+You want to spot declining panel output or battery storage. Everything below except the "later" items uses data VoltOps **already records**: 5-minute energy, battery %, and hourly sunlight + cloud cover. Answer e.g. "all recommended".
+
+**Q5. Which health checks to build first.**
+- **A (recommended), all from existing data:**
+  1. **Solar, clear-day output.** Output per unit of sunlight on cloud-free hours, as a monthly median compared with the same month last year. Normal ageing is ~0.5%/year, so a bigger drop flags soiling, shading or a failed panel.
+  2. **Solar, "sunny day, low output" flag.** Yesterday was clear but solar came in well under what the sunlight predicted. This catches sudden faults (a tripped breaker, a dead string) quickly.
+  3. **Battery, estimated capacity.** kWh moved ÷ % moved on long charges or discharges, as a monthly median compared with the 27.0 kWh nameplate. Noisy per event, so the trend is what counts.
+  4. **Battery, round-trip efficiency.** Monthly discharge ÷ charge (PW3 spec ~89%).
+  5. **Change log.** Firmware and hardware changes (from a daily `site_info` record) and grid outages, so sudden shifts have an explanation.
+- B: only 1 and 3 (the two "decline" trends you named).
+- **Later, needs the local-gateway source:**
+  - per-string solar comparison, the best way to find one bad panel;
+  - Tesla's own per-battery capacity number.
+- Answer: **A** (PO, 2026-10-08).
+
+**Q6. Baseline: wait for history or backfill it.** A year-over-year solar comparison needs a year of data.
+- **A (recommended): backfill once.**
+  - Past energy from Tesla's history endpoint: 1 request per day of history, so 2 years ≈ 730 requests one time. Fleet API usage is billed, so you set the limit, default **2 years**.
+  - Past weather from Open-Meteo's free archive.
+  - Health trends then show within a day of setup.
+- B: no backfill. Battery checks appear after a few weeks and the solar year-over-year after a year. The "sunny day" flag works after ~2 weeks of learning.
+- Answer: **A**, on the PO's condition: "only if it is a one time backfill and is within the request limit … The backfill should leave enough request for general use of VoltOps as well." Also: backfill **all existing data** so an existing system gets trends right away. → budget rule in SPEC Rev 8 (backfill ≤ 2,500/month, total ≤ 4,500 of ~5,000 free). (PO, 2026-10-08).
+
+**Q7. Where it shows.**
+- **A (recommended): inside "Your system".**
+  - Each tile gets a health line with a status chip (**OK / Watch / Check**):
+    - Batteries: "Est. capacity 26.1 kWh (97% of 27.0) · efficiency 88%";
+    - Solar: "Clear-day output 98% of last October".
+  - A "learning" state appears when there isn't enough data yet.
+  - The change log sits in the small details line.
+- B: a separate "Equipment health" section below "Your system".
+- C: wait for the Health screen (CLAUDE.md §9). It's not built and has no nav yet.
+- Answer: **A** (PO, 2026-10-08).
+
+**Q8. When a status becomes Watch / Check.**
+- **A (recommended): fixed, explained thresholds.**
+  - Solar clear-day output: Watch at < 95%, Check at < 85% of the baseline.
+  - Battery capacity: Watch at < 90%, Check at < 80% of nameplate.
+  - Efficiency: Watch at < 85%.
+  - A sunny-day miss of > 25% is a Check.
+  - The popover shows the math, like the Tonight ⓘ.
+- B: show the numbers only, with no status judgement.
+- Answer: **A** (PO, 2026-10-08).
+
+**Q9. Who builds what** (same split as Q4).
+- **A (recommended):**
+  - The front-end adds `equipmentHealth` placeholders to the contract and the UI on sample data, in the same milestone as "Your system".
+  - The middleware gets a backlog brief:
+    - the pure health functions;
+    - the daily `site_info` log;
+    - the backfill job if Q6 A.
+- Answer: **A** (PO, 2026-10-08).
+
+## USER INPUT REQUIRED — Review: M8 "Your system" + Equipment health (2026-10-08)
+Built and merged on `front-end-development` (af94a16). Gate green: 677 tests, typecheck, lint, build. The **M7 review above is still open too**; you can answer both together.
+
+**Run it:** `pnpm dev`, then `/home`, and scroll to the bottom. It shows sample data. Real data shows "System details not available yet." until the middleware lands B036–B038 (their backlog).
+
+**What to try:**
+1. "Your system" sits at the bottom with 3 tiles: **Batteries**, **Solar** and **Plan**. They're in a row on desktop and stacked on a phone.
+   - Batteries: "2 batteries · Powerwall 3", 27.0 kWh, 11.5 kW, reserve 20%, est. capacity 26.1 kWh (97%), efficiency 88%, OK chip.
+   - Solar: "24 panels × 400 W = 9.6 kW", best hour 7.9 kWh (≈ 329 W per panel), clear-day output 98% of June 2025, OK chip.
+   - Plan: SCE, TOU-D 4-9 PM, peak hours.
+   - The details line has the firmware, install date and the change log (a firmware update, a grid outage).
+2. Hover or tap the ⓘ on Batteries and Solar: it shows how each number is computed and the Watch/Check thresholds.
+3. Panel numbers are placeholders. For real data you'll set `SITE_PANEL_COUNT` and `SITE_PANEL_WATTS` in `.env` (documented in `.env.example`).
+
+**Reviewer nits I left for you to judge:**
+- the ⓘ sits on its own line under the health text, not at the end of it;
+- the OK chip is low contrast on the dark card.
+Say if you want either fixed.
+
+Screenshots: `data/shots/b035-*.png`.
+
+**Answer:** "approved", or list changes. Then you merge `front-end-development` → `main`. Next on my side: the optimization round.

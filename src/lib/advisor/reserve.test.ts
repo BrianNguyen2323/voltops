@@ -200,7 +200,7 @@ describe("reserveRecommendation", () => {
   it("validFrom is the end of today's peak window (21:00 local) while it is still ahead", () => {
     const r = rec({ tomorrow: ph(11_000) })!;
     expect(r.validFrom).toBe("2026-05-21T04:00:00.000Z"); // 21:00 PDT on 5/20
-    expect(r.validTo).toBe("2026-05-22T04:00:00.000Z"); // 21:00 PDT on 5/21
+    expect(r.validTo).toBe("2026-05-21T23:00:00.000Z"); // 16:00 PDT on 5/21, when peak starts
   });
 
   it("validFrom is updatedAt once today's window has ended", () => {
@@ -213,26 +213,26 @@ describe("reserveRecommendation", () => {
     const updatedMs = Date.parse("2026-07-19T19:30:00Z"); // Sunday
     const r = rec({ tomorrow: ph(11_000), tariff: sce, updatedMs })!;
     expect(r.validFrom).toBe(new Date(updatedMs).toISOString());
-    expect(r.validTo).toBe("2026-07-21T04:00:00.000Z"); // Monday 21:00 PDT
+    expect(r.validTo).toBe("2026-07-20T23:00:00.000Z"); // Monday 16:00 PDT
     // SCE summer: ON_PEAK 58.972, lowest off-peak 36.829 cents/kWh
     expect(r.savingsCents).toBe(
       Math.round((r.effectWh * (58.972 - 36.829)) / 1000),
     );
   });
 
-  it("validTo is local 21:00 across DST (tomorrow 2026-03-09 and 2026-11-02)", () => {
+  it("validTo is local 16:00 across DST (tomorrow 2026-03-09 and 2026-11-02)", () => {
     const spring = rec({
       tomorrow: ph(11_000),
       updatedMs: Date.parse("2026-03-08T20:00:00Z"),
     })!;
     expect(spring.validFrom).toBe("2026-03-09T04:00:00.000Z"); // 21:00 PDT
-    expect(spring.validTo).toBe("2026-03-10T04:00:00.000Z");
+    expect(spring.validTo).toBe("2026-03-09T23:00:00.000Z"); // 16:00 PDT
     const fall = rec({
       tomorrow: ph(11_000),
       updatedMs: Date.parse("2026-11-01T20:00:00Z"),
     })!;
     expect(fall.validFrom).toBe("2026-11-02T05:00:00.000Z"); // 21:00 PST
-    expect(fall.validTo).toBe("2026-11-03T05:00:00.000Z");
+    expect(fall.validTo).toBe("2026-11-03T00:00:00.000Z"); // 16:00 PST on 11/2
   });
 
   it("savings are never negative (off-peak dearer than peak) and 0 without off-peak hours", () => {

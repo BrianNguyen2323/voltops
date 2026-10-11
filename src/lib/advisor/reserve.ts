@@ -99,7 +99,7 @@ export function reserveRecommendation(i: {
   return {
     action: `Raise backup reserve to ${reserve.targetPct}%`,
     validFrom: new Date(validFrom).toISOString(),
-    validTo: new Date(win.endMs).toISOString(),
+    validTo: new Date(win.startMs).toISOString(),
     effectWh: reserve.coveredWh,
     savingsCents: Math.max(
       0,
