@@ -19,6 +19,7 @@ with costs in the user's own utility rates.
 Pi, or a cheap VPS). Their data and Tesla credentials never leave their instance.
 
 ### Product pillars
+
 1. **Observe** — collect solar, battery, home load, and grid flow; store history.
 2. **Understand** — usage trends (by hour, weekday, season), cost breakdowns.
 3. **Predict** — tomorrow's load and solar generation, using weather forecasts + learned history.
@@ -26,6 +27,7 @@ Pi, or a cheap VPS). Their data and Tesla credentials never leave their instance
 5. **(Later) Act** — opt-in automation of the advice, behind strict guardrails.
 
 ### Non-goals (do not build)
+
 - Multi-tenant accounts, organizations, teams, or user sign-up flows.
 - Billing, subscriptions, Stripe, plans, paywalls, usage metering.
 - Marketing/landing pages inside the app.
@@ -38,6 +40,7 @@ Pi, or a cheap VPS). Their data and Tesla credentials never leave their instance
 
 The repo was originally scaffolded as a SaaS. **Phase 0 is an audit before any rewrite.**
 The first agent task is to produce `docs/audit.md` that lists:
+
 - Current stack, package layout, and how to run it (or why it doesn't run).
 - What is reusable: Tesla Fleet API OAuth/token code, any API client, DB schema for energy data,
   chart components.
@@ -55,22 +58,22 @@ Do not delete code during the audit. Removal happens in Phase 1 as reviewed PRs.
 Status key: **DECIDED** = build to this. **PROPOSED** = build to this unless the owner overrides;
 record changes as an ADR. **OPEN** = do not build until resolved.
 
-| # | Topic | Decision | Status |
-|---|-------|----------|--------|
-| D1 | Deployment model | Single-household, self-hosted. One instance = one owner, 1..n energy sites. | DECIDED |
-| D2 | Packaging | Docker Compose as the primary install. Multi-arch images (amd64 + arm64) on GHCR. | DECIDED |
-| D3 | Language | TypeScript end-to-end, strict mode. Node LTS. pnpm workspaces monorepo. | PROPOSED (confirm against existing stack in audit) |
-| D4 | Web app | Next.js (App Router) for dashboard + API routes, run as a long-lived Node server (not serverless). | PROPOSED |
-| D5 | Background work | Separate `worker` process for polling, weather fetch, model fitting, recommendation generation. Never poll from the web process. | DECIDED |
-| D6 | Database | SQLite (WAL mode) via Drizzle ORM by default — zero-config, Pi-friendly. Postgres support is a later, optional ADR. | PROPOSED |
-| D7 | Data source abstraction | All hardware access goes through a `DataSource` interface (see §5). No feature code calls Tesla directly. | DECIDED |
-| D8 | Weather | Open-Meteo (no API key, includes solar irradiance forecasts). Behind a `WeatherProvider` interface. | PROPOSED |
-| D9 | Tariffs | User-defined TOU plans in-app (import + export rates, seasons, weekday/weekend). Optional import from OpenEI URDB. | PROPOSED |
-| D10 | Auth | Single admin password (argon2id) + signed session cookie. Optional `AUTH_DISABLED=true` for LAN-only setups, with a loud warning in the UI. | PROPOSED |
-| D11 | Control of hardware | MVP is **advisory only**. Writes to the Powerwall (reserve, mode) are Phase 3, opt-in, with guardrails (§8). | DECIDED |
-| D12 | Forecasting | Simple, explainable models first, always benchmarked against a naive baseline (§7). No heavy ML until the simple models are measured. | DECIDED |
-| D13 | License | AGPL-3.0 (keeps hosted forks open) vs MIT/Apache-2.0 (max adoption). | OPEN — owner decides before first public release |
-| D14 | Telemetry | None. | DECIDED |
+| #   | Topic                   | Decision                                                                                                                                    | Status                                             |
+| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| D1  | Deployment model        | Single-household, self-hosted. One instance = one owner, 1..n energy sites.                                                                 | DECIDED                                            |
+| D2  | Packaging               | Docker Compose as the primary install. Multi-arch images (amd64 + arm64) on GHCR.                                                           | DECIDED                                            |
+| D3  | Language                | TypeScript end-to-end, strict mode. Node LTS. pnpm workspaces monorepo.                                                                     | PROPOSED (confirm against existing stack in audit) |
+| D4  | Web app                 | Next.js (App Router) for dashboard + API routes, run as a long-lived Node server (not serverless).                                          | PROPOSED                                           |
+| D5  | Background work         | Separate `worker` process for polling, weather fetch, model fitting, recommendation generation. Never poll from the web process.            | DECIDED                                            |
+| D6  | Database                | SQLite (WAL mode) via Drizzle ORM by default — zero-config, Pi-friendly. Postgres support is a later, optional ADR.                         | PROPOSED                                           |
+| D7  | Data source abstraction | All hardware access goes through a `DataSource` interface (see §5). No feature code calls Tesla directly.                                   | DECIDED                                            |
+| D8  | Weather                 | Open-Meteo (no API key, includes solar irradiance forecasts). Behind a `WeatherProvider` interface.                                         | PROPOSED                                           |
+| D9  | Tariffs                 | User-defined TOU plans in-app (import + export rates, seasons, weekday/weekend). Optional import from OpenEI URDB.                          | PROPOSED                                           |
+| D10 | Auth                    | Single admin password (argon2id) + signed session cookie. Optional `AUTH_DISABLED=true` for LAN-only setups, with a loud warning in the UI. | PROPOSED                                           |
+| D11 | Control of hardware     | MVP is **advisory only**. Writes to the Powerwall (reserve, mode) are Phase 3, opt-in, with guardrails (§8).                                | DECIDED                                            |
+| D12 | Forecasting             | Simple, explainable models first, always benchmarked against a naive baseline (§7). No heavy ML until the simple models are measured.       | DECIDED                                            |
+| D13 | License                 | AGPL-3.0 (keeps hosted forks open) vs MIT/Apache-2.0 (max adoption).                                                                        | OPEN — owner decides before first public release   |
+| D14 | Telemetry               | None.                                                                                                                                       | DECIDED                                            |
 
 ADRs live in `docs/adr/NNNN-title.md` (short: context, decision, consequences). Any agent that
 changes a PROPOSED decision writes an ADR in the same PR.
@@ -115,20 +118,25 @@ So VoltOps supports **multiple connection modes** behind one interface, and the 
 guides users to the easiest one that works for their hardware.
 
 ### DataSource interface (in `packages/core`)
+
 ```ts
 interface DataSource {
-  id: 'fleet-api' | 'local-gateway' | 'replay';
+  id: "fleet-api" | "local-gateway" | "replay";
   listSites(): Promise<SiteInfo[]>;
-  getLiveStatus(siteId: string): Promise<LiveSample>;          // instantaneous power flows + SoC
+  getLiveStatus(siteId: string): Promise<LiveSample>; // instantaneous power flows + SoC
   getHistory?(siteId: string, range: DateRange): Promise<EnergyInterval[]>; // backfill if supported
-  capabilities(): SourceCapabilities;                          // e.g. canSetReserve, maxReservePct, minPollSeconds
+  capabilities(): SourceCapabilities; // e.g. canSetReserve, maxReservePct, minPollSeconds
   // Phase 3 only, gated by capabilities + settings:
   setBackupReserve?(siteId: string, pct: number): Promise<void>;
-  setOperationMode?(siteId: string, mode: 'self_consumption' | 'autonomous'): Promise<void>;
+  setOperationMode?(
+    siteId: string,
+    mode: "self_consumption" | "autonomous",
+  ): Promise<void>;
 }
 ```
 
 ### Modes
+
 1. **`fleet-api` (bring your own Tesla developer app)** — official API; works for all Powerwall
    models. The user must create their own app at developer.tesla.com, generate a key pair, host
    the public key at `https://<domain>/.well-known/appspecific/com.tesla.3p.public-key.pem`,
@@ -154,6 +162,7 @@ A future `teslemetry` (third-party paid proxy) adapter is acceptable as a commun
 it is not on the MVP path.
 
 ### Canonical units and sign conventions (enforced in `core`)
+
 - Power in **watts** (integer), energy in **watt-hours** (integer). Convert to kW/kWh only in the UI.
 - Timestamps stored in **UTC**; every site has an IANA timezone; TOU and "day" boundaries are
   computed in site-local time. DST transitions must have tests.
@@ -169,6 +178,7 @@ it is not on the MVP path.
   do not trust memory or blog posts.
 
 ### Credentials
+
 - Tesla refresh tokens, client secrets, and gateway passwords are encrypted at rest
   (AES-256-GCM) with `VOLTOPS_SECRET_KEY` from the environment. Never log them. Never put them
   in fixtures. Redact in error messages.
@@ -201,21 +211,25 @@ Retention: Energy history (`energy_intervals`, `samples`, `weather_observed`, `w
 ## 7. Analytics and forecasting
 
 ### Usage trends (Phase 2a)
+
 - Hour-of-day × weekday heatmap, monthly totals, peak-window consumption, self-consumption %,
   solar coverage %, grid import/export, cost by TOU period.
 
 ### Load forecast (MVP model)
+
 - Baseline: seasonal-naive (same hour last week).
 - Model v1: hour-of-week profile with exponential weighting of recent weeks, plus a temperature
   term (heating/cooling) once ≥ 4 weeks of data exist.
 
 ### Solar forecast (MVP model)
+
 - Use Open-Meteo hourly irradiance forecast (tilted irradiance if the user gave tilt/azimuth,
   otherwise GHI) and learn a site-specific conversion from irradiance to actual Wh from history
   (per hour-of-day, re-fit weekly). This automatically absorbs shading, soiling, and inverter limits.
 - Baseline: yesterday's generation.
 
 ### Rules for every model
+
 - Lives in `packages/forecast`, pure functions, versioned (`load-v1`, `solar-v1`).
 - Ships with a backtest using `fixtures/` that reports MAE and MAPE against its baseline.
   A model that doesn't beat the baseline doesn't get merged.
@@ -229,8 +243,10 @@ Retention: Energy history (`energy_intervals`, `samples`, `weather_observed`, `w
 ## 8. Advisor (recommendations) and safety
 
 ### How it works
+
 Inputs: current SoC, usable capacity, tomorrow's hourly load + solar forecast, tariff periods,
 export rates, user's minimum comfort reserve. Output: a small set of recommendations, each with:
+
 - the action (e.g. "set backup reserve to 65% from 9 PM", "switch to time-based control"),
 - the expected effect in kWh and money vs. doing nothing,
 - a plain-language "why" built from the structured inputs (e.g. predicted peak-window need,
@@ -243,6 +259,7 @@ Export-rate-aware logic matters: under net-billing tariffs, exporting is worth f
 avoiding peak imports, so storing surplus usually beats selling it.
 
 ### Phase 3 automation guardrails (do not implement before Phase 3 is approved)
+
 - Off by default; enabled per site with an explicit confirmation screen.
 - Dry-run mode that logs "would have set X" for at least a week before live mode is offered.
 - Hard floor/ceiling on reserve set by the user; respect source `capabilities()` limits.
@@ -255,6 +272,7 @@ avoiding peak imports, so storing surplus usually beats selling it.
 ## 9. Dashboard (UI)
 
 Primary screens:
+
 1. **Now** — live power-flow diagram (solar → home / battery / grid), SoC gauge, today's totals,
    current tariff period and price, active recommendation card.
 2. **Plan** — tomorrow's forecast chart (stacked load vs. solar, battery SoC projection, TOU
@@ -280,17 +298,20 @@ lines and package boundaries to avoid merge conflicts.
 if credentials are available — anonymized (strip site IDs, addresses, coordinates rounded).
 
 **Phase 1 — Foundation**
+
 - A: Monorepo scaffold, tooling (lint, format, typecheck, test), CI, Docker Compose, `.env.example`.
 - B: Remove SaaS code; single-admin auth.
 - C: `core` types/units/sign conventions + `db` schema and migrations.
 - D: `replay` source + demo dataset generator (several weeks, realistic seasonal shapes).
 
 **Phase 2a — Observe & Understand**
+
 - A: `fleet-api` adapter + setup wizard. B: `local-gateway` adapter via pypowerwall sidecar.
 - C: worker scheduler, polling, rollups, retention. D: weather ingestion (observed + forecast-as-issued).
 - E: tariff model + editor + cost calculation. F: Now + Trends screens.
 
 **Phase 2b — Predict & Advise (MVP release)**
+
 - A: load forecast + backtest. B: solar forecast + backtest. C: advisor rules engine.
 - D: Plan + Accuracy screens. E: docs site / README / install guide; v0.1.0 release.
 
@@ -318,11 +339,13 @@ adapter, notifications (ntfy/email), multi-site households.
 - **Commits:** Conventional Commits (`feat(forecast): ...`). Changesets for versioning.
 
 ### Definition of done (every task)
+
 1. Typecheck, lint, and tests pass locally and in CI.
 2. New behavior has tests; bug fixes include a regression test.
 3. Works against the `replay` source.
 4. Docs updated (README, `.env.example`, ADR if a PROPOSED decision changed).
-5. PR description states what changed, how it was tested, and anything left undone.
+5. Commit only; the owner opens PRs
+6. PR description, once project owner approves the PR, states what changed, how it was tested, and anything left undone.
 
 ---
 
