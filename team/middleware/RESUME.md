@@ -1,5 +1,12 @@
 # Resume board — middleware
 
+- **Hand-off from front-end (2026-10-08, PO-approved, front-end SPEC Rev 8):** three new backlog briefs. The front-end ships the contract + a `build.ts` stub in B035.
+  - `plan/board/backlog/B036-system-info.md` (site_info fields, `SITE_PANEL_*` env, best hour, change log);
+  - `B037-equipment-health.md` (pure health measurements);
+  - `B038-history-backfill.md` (one-time backfill; **PO budget condition**: ≤ 2,500/month, total ≤ 4,500 of ~5,000 free Tesla Data requests).
+
+- **Cross-scope note (front-end lead, 2026-10-08):** front-end B034 (PO-approved, decision round 3 Q1 A) changed `src/lib/advisor/reserve.ts`: `validTo` = start of tomorrow's peak (was the end), plus its expectations in `reserve.test.ts`, `build.test.ts` and `load.test.ts`. SPEC L166 updated. Merged on `front-end-development` at 1f92288. Rebase or merge before touching the advisor.
+
 Scope: wire real data into the dashboard (a `DashboardSnapshot` per Site from the DB, the Tesla Fleet API, Tesla's tariff and Open-Meteo). Created 2026-10-06 from the front-end hand-off (`research/dashboard-snapshot/README.md`).
 
 - **M4 APPROVED 2026-10-08; the PO opened the PR `middleware` → main (M4 + B027 + B033). Next: the PO picks the next topic** (candidates: #3 collapse snapshot load/build, now small; #4 Tariff day; a job-run table so worker failures reach the dashboard; backlog list below). Next optimization round is due after 2 more milestones. History: O1 done (main 10edebf; B027 prettier aad9419 on `middleware`, PO to open the PR). Grilling done (all recommended). SPEC Rev 3, R003, briefs B028–B031. B028 DONE (8a309a9). B029 DONE (31beb76; gate green: vitest 569, format, tsc, lint, builds; 10 peak + 11 duplicated cases removed). B030 DONE (72942a2). B032 DONE (996509c). Gate green on middleware: vitest 596, format, tsc, lint, builds. B031 DONE (5b5f119). **M4 DONE** on `middleware`: gate green (vitest 601, scripts 71, tsc, lint 0/0, format:check, builds), docker smoke PASS 305 MB. **B033 DONE (31ceb81):** SITE_* env applied every worker tick (a Site created after start got no lat/lon) + tick catch (no unhandled rejection). Gate green: vitest 603, scripts, tsc, lint, format, builds; smoke PASS 305 MB. The PO found env "not injecting": verified it IS in the container; their containers were pre-M4 (16 h old) → `docker compose up -d --build --force-recreate`.

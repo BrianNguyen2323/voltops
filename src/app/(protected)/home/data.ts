@@ -159,7 +159,7 @@ export const sampleSnapshot: DashboardSnapshot = {
   recommendation: {
     action: `Raise backup reserve to ${reserve.targetPct}%`,
     validFrom: "2026-07-16T04:00:00Z", // 21:00 local
-    validTo: "2026-07-17T04:00:00Z",
+    validTo: "2026-07-16T23:00:00Z",
     effectWh: reserve.coveredWh,
     // covered Wh x (peak rate - off-peak rate)
     savingsCents: Math.round(
@@ -213,5 +213,39 @@ export const sampleSnapshot: DashboardSnapshot = {
     lowC: 16,
     cloudCoverPct: 80,
     precipitationChancePct: 20,
+  },
+  system: {
+    batteries: {
+      count: 2,
+      model: "Powerwall 3",
+      capacityWh: 27000,
+      maxPowerW: 11520,
+      backupReservePct: 20,
+    },
+    solar: {
+      panelCount: 24,
+      panelWatts: 400,
+      bestHourWh: 7900,
+      bestHourAt: "2026-06-21T19:00:00Z",
+    },
+    plan: { utility: "Southern California Edison", name: "TOU-D 4-9 PM" },
+    firmware: "26.26.11",
+    installedOn: "2024-03-14",
+    changes: [
+      { at: "2026-09-25T04:31:00Z", text: "Firmware 26.26.11" },
+      { at: "2026-07-04T22:10:00Z", text: "Grid outage, 2 h 10 min" },
+    ],
+  },
+  equipmentHealth: {
+    solarClearDay: {
+      month: "2026-06",
+      baselineMonth: "2025-06",
+      pctOfBaseline: 98,
+      clearHours: 41,
+    },
+    sunnyDayMiss: null,
+    batteryCapacity: { month: "2026-06", estimatedWh: 26100, swings: 18 },
+    efficiency: { month: "2026-06", pct: 88 },
+    backfill: { state: "done", daysDone: 730, daysTotal: 730 },
   },
 };

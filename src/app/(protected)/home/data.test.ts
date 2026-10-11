@@ -174,6 +174,10 @@ describe("sampleDashboard", () => {
     for (const x of times) expect(isIso(x)).toBe(true);
   });
 
+  it("the reserve window ends when tomorrow's peak starts (4:00 PM PDT)", () => {
+    expect(d.recommendation!.validTo).toBe("2026-07-16T23:00:00Z");
+  });
+
   describe("consistency with the timeline", () => {
     const actuals = d.timeline.filter((r) => r.kind === "actual");
     const last = actuals[actuals.length - 1]!;
@@ -315,5 +319,46 @@ describe("peak estimate sample (Rev 6)", () => {
     const why = sampleSnapshot.recommendation!.why.join(" ");
     expect(why).toContain("about 9.3 kWh");
     expect(why).not.toContain("11 kWh");
+  });
+});
+
+describe("system and equipment health sample (Rev 8)", () => {
+  it("has the documented system", () => {
+    expect(sampleSnapshot.system).toEqual({
+      batteries: {
+        count: 2,
+        model: "Powerwall 3",
+        capacityWh: 27000,
+        maxPowerW: 11520,
+        backupReservePct: 20,
+      },
+      solar: {
+        panelCount: 24,
+        panelWatts: 400,
+        bestHourWh: 7900,
+        bestHourAt: "2026-06-21T19:00:00Z",
+      },
+      plan: { utility: "Southern California Edison", name: "TOU-D 4-9 PM" },
+      firmware: "26.26.11",
+      installedOn: "2024-03-14",
+      changes: [
+        { at: "2026-09-25T04:31:00Z", text: "Firmware 26.26.11" },
+        { at: "2026-07-04T22:10:00Z", text: "Grid outage, 2 h 10 min" },
+      ],
+    });
+  });
+  it("has the documented equipment health, all OK", () => {
+    expect(sampleSnapshot.equipmentHealth).toEqual({
+      solarClearDay: {
+        month: "2026-06",
+        baselineMonth: "2025-06",
+        pctOfBaseline: 98,
+        clearHours: 41,
+      },
+      sunnyDayMiss: null,
+      batteryCapacity: { month: "2026-06", estimatedWh: 26100, swings: 18 },
+      efficiency: { month: "2026-06", pct: 88 },
+      backfill: { state: "done", daysDone: 730, daysTotal: 730 },
+    });
   });
 });

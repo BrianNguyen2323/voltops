@@ -1,5 +1,39 @@
 # Resume board — front-end
 
+- **Topic 4 (PO, 2026-10-08, before the optimization round): a "Your system" section.**
+  - It covers battery count, storage, panel count, panel rating and other details. Placeholders only; the middleware connects the real data.
+  - Research `research/system-info/README.md`: Fleet API has battery count, model, storage, power, reserve, plan, firmware and install date. It has **no** panel count, rating or solar size (user-entered per CLAUDE.md section 6).
+  - Rounds 4 + 5 ANSWERED (all A). For Q6 the PO conditions: a one-time backfill of all existing data, within Tesla's request limits, leaving enough for normal use.
+    - Tesla (official): 500 Data requests per $1, $10 credit ≈ 5,000 free/month, 60/min.
+    - Rule: backfill ≤ 2,500/month, monthly total ≤ 4,500, 1 per tick.
+  - SPEC Rev 8 + R008.
+  - Middleware backlog: B036 (system info), B037 (health measurements), B038 (backfill) + a pointer in their RESUME.
+  - **Status: M8 DONE 2026-10-08 (merge af94a16 on `front-end-development`).** The PO reviews M7 + M8 (TODO.md "Review: M8").
+    - Gate: vitest 677, scripts 71, tsc, lint, build; `/home` 219/321 kB.
+    - Nits open: the ⓘ is not inline on the health lines; OK chip contrast.
+  - **Next action:**
+    - fold in the PO's review notes;
+    - then the **optimization round** (overdue since M7; the PO asked for M8 first): a `cleaner` per area (`src/components/dashboard/**`, `src/lib/dashboard.ts` + `format.ts`, `src/components/ui/**`), a perf/size pass, and a TODO item asking the PO to run `/improve-codebase-architecture`.
+    - Middleware B036–B038 sit in their backlog. Until they land, real data shows "System details not available yet."
+  - **Open branches / worktrees:** none from this topic.
+
+## Topic 3 record
+- **Topic 3 (PO, 2026-10-08): Tonight card clarity.**
+  - (1) "From 9:00 PM until 9:00 PM" is confusing.
+  - (2) An info tooltip on the confidence/"what would change it" line that explains the confidence level and the scenarios.
+  - Research: `research/tonight-clarity/README.md`. Finding: `validTo` = end of tomorrow's peak. It should be the peak *start*: the reserve must drop back to 20% so the battery covers the peak.
+- **Status: M7 DONE 2026-10-08 (merge 1f92288 on `front-end-development`), waiting on the PO's review** (TODO.md "Review: M7").
+  - Gate on `front-end-development`: vitest 627, scripts, tsc, lint, build; `/home` 219/321 kB.
+  - Middleware records updated: SPEC L166 + a note in their RESUME.
+- **Next action:**
+  - fold in the PO's review notes;
+  - then the **optimization round** (due now, after M7): a `cleaner` per area, a perf/size pass, and a TODO item asking the PO to run `/improve-codebase-architecture`.
+  - Open nits:
+    - the popover runs ~2 px past the viewport at 390;
+    - `lastIndexOf` is computed twice in `dashboard.tsx`.
+- **Open branches / worktrees:** none from this topic. `worktree-agent-a1fb…`, `acef…` and `a85ac…` predate it (other scopes) and are left alone.
+
+## Topic 2 record
 - **Topic 2 (PO, 2026-10-07): peak-hours usage estimate + reserve advice.**
   - A "Peak hours" tile next to "Your home now": estimated kWh in today's and tomorrow's peak window;
   - the Tonight advice sentence: "Raise your backup reserve to x%. With 20% as reserve for emergencies an additional x% will help you save $x for tomorrow's estimated x kWh usage during peak hours".

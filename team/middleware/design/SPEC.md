@@ -163,7 +163,7 @@ Contract: `src/lib/dashboard.ts` (`PeakHistory`, `ReservePlan`, `peakEstimateWh`
   - `reserve = reservePlan(peakEstimateWh(tomorrow), usableCapacityWh, 20)`;
   - `savingsCents = max(0, round(coveredWh × (peakCents − offPeakCents) / 1000))`. `peakCents` = the import rate at the start of tomorrow's window. `offPeakCents` = the lowest import rate among tomorrow's `off-peak` Timeline hours (none → `peakCents`);
   - `effectWh = coveredWh`; `action` = "Raise backup reserve to {targetPct}%";
-  - `validFrom` = max(updatedAt, end of today's peak window when today has one); `validTo` = end of tomorrow's window;
+  - `validFrom` = max(updatedAt, end of today's peak window when today has one); `validTo` = **start** of tomorrow's window (changed 2026-10-08 by front-end B034 / their R007, PO-approved: the reserve has to drop back to 20% when the peak starts so the battery covers the peak);
   - `why`: the usual average ("Usual peak use: 11.2 kWh over 30 days"), the similar-temperature one or "not enough days near 95°F yet", and tomorrow's high. Temperatures are shown in the site's unit; kWh to 1 decimal;
   - `confidence`: `low` when `similarTempDays < 3`, else `medium`;
   - `wouldChange`: "A different forecast high for tomorrow, or a tariff change."
