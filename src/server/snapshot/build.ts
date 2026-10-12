@@ -26,14 +26,14 @@ export type BuildInput = {
     longitude: number | null;
     usableCapacityWh: number | null;
     backupReservePct: number | null;
-    batteryCount?: number | null;
-    batteryModel?: string | null;
-    maxPowerW?: number | null;
-    firmware?: string | null;
-    installedOn?: string | null;
+    batteryCount: number | null;
+    batteryModel: string | null;
+    maxPowerW: number | null;
+    firmware: string | null;
+    installedOn: string | null;
   };
   /** The "Your system" inputs that are not on the Site row. */
-  systemExtras?: {
+  systemExtras: {
     panelCount: number | null;
     panelWatts: number | null;
     bestHour: { start: number; wh: number } | null;
@@ -259,13 +259,13 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
     },
     weatherTomorrow,
     system:
-      i.site.batteryCount && i.systemExtras
+      i.site.batteryCount != null && i.systemExtras
         ? {
             batteries: {
               count: i.site.batteryCount,
-              model: i.site.batteryModel ?? null,
+              model: i.site.batteryModel,
               capacityWh,
-              maxPowerW: i.site.maxPowerW ?? null,
+              maxPowerW: i.site.maxPowerW,
               backupReservePct: i.site.backupReservePct,
             },
             solar: {
@@ -277,8 +277,8 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
                 : null,
             },
             plan: i.systemExtras.plan,
-            firmware: i.site.firmware ?? null,
-            installedOn: i.site.installedOn ?? null,
+            firmware: i.site.firmware,
+            installedOn: i.site.installedOn,
             changes: i.systemExtras.changes.map((c) => ({
               at: new Date(c.at).toISOString(),
               text: c.text,
