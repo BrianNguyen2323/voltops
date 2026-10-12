@@ -156,8 +156,9 @@ export async function loadSnapshot(
       : null;
   };
 
-  // 13 months + 7 days, so last month and the same month a year ago are whole.
-  const wideFrom = addDays(today, -(13 * 31 + 7));
+  // From the 1st of the baseline month (the same month a year before last month), so it is whole.
+  const ym = Number(today.slice(0, 4)) * 12 + Number(today.slice(5, 7)) - 14;
+  const wideFrom = `${Math.floor(ym / 12)}-${String((ym % 12) + 1).padStart(2, "0")}-01`;
   const wideTo = addDays(today, 1);
   const wideSamples = db
     .select({ ts: s.samples.ts, socPct: s.samples.socPct })
