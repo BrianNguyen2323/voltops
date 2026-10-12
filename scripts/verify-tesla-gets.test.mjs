@@ -224,11 +224,11 @@ test("run: saves rotated encrypted token before the first Fleet request", async 
   assert.equal(t.accessTokenExpiresAt.getTime(), NOW.getTime() + 28800 * 1000);
 });
 
-test("run: all Fleet requests are GET with Bearer auth, 5 right paths", async () => {
+test("run: all Fleet requests are GET with Bearer auth, 6 right paths", async () => {
   const s = setup();
   const results = await run(s.deps);
   const f = fleetCalls(s.calls);
-  assert.equal(f.length, 5);
+  assert.equal(f.length, 6);
   for (const c of f) {
     assert.ok(!c.init.method || c.init.method === "GET");
     assert.equal(c.init.headers.Authorization, `Bearer ${ACCESS}`);
@@ -236,7 +236,7 @@ test("run: all Fleet requests are GET with Bearer auth, 5 right paths", async ()
   assert.equal(f[0].url, `${FLEET}/api/1/products`);
   assert.equal(f[1].url, `${FLEET}/api/1/energy_sites/${SITE}/site_info`);
   assert.equal(f[2].url, `${FLEET}/api/1/energy_sites/${SITE}/live_status`);
-  assert.deepEqual(results.map((r) => r.name), ["products", "site_info", "live_status", "calendar_history_energy", "calendar_history_today"]);
+  assert.deepEqual(results.map((r) => r.name), ["products", "site_info", "live_status", "calendar_history_energy", "calendar_history_today", "backup_history"]);
   assert.ok(results.every((r) => r.ok && r.status === 200));
   assert.equal(results[3].path, `/api/1/energy_sites/${SITE}/calendar_history`);
 });
@@ -257,7 +257,7 @@ test("run: calendar_history query params", async () => {
 test("run: fixtures are anonymized, no site id or device ids anywhere", async () => {
   const s = setup();
   await run(s.deps);
-  assert.deepEqual(Object.keys(s.written).sort(), ["calendar_history_energy", "live_status", "products", "site_info"]); // none for calendar_history_today
+  assert.deepEqual(Object.keys(s.written).sort(), ["backup_history", "calendar_history_energy", "live_status", "products", "site_info"]); // none for calendar_history_today
   const blob = JSON.stringify(s.written);
   for (const secret of [String(SITE), "STE-DIN-001", "GW-9", "SN-77", "5YJ-VIN-1", "veh-1", "My House"]) {
     assert.ok(!blob.includes(secret), `leaked ${secret}`);
@@ -288,7 +288,7 @@ test("run: no battery product stops after products", async () => {
 test("run: site_info 500 still runs live_status and calendar with UTC", async () => {
   const s = setup({ routes: { "/site_info": () => [500, { error: "boom" }] } });
   const results = await run(s.deps);
-  assert.equal(fleetCalls(s.calls).length, 5);
+  assert.equal(fleetCalls(s.calls).length, 6);
   const si = results.find((r) => r.name === "site_info");
   assert.equal(si.ok, false);
   assert.equal(si.status, 500);
@@ -374,7 +374,7 @@ test("run: site selection still works when products has vehicles first (energy i
   ] };
   const s = setup({ routes: { "/api/1/products": () => [200, products] } });
   const results = await run(s.deps);
-  assert.equal(results.length, 5);
+  assert.equal(results.length, 6);
 });
 
 test("run: site id under an unlisted key in products is redacted (secrets collected first)", async () => {
@@ -482,8 +482,8 @@ test("run: calendar_history_today is the 5th Fleet GET with todayRange query", a
   const s = setup();
   const results = await run(s.deps);
   const f = fleetCalls(s.calls);
-  assert.equal(f.length, 5);
-  assert.equal(s.calls.length, 6); // 1 refresh + 5 GETs
+  assert.equal(f.length, 6);
+  assert.equal(s.calls.length, 7); // 1 refresh + 6 GETs
   assert.ok(!f[4].init.method || f[4].init.method === "GET");
   assert.equal(f[4].init.headers.Authorization, `Bearer ${ACCESS}`);
   const u = new URL(f[4].url);
@@ -551,6 +551,24 @@ test("run: failed today call still appears in results as not ok", async () => {
   assert.equal(t.status, 500);
   assert.equal(t.ok, false);
   assert.ok(!("calendar_history_today" in s.written));
+});
+
+// ---------- B040: backup_history probe ----------
+test("run: backup_history is the 6th GET, kind=backup only, anonymized fixture, count-only log", async () => {
+  const BK = { response: { events: [{ timestamp: "2026-10-01T10:00:00-07:00", duration: 4321 }, { timestamp: "t2", duration: 9 }], site: String(SITE), serial_number: "SN-BK" } };
+  const s = setup({ routes: { "/calendar_history": (u) => [200, new URL(u).searchParams.get("kind") === "backup" ? BK : CAL] } });
+  const results = await run(s.deps);
+  const f = fleetCalls(s.calls);
+  assert.equal(f.length, 6);
+  assert.ok(!f[5].init.method || f[5].init.method === "GET");
+  assert.equal(f[5].url, `${FLEET}/api/1/energy_sites/${SITE}/calendar_history?kind=backup`);
+  assert.equal(results[5].name, "backup_history");
+  assert.equal(results[5].ok, true);
+  const w = JSON.stringify(s.written.backup_history);
+  assert.ok(w.includes("4321") && !w.includes("SN-BK") && !w.includes(String(SITE)));
+  assert.deepEqual(s.logs.filter((l) => l.includes("backup_history events")), ["backup_history events: 2"]);
+  const all = s.logs.join("\n");
+  assert.ok(!all.includes("4321") && !all.includes("2026-10-01T10") && !all.includes("SN-BK"));
 });
 
 // ---------- B021: installation date ----------
