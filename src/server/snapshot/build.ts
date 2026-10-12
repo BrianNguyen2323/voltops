@@ -26,6 +26,20 @@ export type BuildInput = {
     longitude: number | null;
     usableCapacityWh: number | null;
     backupReservePct: number | null;
+    batteryCount: number | null;
+    batteryModel: string | null;
+    maxPowerW: number | null;
+    firmware: string | null;
+    installedOn: string | null;
+  };
+  /** The "Your system" inputs that are not on the Site row. */
+  systemExtras: {
+    panelCount: number | null;
+    panelWatts: number | null;
+    bestHour: { start: number; wh: number } | null;
+    plan: { utility: string | null; name: string | null };
+    /** Newest first, at most 5. */
+    changes: { at: number; text: string }[];
   };
   currency: string | null;
   tariff: Tariff | null;
@@ -244,7 +258,33 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
       warnings,
     },
     weatherTomorrow,
-    system: null,
+    system:
+      i.site.batteryCount != null && i.systemExtras
+        ? {
+            batteries: {
+              count: i.site.batteryCount,
+              model: i.site.batteryModel,
+              capacityWh,
+              maxPowerW: i.site.maxPowerW,
+              backupReservePct: i.site.backupReservePct,
+            },
+            solar: {
+              panelCount: i.systemExtras.panelCount,
+              panelWatts: i.systemExtras.panelWatts,
+              bestHourWh: i.systemExtras.bestHour?.wh ?? null,
+              bestHourAt: i.systemExtras.bestHour
+                ? new Date(i.systemExtras.bestHour.start).toISOString()
+                : null,
+            },
+            plan: i.systemExtras.plan,
+            firmware: i.site.firmware,
+            installedOn: i.site.installedOn,
+            changes: i.systemExtras.changes.map((c) => ({
+              at: new Date(c.at).toISOString(),
+              text: c.text,
+            })),
+          }
+        : null,
     equipmentHealth: {
       solarClearDay: null,
       sunnyDayMiss: null,

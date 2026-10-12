@@ -209,6 +209,7 @@ describe.each([
     };
     const snap = await loadSnapshot({ db, source, now }, siteOf()[0]!.id);
     expect(checkSnapshot(snap)).toEqual([]);
+    expect(snap.system).not.toBeNull();
     // 7 complete days (today-7 .. today-1) of the 27 kWh demo home: the advice shows up.
     expect(snap.peakEstimate.historyDays).toBe(7);
     expect(snap.peakEstimate.today).not.toBeNull();

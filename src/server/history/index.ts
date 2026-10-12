@@ -28,6 +28,8 @@ export type ObservedHour = {
 const FIVE = 300_000;
 const HOUR = 3_600_000;
 const GAP_DAYS = 92;
+/** UTC hour bucket of an interval start, shared by every hourly GROUP BY. */
+const bucket = sql<number>`cast(${s.energyIntervals.start} / 3600000 as integer) * 3600000`;
 
 // Bounds are JS-computed integers, so they're safe to inline as literals.
 const lit = (n: number) => {
@@ -113,7 +115,6 @@ export function energyHistory(
 
     hours(from: string, to: string): HourEnergy[] {
       const [a, b] = range(from, to);
-      const bucket = sql<number>`cast(${e.start} / 3600000 as integer) * 3600000`;
       return db
         .select({
           start: bucket,
@@ -275,6 +276,21 @@ export function energyHistory(
         similarTempAvgWh:
           similarTempDays < 3 ? null : Math.round(sim?.avg ?? 0),
       };
+    },
+
+    bestSolarHour(): { start: number; wh: number } | null {
+      const wh = sql<number>`sum(${e.solarWh})`;
+      const r = db
+        .select({ start: bucket, wh })
+        .from(e)
+        .where(eq(e.siteId, site.id))
+        .groupBy(bucket)
+        .orderBy(sql`${wh} desc`, asc(bucket))
+        .limit(1)
+        .get();
+      return r && Number(r.wh) > 0
+        ? { start: Number(r.start), wh: Number(r.wh) }
+        : null;
     },
 
     latestStart(): number | null {
