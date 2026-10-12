@@ -833,7 +833,7 @@ describe("loadSnapshot equipment health", () => {
   // charge 5000 Wh at local 11 and 12, discharge 3000 Wh at local 17-19; SoC 90 at 17, 70, 50, 30 at 20.
   const MISS_DAY = "2026-05-18";
   const START = "2025-03-20"; // ~14 months before NORMAL
-  function seedHealth(siteId: number) {
+  function seedHealth(siteId: number, cloudy = (_date: string) => false) {
     const hours: HourEnergy[] = [];
     const observed: ObservedHour[] = [];
     const soc: { ts: number; socPct: number }[] = [];
@@ -854,7 +854,8 @@ describe("loadSnapshot equipment health", () => {
         batteryChargeWh,
         batteryDischargeWh,
       });
-      observed.push({ hour: t, tempC: 15, cloudPct: 5, ghiWm2, precipMm: 0 });
+      const cloudPct = cloudy(localDate(t, TZ)) ? 100 : 5;
+      observed.push({ hour: t, tempC: 15, cloudPct, ghiWm2, precipMm: 0 });
       const socPct =
         h < 10 ? 30 : h <= 17 ? 90 : h === 18 ? 70 : h === 19 ? 50 : 30;
       soc.push({ ts: t, socPct });
@@ -987,6 +988,25 @@ describe("loadSnapshot equipment health", () => {
       expect(s.equipmentHealth.backfill.state).toBe("off");
       expect(s.health.estRequestsPerMonth).toBe(1440);
     });
+  });
+
+  it("reads the whole baseline month, even its first days", async () => {
+    const siteId = bare();
+    // Only 2025-04-01..04 are clear in the baseline month: 4 days x 9 clear hours = 36.
+    const data = seedHealth(
+      siteId,
+      (d) => d >= "2025-04-05" && d <= "2025-04-30",
+    );
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.equipmentHealth.solarClearDay).toEqual({
+      month: "2026-04",
+      baselineMonth: "2025-04",
+      pctOfBaseline: 100,
+      clearHours: 270,
+    });
+    expect(s.equipmentHealth).toMatchObject(
+      equipmentHealth({ ...data, tz: TZ, now: NORMAL }),
+    );
   });
 
   it("demo seed: all four measurements null, checkSnapshot clean", async () => {
