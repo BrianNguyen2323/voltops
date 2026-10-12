@@ -239,7 +239,7 @@ Contract: `system` and `equipmentHealth` in `src/lib/dashboard.ts`. The front-en
 - **solarClearDay:**
   - a clear hour has `cloudPct <= 10` and `ghiWm2 >= 600`; its ratio is `solarWh / ghiWm2`;
   - take the median ratio for the last complete month and for the same month a year earlier; `pctOfBaseline = round(100 × m / b)`; `clearHours` is the month's count;
-  - null if either month has < 20 clear hours.
+  - null if either month has < 20 clear hours, the baseline median is 0, or the result would exceed 200 (R004).
 - **sunnyDayMiss:**
   - check each of the last 7 complete site-local days, newest first;
   - a clear day has a mean `cloudPct` ≤ 15 over its hours with `ghiWm2 > 0`;
@@ -250,7 +250,7 @@ Contract: `system` and `equipmentHealth` in `src/lib/dashboard.ts`. The front-en
   - Wh = Σ `batteryDischargeWh` of the UTC hours `[hour(t1), hour(t2))`; estimate = Wh / points × 100;
   - **discharge only.** Discharge Wh is metered AC out, the same basis as the AC nameplate. Charge Wh includes conversion losses and would overstate capacity;
   - the median over swings that end in the last complete month, rounded; null with < 5 swings.
-- **efficiency:** for the last complete month, `round(100 × Σ discharge / Σ charge)`; null with < 10 days holding data, or with Σ charge = 0.
+- **efficiency:** for the last complete month, `round(100 × Σ discharge / Σ charge)`; null with < 10 days holding data, with Σ charge = 0, or above 200 (R004).
 - The loader reads 13 months + 7 days of `hours` and `observed` (~10k rows, GROUP BY, ADR 0001) plus that window's `samples`.
 
 ### Request budget + backfill (B038; Q4 A)
