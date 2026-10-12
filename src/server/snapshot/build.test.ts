@@ -134,6 +134,14 @@ function input(now: number, o: Opts = {}): BuildInput {
       ? hourly.map((h) => ({ hour: h.start, ghiWm2: h.solarWh / 5 }))
       : [],
     forecast,
+    equipmentHealth: {
+      solarClearDay: null,
+      sunnyDayMiss: null,
+      batteryCapacity: null,
+      efficiency: null,
+      backfill: { state: "off", daysDone: 0, daysTotal: 0 },
+    },
+    backfillMaxPerMonth: 2500,
     peakEstimate: o.peakEstimate ?? {
       historyDays: 0,
       today: null,
@@ -532,7 +540,7 @@ describe("buildSnapshot equipment health", () => {
       ...input(NORMAL),
       equipmentHealth: health,
       backfillMaxPerMonth: max,
-    } as BuildInput);
+    });
 
   it("passes the equipment health block through", () => {
     const s = build(eh("running", 5, 10), 3);
