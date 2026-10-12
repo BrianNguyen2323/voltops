@@ -251,7 +251,7 @@ Contract: `system` and `equipmentHealth` in `src/lib/dashboard.ts`. The front-en
   - **discharge only.** Discharge Wh is metered AC out, the same basis as the AC nameplate. Charge Wh includes conversion losses and would overstate capacity;
   - the median over swings that end in the last complete month, rounded; null with < 5 swings.
 - **efficiency:** for the last complete month, `round(100 × Σ discharge / Σ charge)`; null with < 10 days holding data, with Σ charge = 0, or above 200 (R004).
-- The loader reads 13 months + 7 days of `hours` and `observed` (~10k rows, GROUP BY, ADR 0001) plus that window's `samples`.
+- The loader reads `hours` and `observed` from the 1st of the baseline month (the month 13 months before the current one) through today (~10k rows, GROUP BY, ADR 0001) plus that window's `samples`.
 
 ### Request budget + backfill (B038; Q4 A)
 - The fleet client's `call` upserts `fleet_requests[current UTC month].total += 1` for each response with status < 500. Tesla bills those. The token endpoint isn't a Fleet request. Both processes count.
