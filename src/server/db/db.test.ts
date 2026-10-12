@@ -140,4 +140,21 @@ describe("constraints", () => {
     sql("DELETE FROM sites WHERE id=?", siteId);
     expect(db.select().from(schema.siteEvents).all()).toHaveLength(0);
   });
+
+  it("migrations add the site fact and backfill columns", () => {
+    const cols = (
+      db.$client.prepare("PRAGMA table_info(sites)").all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(cols).toEqual(
+      expect.arrayContaining([
+        "battery_count",
+        "battery_model",
+        "max_power_w",
+        "firmware",
+        "installed_on",
+        "backfill_from",
+        "backfill_cursor",
+      ]),
+    );
+  });
 });
