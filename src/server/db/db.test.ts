@@ -122,4 +122,39 @@ describe("constraints", () => {
     sql("DELETE FROM sites WHERE id=?", id);
     expect(count()).toBe(0);
   });
+
+  it("site_events insert is idempotent and cascades with the site", () => {
+    addSite("abc");
+    const siteId = (
+      db.$client.prepare("SELECT id FROM sites").get() as { id: number }
+    ).id;
+    const row = {
+      siteId,
+      at: new Date(now),
+      kind: "firmware",
+      text: "Firmware 1",
+    };
+    db.insert(schema.siteEvents).values(row).onConflictDoNothing().run();
+    db.insert(schema.siteEvents).values(row).onConflictDoNothing().run();
+    expect(db.select().from(schema.siteEvents).all()).toHaveLength(1);
+    sql("DELETE FROM sites WHERE id=?", siteId);
+    expect(db.select().from(schema.siteEvents).all()).toHaveLength(0);
+  });
+
+  it("migrations add the site fact and backfill columns", () => {
+    const cols = (
+      db.$client.prepare("PRAGMA table_info(sites)").all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(cols).toEqual(
+      expect.arrayContaining([
+        "battery_count",
+        "battery_model",
+        "max_power_w",
+        "firmware",
+        "installed_on",
+        "backfill_from",
+        "backfill_cursor",
+      ]),
+    );
+  });
 });
