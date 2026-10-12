@@ -155,8 +155,22 @@ export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
 }
 
 /** "" counts as unset; "0" is a real 0. */
-export function parseSiteSettings(env: Record<string, string | undefined>) {
-  const pick = (k: string) => (env[k] === "" ? undefined : env[k]);
+type Env = Record<string, string | undefined>;
+const pick = (env: Env, k: string) => (env[k] === "" ? undefined : env[k]);
+
+export function parseBackfillLimits(env: Env) {
+  return z
+    .object({
+      TESLA_BACKFILL_MAX_PER_MONTH: server.TESLA_BACKFILL_MAX_PER_MONTH,
+      TESLA_MONTHLY_REQUEST_CAP: server.TESLA_MONTHLY_REQUEST_CAP,
+    })
+    .parse({
+      TESLA_BACKFILL_MAX_PER_MONTH: pick(env, "TESLA_BACKFILL_MAX_PER_MONTH"),
+      TESLA_MONTHLY_REQUEST_CAP: pick(env, "TESLA_MONTHLY_REQUEST_CAP"),
+    });
+}
+
+export function parseSiteSettings(env: Env) {
   return z
     .object({
       SITE_LATITUDE: server.SITE_LATITUDE,
@@ -164,9 +178,9 @@ export function parseSiteSettings(env: Record<string, string | undefined>) {
       TEMPERATURE_UNIT: server.TEMPERATURE_UNIT,
     })
     .parse({
-      SITE_LATITUDE: pick("SITE_LATITUDE"),
-      SITE_LONGITUDE: pick("SITE_LONGITUDE"),
-      TEMPERATURE_UNIT: pick("TEMPERATURE_UNIT"),
+      SITE_LATITUDE: pick(env, "SITE_LATITUDE"),
+      SITE_LONGITUDE: pick(env, "SITE_LONGITUDE"),
+      TEMPERATURE_UNIT: pick(env, "TEMPERATURE_UNIT"),
     });
 }
 
