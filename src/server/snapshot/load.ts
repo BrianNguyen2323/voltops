@@ -3,6 +3,8 @@ import { and, asc, desc, eq, gte, lt, min } from "drizzle-orm";
 import type { DataSource, LiveSample } from "~/lib/core/types";
 import type { DashboardSnapshot } from "~/lib/dashboard";
 import { dayHighC, peakWindow } from "~/lib/advisor/reserve";
+import { env } from "~/env";
+import { server } from "~/env.schema.js";
 import { parseTariff } from "~/lib/tariff";
 import { addDays, localDate, localMidnight } from "~/lib/time";
 import type { db as appDb } from "~/server/db";
@@ -11,6 +13,12 @@ import { buildSnapshot } from "./build";
 import { energyHistory } from "~/server/history";
 
 type Db = typeof appDb;
+
+// Parsed here (not trusted from ~/env) because SKIP_ENV_VALIDATION leaves raw strings; "" or invalid = unset.
+const panelEnv = (k: "SITE_PANEL_COUNT" | "SITE_PANEL_WATTS") => {
+  const v: unknown = env[k];
+  return server[k].safeParse(v === "" ? undefined : v).data ?? null;
+};
 const LIVE_TTL = 60_000;
 
 // ponytail: per-process cache, one entry per site; fine for a single-household server.
@@ -149,6 +157,20 @@ export async function loadSnapshot(
     now,
     source: site.source as DashboardSnapshot["source"],
     site,
+    systemExtras: {
+      panelCount: panelEnv("SITE_PANEL_COUNT"),
+      panelWatts: panelEnv("SITE_PANEL_WATTS"),
+      bestHour: history.bestSolarHour(),
+      plan: { utility: sched?.utility ?? null, name: sched?.name ?? null },
+      changes: db
+        .select()
+        .from(s.siteEvents)
+        .where(eq(s.siteEvents.siteId, siteId))
+        .orderBy(desc(s.siteEvents.at))
+        .limit(5)
+        .all()
+        .map((r) => ({ at: r.at.getTime(), text: r.text })),
+    },
     currency: sched?.currency ?? null,
     tariff,
     live,

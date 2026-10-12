@@ -20,6 +20,8 @@ export const server = {
   VOLTOPS_SECRET_KEY: z.string().min(64),
   SITE_LATITUDE: z.coerce.number().min(-90).max(90).optional(),
   SITE_LONGITUDE: z.coerce.number().min(-180).max(180).optional(),
+  SITE_PANEL_COUNT: z.coerce.number().int().positive().optional(),
+  SITE_PANEL_WATTS: z.coerce.number().int().positive().optional(),
   VOLTOPS_DEMO: z
     .enum(["true"], {
       errorMap: () => ({ message: 'must be "true" or unset' }),

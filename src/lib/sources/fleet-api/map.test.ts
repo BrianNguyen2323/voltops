@@ -218,9 +218,21 @@ describe("mapSiteInfo", () => {
       tariff_id: string;
       utility: string;
       tariff_content: { name: string; currency: string };
+      battery_count: number;
+      nameplate_power: number;
+      version: string;
     };
   };
   const r = raw.response;
+  const gateway = (r.components as { gateways: Array<{ part_name: string }> })
+    .gateways[0]!;
+  const facts = {
+    batteryCount: r.battery_count,
+    batteryModel: gateway.part_name,
+    maxPowerW: r.nameplate_power,
+    firmware: r.version.split(" ")[0],
+    installedOn: null, // the fixture redacts installation_date
+  };
 
   it("maps the fixture's facts", () => {
     expect(mapSiteInfo(raw)).toEqual({
@@ -228,6 +240,7 @@ describe("mapSiteInfo", () => {
       timezone: r.installation_time_zone,
       usableCapacityWh: nameplate(r.components),
       backupReservePct: r.backup_reserve_percent,
+      ...facts,
       tariff: {
         id: r.tariff_id,
         name: r.tariff_content.name,
@@ -245,7 +258,73 @@ describe("mapSiteInfo", () => {
       timezone: null,
       usableCapacityWh: null,
       backupReservePct: null,
+      batteryCount: null,
+      batteryModel: null,
+      maxPowerW: null,
+      firmware: null,
+      installedOn: null,
       tariff: null,
+    });
+  });
+
+  it("reads count, model, max power and firmware from the fixture", () => {
+    const info = mapSiteInfo(raw);
+    expect(info.batteryCount).toBeGreaterThanOrEqual(1);
+    expect(info.batteryModel).toBeTruthy();
+    expect(info.maxPowerW).toBeGreaterThan(0);
+    expect(info.firmware).toMatch(/^\S+$/);
+    expect(r.version.startsWith(info.firmware!)).toBe(true);
+    expect(info).toMatchObject(facts);
+  });
+
+  it("firmware is the version up to the first space", () => {
+    expect(
+      mapSiteInfo({ response: { version: "26.26.11 c4db63ce" } }).firmware,
+    ).toBe("26.26.11");
+    expect(mapSiteInfo({ response: { version: "1.2" } }).firmware).toBe("1.2");
+  });
+
+  it("installedOn is the first 10 chars of installation_date (the local date)", () => {
+    for (const [d, want] of [
+      ["2024-03-09T23:30:00-08:00", "2024-03-09"],
+      ["2024-03-10T01:05:07+09:00", "2024-03-10"],
+      ["2024-03-10", "2024-03-10"],
+    ] as const)
+      expect(
+        mapSiteInfo({ response: { installation_date: d } }).installedOn,
+      ).toBe(want);
+  });
+
+  it.each(["REDACTED", "", "03/09/2024", "2024-3-9"])(
+    "installedOn is null for installation_date %j",
+    (d) => {
+      expect(
+        mapSiteInfo({ response: { installation_date: d } }).installedOn,
+      ).toBeNull();
+    },
+  );
+
+  it("never reads components.batteries[] (expansion units say Unknown)", () => {
+    const info = mapSiteInfo({
+      response: {
+        components: {
+          batteries: [{ part_name: "Unknown", nameplate_power: 0 }],
+        },
+      },
+    });
+    expect(info.batteryModel).toBeNull();
+    expect(info.maxPowerW).toBeNull();
+  });
+
+  it("each fact is null when only its own field is missing", () => {
+    const rest: Record<string, unknown> = { ...r };
+    for (const k of ["battery_count", "version", "nameplate_power"])
+      delete rest[k];
+    expect(mapSiteInfo({ response: rest })).toMatchObject({
+      batteryCount: null,
+      firmware: null,
+      maxPowerW: null,
+      batteryModel: facts.batteryModel,
     });
   });
 
