@@ -9,6 +9,9 @@ import { parseTariff } from "~/lib/tariff";
 import { addDays, localDate, localMidnight } from "~/lib/time";
 import type { db as appDb } from "~/server/db";
 import * as s from "~/server/db/schema";
+import { equipmentHealth } from "~/lib/health";
+import { backfillState } from "~/worker/backfill";
+import { parseBackfillLimits } from "~/worker/jobs";
 import { buildSnapshot } from "./build";
 import { energyHistory } from "~/server/history";
 
@@ -153,7 +156,35 @@ export async function loadSnapshot(
       : null;
   };
 
+  // 13 months + 7 days, so last month and the same month a year ago are whole.
+  const wideFrom = addDays(today, -(13 * 31 + 7));
+  const wideTo = addDays(today, 1);
+  const wideSamples = db
+    .select({ ts: s.samples.ts, socPct: s.samples.socPct })
+    .from(s.samples)
+    .where(
+      and(
+        eq(s.samples.siteId, siteId),
+        gte(s.samples.ts, new Date(localMidnight(wideFrom, tz))),
+        lt(s.samples.ts, new Date(localMidnight(wideTo, tz))),
+      ),
+    )
+    .all()
+    .map((r) => ({ ts: r.ts.getTime(), socPct: r.socPct }));
+  const limits = parseBackfillLimits(process.env);
+
   return buildSnapshot({
+    equipmentHealth: {
+      ...equipmentHealth({
+        hours: history.hours(wideFrom, wideTo),
+        observed: history.observed(wideFrom, wideTo),
+        soc: wideSamples,
+        tz,
+        now,
+      }),
+      backfill: backfillState(db, site, limits, now),
+    },
+    backfillMaxPerMonth: limits.TESLA_BACKFILL_MAX_PER_MONTH,
     now,
     source: site.source as DashboardSnapshot["source"],
     site,
