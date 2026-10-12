@@ -127,3 +127,20 @@ export const weatherForecast = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.siteId, t.issuedAt, t.hour] })],
 );
+
+export const siteEvents = sqliteTable(
+  "site_events",
+  {
+    siteId: siteFk(),
+    at: ts("at").notNull(),
+    kind: text().notNull(),
+    text: text().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.siteId, t.at, t.kind] })],
+);
+
+export const fleetRequests = sqliteTable("fleet_requests", {
+  month: text().primaryKey(),
+  total: integer().notNull().default(0),
+  backfill: integer().notNull().default(0),
+});

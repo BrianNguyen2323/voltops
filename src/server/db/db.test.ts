@@ -122,4 +122,22 @@ describe("constraints", () => {
     sql("DELETE FROM sites WHERE id=?", id);
     expect(count()).toBe(0);
   });
+
+  it("site_events insert is idempotent and cascades with the site", () => {
+    addSite("abc");
+    const siteId = (
+      db.$client.prepare("SELECT id FROM sites").get() as { id: number }
+    ).id;
+    const row = {
+      siteId,
+      at: new Date(now),
+      kind: "firmware",
+      text: "Firmware 1",
+    };
+    db.insert(schema.siteEvents).values(row).onConflictDoNothing().run();
+    db.insert(schema.siteEvents).values(row).onConflictDoNothing().run();
+    expect(db.select().from(schema.siteEvents).all()).toHaveLength(1);
+    sql("DELETE FROM sites WHERE id=?", siteId);
+    expect(db.select().from(schema.siteEvents).all()).toHaveLength(0);
+  });
 });
