@@ -1,5 +1,8 @@
 # Resume board — middleware
 
+- **Status (2026-10-12): resumed for M5 = B036–B038** (Your system + Equipment health). `middleware` = `main` 591a3c0 (front-end B034/B035 included). **Waiting on the PO: TODO "Decision round 4"** (Q1 outage source, Q2 battery % for backfilled days, Q3 monthly series, Q4 request month). After the answers: SPEC Revision 4 + R004, MILESTONES M5, briefs to `ready/`, then spawn members (tester → implementer → reviewer; feature role = sonnet @medium).
+  - Verified: `samples` is hourly (worker `live_status` once an hour); `installation_date` is RFC 3339 with an offset (git history, digits masked); `backup_history` = `calendar_history?kind=backup` is official (developer.tesla.com energy endpoints, 2026-10-12), its fields are unrecorded; both containers load `.env`.
+
 - **Hand-off from front-end (2026-10-08, PO-approved, front-end SPEC Rev 8):** three new backlog briefs. The front-end ships the contract + a `build.ts` stub in B035.
   - `plan/board/backlog/B036-system-info.md` (site_info fields, `SITE_PANEL_*` env, best hour, change log);
   - `B037-equipment-health.md` (pure health measurements);

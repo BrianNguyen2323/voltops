@@ -201,3 +201,32 @@ Everything is on **`middleware`** (last merge 5b5f119; **+ B033 31ceb81**: the S
 
 Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw.
 - Answer (PO, 2026-10-08): **a, approved.** The PO opened the PR `middleware` → `main` (M4 + B027 prettier + B033).
+
+## Decision round 4: Your system + Equipment health (B036–B038, 2026-10-12) — USER INPUT REQUIRED
+
+The front-end hand-off (SPEC Rev 8, briefs B036–B038) fixes the contract, the thresholds and the backfill budget, and the UI is already on `main` (591a3c0). `middleware` is level with `main`. The questions below cover only the gaps the lead found while checking the briefs against the stored data.
+
+**Q1. Grid outages in the change log.** The worker stores one `samples` row per hour, so outage stretches from `samples` miss any outage under an hour and are off by up to an hour.
+- **A (recommended):** use Tesla's official `backup_history` (`calendar_history?kind=backup`, "backup (off-grid) event history … in duration of seconds", developer.tesla.com energy endpoints, checked 2026-10-12). Exact durations, and it covers outages from before VoltOps too. Once a day (~30 requests/month, inside the cap). Its field names aren't recorded yet, so `pnpm verify:tesla` gains a `backup_history` fixture that you run once. Until then the change log shows firmware and battery changes only.
+- B: hourly `samples` stretches, as the brief says. No Tesla cost, but "Grid outage, 1 h 0 min" for a 5-minute blip.
+- C: no outages in the change log for now.
+
+**Q2. Battery capacity can't use backfilled days.** Tesla's history has no battery % (decided in round 1, Q5), and the swing estimate needs it. So the backfill gives solar health and efficiency from day one, but the capacity estimate starts from the hourly battery % VoltOps records from now on (first value after ~5 long swings, about a week).
+- **A (recommended):** accept that. Capacity is a "from now on" trend.
+- B: probe the undocumented `calendar_history?kind=soe` in `verify:tesla`. If it returns past battery %, the backfill fetches it too (1 more request per backfilled day, so the backfill takes twice as long under the same budget). It can break without notice.
+
+**Q3. "Over time".** The contract shows one month per check (this month vs a year ago, latest capacity). It has no monthly series, so the dashboard can't draw "capacity by month since install".
+- **A (recommended):** ship the agreed contract now (M5). A monthly series (a small chart in each health line) becomes a joint front-end + middleware follow-up after M5.
+- B: add the monthly series to the contract now. It needs a front-end SPEC revision first, so M5 waits for it.
+
+**Q4. Tesla request month.** The cap counts requests per calendar month. Tesla doesn't say which time zone its billing month uses.
+- **A (recommended):** count in UTC months. The 500-request margin under the 5,000 free covers the few hours of mismatch.
+- B: count in the site's local month.
+
+**Lead calls (say if you disagree):**
+- `SITE_PANEL_COUNT` / `SITE_PANEL_WATTS` are read straight from the env when the snapshot is built (both containers load `.env`). No new `sites` columns.
+- The backfill runs newest day first, 1 Tesla request per 60 s tick, so 2 years take about 12 hours.
+- Past weather for backfilled days comes from Open-Meteo's archive API, a month per request.
+- `installation_date` is RFC 3339 with an offset (checked in git history with the digits masked). `installedOn` is its site-local date.
+
+Answer e.g. "all recommended" or "Q1 B, rest recommended".
