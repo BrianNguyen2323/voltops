@@ -23,6 +23,12 @@ export type SiteInfo = {
   timezone: string | null;
   usableCapacityWh: number | null;
   backupReservePct: number | null;
+  batteryCount: number | null;
+  batteryModel: string | null;
+  maxPowerW: number | null;
+  firmware: string | null;
+  /** YYYY-MM-DD */
+  installedOn: string | null;
   tariff: {
     id: string;
     name: string | null;
