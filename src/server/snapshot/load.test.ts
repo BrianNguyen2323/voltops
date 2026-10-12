@@ -915,13 +915,13 @@ describe("loadSnapshot equipment health", () => {
   });
 
   describe("backfill", () => {
-    // site-local today 2026-05-20, UTC month 2026-05: FROM = today - 8, 10 days since install.
+    // site-local today 2026-05-20, UTC month 2026-05: FROM = today - 8, install 05-03 to FROM 05-12 inclusive = 10 days; a finished walk leaves the cursor at 05-02.
     const setBackfill = (siteId: number, cursor: string, max = "3") => {
       process.env.TESLA_BACKFILL_MAX_PER_MONTH = max;
       process.env.TESLA_MONTHLY_REQUEST_CAP = "4500";
       db.update(schema.sites)
         .set({
-          installedOn: "2026-05-02",
+          installedOn: "2026-05-03",
           backfillFrom: "2026-05-12",
           backfillCursor: cursor,
         })
@@ -970,7 +970,7 @@ describe("loadSnapshot equipment health", () => {
 
     it("done: full progress and the estimate is back to the constant", async () => {
       const siteId = seed({ now: NORMAL });
-      setBackfill(siteId, "2026-05-01");
+      setBackfill(siteId, "2026-05-02");
       const s = await load(siteId);
       expect(s.equipmentHealth.backfill).toEqual({
         state: "done",
