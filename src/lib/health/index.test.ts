@@ -95,6 +95,30 @@ describe("solarClearDay", () => {
     expect(run(both(20, 19)).solarClearDay).toBeNull();
   });
 
+  it("is null when the baseline median is 0", () => {
+    const c = feb(2026, 20, 4000, 4000);
+    const b = feb(2025, 20, 0, 0);
+    expect(
+      run({
+        hours: [...b.hours, ...c.hours],
+        observed: [...b.observed, ...c.observed],
+      }).solarClearDay,
+    ).toBeNull();
+  });
+
+  it("is 200 at exactly twice the baseline and null above that", () => {
+    const at = (wh: number) => {
+      const c = feb(2026, 20, wh, wh);
+      const b = feb(2025, 20, 4000, 4000);
+      return run({
+        hours: [...b.hours, ...c.hours],
+        observed: [...b.observed, ...c.observed],
+      }).solarClearDay?.pctOfBaseline;
+    };
+    expect(at(8000)).toBe(200);
+    expect(at(8040)).toBeUndefined();
+  });
+
   it("uses December of the previous year when now is in January", () => {
     const hours: HourEnergy[] = [];
     const observed: ObservedHour[] = [];
@@ -157,6 +181,53 @@ describe("sunnyDayMiss", () => {
     ).toEqual({ date: "2026-03-17", expectedWh: 20000, actualWh: 14000 });
   });
 
+  it("still flags a clear-daylight day that is cloudy at night", () => {
+    const { hours, observed } = span("2026-02-01", "2026-03-19", {
+      "2026-03-19": { pct: 70 },
+    });
+    for (let h = 0; h < 4; h++) {
+      const t = localTime("2026-03-19", h * 60, "UTC");
+      hours.push(hr(t));
+      observed.push(ob(t, { ghiWm2: 0, cloudPct: 100 }));
+    }
+    expect(run({ hours, observed, now }).sunnyDayMiss).toEqual({
+      date: "2026-03-19",
+      expectedWh: 20000,
+      actualWh: 14000,
+    });
+  });
+
+  it("excludes the checked day from its own hourly ratios", () => {
+    // 13 other days: 6 at 4000 Wh, 7 at 6000 Wh; the checked day makes 0. Median is 6000 without it, 5000 with it.
+    const over: Record<string, { pct: number }> = { "2026-03-19": { pct: 0 } };
+    for (let i = 0; i < 13; i++)
+      over[addDays("2026-03-06", i)] = { pct: i < 6 ? 100 : 150 };
+    expect(
+      run({ ...span("2026-03-06", "2026-03-19", over), now }).sunnyDayMiss,
+    ).toEqual({
+      date: "2026-03-19",
+      expectedWh: 30000,
+      actualWh: 0,
+    });
+  });
+
+  it("builds ratios from hours with ghi >= 50 only", () => {
+    // On 7 of 13 other days the 10:00 hour has a wild ratio (10000 Wh per W/m2) at the given ghi.
+    const at = (ghiWm2: number) => {
+      const { hours, observed } = span("2026-03-06", "2026-03-19", {
+        "2026-03-19": { pct: 70 },
+      });
+      for (let i = 0; i < 7; i++) {
+        const t = localTime(addDays("2026-03-06", i), 10 * 60, "UTC");
+        hours[hours.findIndex((x) => x.start === t)]!.solarWh = ghiWm2 * 10000;
+        observed[observed.findIndex((x) => x.hour === t)]!.ghiWm2 = ghiWm2;
+      }
+      return run({ hours, observed, now }).sunnyDayMiss?.expectedWh;
+    };
+    expect(at(49)).toBe(20000);
+    expect(at(50)).toBe(8016000);
+  });
+
   it("does not flag a cloudy day at 50%", () => {
     expect(miss({ "2026-03-19": { pct: 50, cloud: 60 } })).toBeNull();
   });
@@ -192,7 +263,7 @@ describe("sunnyDayMiss", () => {
 
 describe("batteryCapacity", () => {
   type Sw = {
-    at: [number, number, number];
+    at: Parameters<typeof utc>;
     socs: number[];
     step?: number;
     wh?: number;
@@ -247,6 +318,20 @@ describe("batteryCapacity", () => {
     expect(
       cap([...feb(5), { at: [2026, 3, 2], socs: f50, wh: 50000 }]),
     ).toEqual({ month: "2026-02", estimatedWh: 26000, swings: 5 });
+  });
+
+  it("counts a swing ending at local 23:30 on the last day of the month (next day in UTC)", () => {
+    const tz = "America/Los_Angeles";
+    // Starts 04:00Z Nov 1 (21:00 PDT Oct 31), ends 06:30Z Nov 1 (23:30 PDT Oct 31).
+    const edge: Sw = { at: [2026, 11, 1, 4], socs: f50 };
+    const four = Array.from({ length: 4 }, (_, i) => ({
+      at: [2026, 10, 2 + i * 2],
+      socs: f50,
+    })) as Sw[];
+    expect(
+      run({ ...bat([...four, edge]), tz, now: utc(2026, 11, 20, 20) })
+        .batteryCapacity,
+    ).toEqual({ month: "2026-10", estimatedWh: 26000, swings: 5 });
   });
 
   it("allows a 75 minute sample gap but not 76", () => {
@@ -325,6 +410,19 @@ describe("efficiency", () => {
       hr(utc(2026, 3, 1), { batteryChargeWh: 5000 }),
     ];
     expect(eff([...days(10), ...outside])?.pct).toBe(88);
+  });
+
+  it("counts days within the month only", () => {
+    const other = [1, 2, 3, 4, 5].flatMap((d) => [
+      hr(utc(2026, 1, 20 + d, 10), { batteryChargeWh: 100 }),
+      hr(utc(2026, 3, d, 10), { batteryChargeWh: 100 }),
+    ]);
+    expect(eff([...days(9), ...other])).toBeNull();
+  });
+
+  it("is null above 200 and 200 at exactly 200", () => {
+    expect(eff(days(10, 100, 201))).toBeNull();
+    expect(eff(days(10, 100, 200))).toEqual({ month: "2026-02", pct: 200 });
   });
 
   it("is null when nothing was charged", () => {
