@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { env } from "~/env";
 import {
   AuthExpired,
@@ -8,7 +8,7 @@ import {
 } from "~/lib/core/types";
 import { decrypt, encrypt } from "~/lib/crypto";
 import { db as defaultDb, type openDb } from "~/server/db";
-import { credentials } from "~/server/db/schema";
+import { credentials, fleetRequests } from "~/server/db/schema";
 import {
   mapCalendarHistory,
   mapLiveStatus,
@@ -49,6 +49,15 @@ export function createFleetClient(deps: Deps): FleetClient {
     } catch {
       throw new SourceUnavailable(`${path} network failure`);
     }
+    // Tesla bills every response below 500, not the token endpoint
+    if (res.status < 500 && url !== TOKEN_URL)
+      db.insert(fleetRequests)
+        .values({ month: new Date(now()).toISOString().slice(0, 7), total: 1 })
+        .onConflictDoUpdate({
+          target: fleetRequests.month,
+          set: { total: sql`${fleetRequests.total} + 1` },
+        })
+        .run();
     if (res.ok) return res.json() as Promise<unknown>;
     let reason = "";
     try {

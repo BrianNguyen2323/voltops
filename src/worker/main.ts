@@ -1,8 +1,11 @@
 ﻿import { fleetClient } from "~/lib/sources/fleet-api/client";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { server } from "~/env.schema.js";
 import { db } from "~/server/db";
 import { sites } from "~/server/db/schema";
 import { seedReplay } from "~/server/replay/seed";
+import { runBackfill } from "./backfill";
 import {
   isTeslaIdle,
   parseSiteSettings,
@@ -13,6 +16,19 @@ import {
 } from "./jobs";
 
 const settings = parseSiteSettings(process.env);
+/** "" counts as unset, like parseSiteSettings. */
+const unset = (v?: string) => (v === "" ? undefined : v);
+const limits = z
+  .object({
+    TESLA_BACKFILL_MAX_PER_MONTH: server.TESLA_BACKFILL_MAX_PER_MONTH,
+    TESLA_MONTHLY_REQUEST_CAP: server.TESLA_MONTHLY_REQUEST_CAP,
+  })
+  .parse({
+    TESLA_BACKFILL_MAX_PER_MONTH: unset(
+      process.env.TESLA_BACKFILL_MAX_PER_MONTH,
+    ),
+    TESLA_MONTHLY_REQUEST_CAP: unset(process.env.TESLA_MONTHLY_REQUEST_CAP),
+  });
 
 const HOUR = 3_600_000;
 let idleLogged = false;
@@ -49,6 +65,7 @@ async function tick(first = false) {
       lastWeather = now;
       await runWeather(deps);
     }
+    if (!isTeslaIdle(db)) await runBackfill(deps, limits);
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
     console.error(`[worker] tick ${err.name}: ${err.message}`);
