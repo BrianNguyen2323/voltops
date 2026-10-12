@@ -9,7 +9,7 @@ const Resp = z.object({
     cloud_cover: nums,
     shortwave_radiation: nums,
     precipitation: nums,
-    precipitation_probability: nums,
+    precipitation_probability: nums.optional(),
   }),
 });
 
@@ -41,7 +41,7 @@ export function mapForecast(json: unknown, fetchedAtMs: number) {
       cloudPct,
       ghiWm2,
       precipMm: h.precipitation[i] ?? 0,
-      precipProbPct: h.precipitation_probability[i] ?? 0,
+      precipProbPct: h.precipitation_probability?.[i] ?? 0,
     };
     (hour + HOUR <= fetchedAtMs ? observed : forecast).push(row);
   }
@@ -60,6 +60,25 @@ export async function fetchWeather(o: {
     `https://api.open-meteo.com/v1/forecast?latitude=${o.lat.toFixed(2)}&longitude=${o.lon.toFixed(2)}` +
     "&hourly=temperature_2m,cloud_cover,shortwave_radiation,precipitation,precipitation_probability" +
     `&past_days=${o.pastDays ?? 1}&forecast_days=${o.forecastDays ?? 3}&timezone=UTC&timeformat=unixtime`;
+  const res = await o.fetch(url);
+  if (!res.ok) throw new Error(`open-meteo: ${res.status}`);
+  return mapForecast(await res.json(), o.now);
+}
+
+/** Past days only, no forecast; `start`/`end` are UTC dates. */
+export async function fetchArchive(o: {
+  fetch: typeof fetch;
+  lat: number;
+  lon: number;
+  now: number;
+  start: string;
+  end: string;
+}) {
+  const url =
+    `https://archive-api.open-meteo.com/v1/archive?latitude=${o.lat.toFixed(2)}&longitude=${o.lon.toFixed(2)}` +
+    `&start_date=${o.start}&end_date=${o.end}` +
+    "&hourly=temperature_2m,cloud_cover,shortwave_radiation,precipitation" +
+    "&timezone=UTC&timeformat=unixtime";
   const res = await o.fetch(url);
   if (!res.ok) throw new Error(`open-meteo: ${res.status}`);
   return mapForecast(await res.json(), o.now);

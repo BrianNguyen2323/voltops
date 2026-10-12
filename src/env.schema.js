@@ -28,4 +28,6 @@ export const server = {
     })
     .optional(),
   TEMPERATURE_UNIT: z.enum(["F", "C"]).optional(),
+  TESLA_BACKFILL_MAX_PER_MONTH: z.coerce.number().int().min(0).default(2500),
+  TESLA_MONTHLY_REQUEST_CAP: z.coerce.number().int().min(1).default(4500),
 };
