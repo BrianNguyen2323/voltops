@@ -239,3 +239,33 @@ B041 (grid outages in the change log) needs one recording of Tesla's outage hist
 3. Paste the `backup_history events: …` line here. The script saves `fixtures/fleet-api/backup_history.json` (anonymized). **Don't commit it yourself.** The lead runs the Haiku sensitive-data scan first, then commits it as `chore(fixtures): …`.
 - If it says `events: 0`, B041 can't verify the format yet. Outages then stay out of the change log until an outage happens and you re-run the probe.
 - Answer:
+
+## USER INPUT REQUIRED — Review: M5, Your system + Equipment health + backfill (2026-10-12)
+
+Everything is on **`middleware`** (last merge 6f39b1a, board f0c824f). **You open the PR `middleware` → `main`.** Gate on `middleware`: vitest 817/817, test:scripts 72/72, typecheck, lint 0/0, format:check, `build:worker`, `build`. Docker smoke PASS (305 MB). Every brief had a tester, an implementer and an independent reviewer. B036, B037, B038 and B042 each failed a first review and passed a re-review after fixes.
+
+**What's new**
+- **"Your system" shows your real system.** Batteries (count, model, capacity, max power, reserve), plan, firmware and install date come from Tesla's daily site sync. Panels come from `SITE_PANEL_COUNT` and `SITE_PANEL_WATTS` in `.env`. "Best hour so far" is the highest hourly solar in your stored history. The change log lists firmware and battery-count changes as the daily sync sees them.
+- **Equipment health has real measurements.** Clear-day solar output compared with the same month last year, a "sunny day, low output" flag for the last 7 days, estimated battery capacity from long discharges, and round-trip efficiency. Each check says "learning" until it has enough data. A comparison above 200% also shows as learning, because it means the old month's data is bad (snow, an outage).
+- **One-time backfill of your Tesla history.** The worker fetches one past day per minute, newest first, back to your install date. Every Tesla request is now counted per UTC month. The backfill stops for the month at 2,500 of its own requests, or when the month's total reaches 4,500, so at least 500 of the ~5,000 free requests stay for normal use. A day that fails 3 times is skipped, so one bad day can't drain the budget. Two years of history is ~730 requests, about 12 hours. Past weather for those days comes from Open-Meteo's free archive.
+- **Progress shows on the dashboard** ("Loading past data: N of M days"), and the Health request estimate includes the backfill while it runs.
+
+**How to try it**
+1. **Demo (no Tesla):** in a throwaway checkout, `pnpm db:migrate`, `pnpm seed:replay`, `pnpm dev`, then open `/home` and scroll to "Your system". It shows 2 batteries, Powerwall 3, the SCE plan and firmware. The health lines say "learning", because the demo holds only 7 days.
+2. **Your system (Docker):**
+   - add `SITE_PANEL_COUNT=` and `SITE_PANEL_WATTS=` to `.env` (your panel count and the watts per panel);
+   - optional: `TESLA_BACKFILL_MAX_PER_MONTH` (default 2500; `0` turns the backfill off) and `TESLA_MONTHLY_REQUEST_CAP` (default 4500);
+   - `docker compose up -d --build --force-recreate`, then `docker compose logs -f worker`. The first ticks run site-sync (it now stores the battery details), then the backfill starts: one `calendar_history` per minute. Errors show as `[worker] backfill site=<n> <ErrorName>`;
+   - open `/home`. "Your system" fills in after the first site sync. The solar health lines need the backfill to reach last year's same month. The battery capacity needs about a week of long discharges recorded from now on (decision round 4, Q2).
+
+**Things to know**
+- **Battery capacity starts from now.** Tesla's history has no battery %, so the backfill can't help it (Q2 A).
+- **Grid outages are not in the change log yet.** They wait on your `pnpm verify:tesla` run (the item above) and then B041.
+- **A month-by-month chart is not in this milestone** (Q3 A). It's a joint follow-up with the front-end.
+- If your Tesla login expires, the backfill retries the login once a minute. Tesla doesn't bill that. I'll add a back-off if it bothers you.
+- My calls inside your answers are in `team/middleware/design/revisions/R004.md`.
+
+**Housekeeping:** the worktree `.claude/worktrees/agent-aa688d006b0df62bd` couldn't be removed ("Permission denied"). The merged branches `phase2b/middleware-*` (schema-health, probe-backup, health, health-tests, health-fix, system, system-tests, system-fix, backfill, backfill-tests, backfill-fix, health-wiring, health-wiring-tests) can be deleted.
+
+Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw, plus the `verify:tesla` line.
+- Answer:

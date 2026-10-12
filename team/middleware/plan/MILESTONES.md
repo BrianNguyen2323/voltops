@@ -50,7 +50,7 @@ Skipped: `pnpm format:check` (453 files, repo-wide, touches other scopes' files)
 
 Order: wave 1 = B028 tester + B030 tester → B028 implementer → B029 → B030 implementer → B031.
 
-## M5: Your system + Equipment health + backfill (Rev 4, R004) — STARTED 2026-10-12 on `middleware` (from 591a3c0)
+## M5: Your system + Equipment health + backfill (Rev 4, R004) — DONE 2026-10-12 on `middleware` (6f39b1a; B041 waits on the PO probe). PO review item in TODO
 The "Your system" section on `/home` shows real batteries, panels, plan, firmware and change log; Equipment health shows the four measurements; a one-time backfill fills past history inside the Tesla budget.
 - B039 Migration 0003 (site facts, `site_events`, `fleet_requests`)
 - B040 `verify:tesla` records `backup_history` (then the PO runs it)
