@@ -53,7 +53,7 @@ const CHIP: Record<HealthStatus, [string, string]> = {
   ok: ["OK", "bg-secondary text-secondary-foreground"],
   watch: ["Watch", "bg-solar/15 text-solar"],
   check: ["Check", "bg-destructive/10 text-destructive"],
-  learning: ["Learning", "border-border text-foreground"],
+  learning: ["Learning", "bg-emerald-800 text-foreground"],
 };
 const Chip = ({ status }: { status: HealthStatus }) => (
   <Badge className={CHIP[status][1]}>{CHIP[status][0]}</Badge>
