@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "be99ab9f-f365-40d5-8e47-140c3bbab889",
+  "id": "209eea4c-0486-40c6-b557-3f47bb8bf85b",
   "prevId": "bdf2df2d-9b25-4ab6-b481-eb7d4d8d992c",
   "tables": {
     "admin": {
@@ -442,6 +442,55 @@
         },
         "temperature_unit": {
           "name": "temperature_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "battery_count": {
+          "name": "battery_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "battery_model": {
+          "name": "battery_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "max_power_w": {
+          "name": "max_power_w",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "firmware": {
+          "name": "firmware",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "installed_on": {
+          "name": "installed_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "backfill_from": {
+          "name": "backfill_from",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "backfill_cursor": {
+          "name": "backfill_cursor",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

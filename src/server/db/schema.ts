@@ -47,6 +47,13 @@ export const sites = sqliteTable("sites", {
   usableCapacityWh: integer("usable_capacity_wh"),
   backupReservePct: integer("backup_reserve_pct"),
   temperatureUnit: text("temperature_unit"),
+  batteryCount: integer("battery_count"),
+  batteryModel: text("battery_model"),
+  maxPowerW: integer("max_power_w"),
+  firmware: text(),
+  installedOn: text("installed_on"),
+  backfillFrom: text("backfill_from"),
+  backfillCursor: text("backfill_cursor"),
   createdAt: ts("created_at"),
   updatedAt: ts("updated_at"),
 });
