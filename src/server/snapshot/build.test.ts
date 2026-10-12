@@ -110,6 +110,18 @@ function input(now: number, o: Opts = {}): BuildInput {
       longitude: (o.location ?? true) ? -118 : null,
       usableCapacityWh: 13500,
       backupReservePct: 20,
+      batteryCount: null,
+      batteryModel: null,
+      maxPowerW: null,
+      firmware: null,
+      installedOn: null,
+    },
+    systemExtras: {
+      panelCount: null,
+      panelWatts: null,
+      bestHour: null,
+      plan: { utility: null, name: null },
+      changes: [],
     },
     currency: "USD",
     tariff: (o.tariff ?? true) ? tariff : null,
@@ -318,6 +330,11 @@ describe("buildSnapshot", () => {
       longitude: null,
       usableCapacityWh: null,
       backupReservePct: null,
+      batteryCount: null,
+      batteryModel: null,
+      maxPowerW: null,
+      firmware: null,
+      installedOn: null,
     };
     o.currency = null;
     const s = buildSnapshot(o);

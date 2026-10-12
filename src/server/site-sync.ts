@@ -11,12 +11,12 @@ export async function syncSite(
 ): Promise<number> {
   const info = await source.getSiteInfo(externalId);
   const now = new Date();
+  // ponytail: read-then-upsert without a transaction, so a login and a worker sync at the same instant could both log a change; single household, wrap in a transaction if it ever matters.
   const old = db
     .select()
     .from(sites)
     .where(eq(sites.externalId, externalId))
     .get();
-  // A null from Tesla never clears a stored fact.
   const keep = <T>(next: T | null, prev: T | null | undefined) =>
     next ?? prev ?? null;
   const facts = {
