@@ -277,6 +277,22 @@ export function energyHistory(
       };
     },
 
+    bestSolarHour(): { start: number; wh: number } | null {
+      const wh = sql<number>`sum(${e.solarWh})`;
+      const bucket = sql<number>`cast(${e.start} / 3600000 as integer) * 3600000`;
+      const r = db
+        .select({ start: bucket, wh })
+        .from(e)
+        .where(eq(e.siteId, site.id))
+        .groupBy(bucket)
+        .orderBy(sql`${wh} desc`)
+        .limit(1)
+        .get();
+      return r && Number(r.wh) > 0
+        ? { start: Number(r.start), wh: Number(r.wh) }
+        : null;
+    },
+
     latestStart(): number | null {
       return (
         db

@@ -85,7 +85,18 @@ const siteInfoSchema = z.object({
     site_name: z.string().nullish(),
     installation_time_zone: z.string().nullish(),
     backup_reserve_percent: z.number().nullish(),
-    components: z.unknown().optional(),
+    components: z
+      .object({
+        gateways: z
+          .array(z.object({ part_name: z.string().nullish() }).passthrough())
+          .optional(),
+      })
+      .passthrough()
+      .optional(),
+    battery_count: z.number().nullish(),
+    nameplate_power: z.number().nullish(),
+    version: z.string().nullish(),
+    installation_date: z.string().nullish(),
     tariff_id: z.string().nullish(),
     utility: z.string().nullish(),
     tariff_content: z
@@ -102,6 +113,13 @@ export function mapSiteInfo(input: unknown): SiteInfo {
     timezone: r.installation_time_zone ?? null,
     usableCapacityWh: findNameplate(r.components),
     backupReservePct: r.backup_reserve_percent ?? null,
+    batteryCount: r.battery_count ?? null,
+    batteryModel: r.components?.gateways?.[0]?.part_name ?? null,
+    maxPowerW: r.nameplate_power ?? null,
+    firmware: r.version?.split(" ")[0] ?? null,
+    installedOn: /^\d{4}-\d\d-\d\d/.test(r.installation_date ?? "")
+      ? r.installation_date!.slice(0, 10)
+      : null,
     tariff: r.tariff_id
       ? {
           id: r.tariff_id,
