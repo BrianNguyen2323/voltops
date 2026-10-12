@@ -104,6 +104,13 @@ describe("solarClearDay", () => {
         observed: [...b.observed, ...c.observed],
       }).solarClearDay,
     ).toBeNull();
+    const zero = feb(2026, 20, 0, 0);
+    expect(
+      run({
+        hours: [...b.hours, ...zero.hours],
+        observed: [...b.observed, ...zero.observed],
+      }).solarClearDay,
+    ).toBeNull();
   });
 
   it("is 200 at exactly twice the baseline and null above that", () => {
@@ -330,6 +337,20 @@ describe("batteryCapacity", () => {
     })) as Sw[];
     expect(
       run({ ...bat([...four, edge]), tz, now: utc(2026, 11, 20, 20) })
+        .batteryCapacity,
+    ).toEqual({ month: "2026-10", estimatedWh: 26000, swings: 5 });
+  });
+
+  it("assigns a swing to the month it ends in, not the month it starts in", () => {
+    const tz = "America/Los_Angeles";
+    // Starts 06:00Z Oct 1 (23:00 PDT Sep 30), ends 08:30Z Oct 1 (01:30 PDT Oct 1).
+    const straddle: Sw = { at: [2026, 10, 1, 6], socs: f50 };
+    const four = Array.from({ length: 4 }, (_, i) => ({
+      at: [2026, 10, 2 + i * 2],
+      socs: f50,
+    })) as Sw[];
+    expect(
+      run({ ...bat([...four, straddle]), tz, now: utc(2026, 11, 20, 20) })
         .batteryCapacity,
     ).toEqual({ month: "2026-10", estimatedWh: 26000, swings: 5 });
   });
