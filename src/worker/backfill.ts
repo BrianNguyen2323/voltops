@@ -1,9 +1,10 @@
-﻿import { eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { AuthExpired, RateLimited } from "~/lib/core/types";
 import { addDays, localDate } from "~/lib/time";
 import type { openDb } from "~/server/db";
 import * as s from "~/server/db/schema";
 import { energyHistory } from "~/server/history";
-import { dayRange, guarded, type Deps } from "./jobs";
+import { dayRange, type Deps } from "./jobs";
 
 type Db = ReturnType<typeof openDb>;
 type Site = typeof s.sites.$inferSelect;
@@ -53,7 +54,7 @@ export function backfillState(
   return { state, daysDone, daysTotal };
 }
 
-const firstSite = (db: Db) =>
+export const firstSite = (db: Db) =>
   db
     .select()
     .from(s.sites)
@@ -61,20 +62,28 @@ const firstSite = (db: Db) =>
     .all()
     .find((x) => x.installedOn);
 
-export async function runBackfill(deps: Deps, limits: BackfillLimits) {
-  const site = firstSite(deps.db);
-  if (site) await guarded("backfill", site, () => backfillStep(deps, limits));
-}
+const SKIP_AFTER = 3;
+// In memory, per db: a restart resets it. Keyed `${siteId}:${day}`.
+const failures = new WeakMap<object, Map<string, number>>();
+const fleetTotal = (db: Db, now: number) =>
+  db
+    .select()
+    .from(s.fleetRequests)
+    .where(eq(s.fleetRequests.month, month(now)))
+    .get()?.total ?? 0;
 
-/** At most one Tesla request per call; errors propagate with the cursor unchanged. */
+/**
+ * At most one Tesla request per call. Every billed attempt counts toward the
+ * backfill budget (the client raised `total`). Errors propagate; the 3rd
+ * non-auth failure on one day steps the cursor past it.
+ */
 export async function backfillStep(
   { db, source, now }: Deps,
+  site: Site,
   limits: BackfillLimits,
 ) {
-  if (!limits.TESLA_BACKFILL_MAX_PER_MONTH) return;
-  const site = firstSite(db);
-  const installedOn = site?.installedOn;
-  if (!site || !installedOn) return;
+  const installedOn = site.installedOn;
+  if (!limits.TESLA_BACKFILL_MAX_PER_MONTH || !installedOn) return;
   const tz = site.timezone ?? "UTC";
   // syncEnergy owns the last 7 days
   const from = site.backfillFrom ?? addDays(localDate(now, tz), -8);
@@ -82,24 +91,48 @@ export async function backfillStep(
   const history = energyHistory(db, site);
   while (cursor >= installedOn && history.isComplete(cursor))
     cursor = addDays(cursor, -1);
-  const save = () =>
-    db
-      .update(s.sites)
+  let saved = { from: site.backfillFrom, cursor: site.backfillCursor };
+  const save = () => {
+    if (saved.from === from && saved.cursor === cursor) return;
+    saved = { from, cursor };
+    db.update(s.sites)
       .set({ backfillFrom: from, backfillCursor: cursor })
       .where(eq(s.sites.id, site.id))
       .run();
+  };
   save();
   if (cursor < installedOn || paused(db, limits, now)) return;
-  history.putIntervals(
-    await source.getHistory(site.externalId, dayRange(cursor, tz)),
-  );
-  db.insert(s.fleetRequests)
-    .values({ month: month(now), backfill: 1 })
-    .onConflictDoUpdate({
-      target: s.fleetRequests.month,
-      set: { backfill: sql`${s.fleetRequests.backfill} + 1` },
-    })
-    .run();
-  cursor = addDays(cursor, -1);
-  save();
+  const before = fleetTotal(db, now);
+  const fails = failures.get(db) ?? new Map<string, number>();
+  failures.set(db, fails);
+  const key = `${site.id}:${cursor}`;
+  try {
+    history.putIntervals(
+      await source.getHistory(site.externalId, dayRange(cursor, tz)),
+    );
+    fails.delete(key);
+    cursor = addDays(cursor, -1);
+    save();
+  } catch (e) {
+    if (!(e instanceof AuthExpired || e instanceof RateLimited)) {
+      const n = (fails.get(key) ?? 0) + 1;
+      fails.set(key, n);
+      if (n >= SKIP_AFTER) {
+        fails.delete(key);
+        console.warn("[worker] backfill skipped a day after 3 failures");
+        cursor = addDays(cursor, -1);
+        save();
+      }
+    }
+    throw e;
+  } finally {
+    if (fleetTotal(db, now) > before)
+      db.insert(s.fleetRequests)
+        .values({ month: month(now), backfill: 1 })
+        .onConflictDoUpdate({
+          target: s.fleetRequests.month,
+          set: { backfill: sql`${s.fleetRequests.backfill} + 1` },
+        })
+        .run();
+  }
 }

@@ -1,17 +1,22 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DataSource, EnergyInterval } from "~/lib/core/types";
+import {
+  AuthExpired,
+  type DataSource,
+  type EnergyInterval,
+} from "~/lib/core/types";
 import { addDays, localMidnight } from "~/lib/time";
 import { openDb } from "~/server/db";
 import * as schema from "~/server/db/schema";
-import { backfillState, backfillStep } from "./backfill";
+import { backfillState, backfillStep, firstSite } from "./backfill";
+import type { Deps } from "./jobs";
 
 // B038 contract assumed from SPEC Rev 4 + the brief (names not spelled out there):
-//   backfillStep(deps: { db, source, fetch, now }, limits): Promise<void>   (throws on source error)
+//   backfillStep(deps: { db, source, fetch, now }, site, limits): Promise<void>   (throws on source error)
 //   backfillState(db, site, limits, now: number): { state, daysDone, daysTotal }   (synchronous)
 //   limits = the parsed env: { TESLA_BACKFILL_MAX_PER_MONTH, TESLA_MONTHLY_REQUEST_CAP }
 //   schema: sites.installedOn / backfillFrom / backfillCursor, fleetRequests { month, total, backfill }
@@ -59,9 +64,14 @@ const reload = (id: number) =>
   db.select().from(schema.sites).where(eq(schema.sites.id, id)).get()!;
 
 type Range = { start_date: string; end_date: string; time_zone: string };
-/** A source whose getHistory returns a full day (288 intervals) for the requested day. */
+/**
+ * A source whose getHistory returns a full day (288 intervals) for the requested day.
+ * Like the real fleet client it bumps fleet_requests.total for each call, unless
+ * `billed` is false (a token-refresh failure never reaches the Fleet API).
+ */
 function fakeSource(
   getHistory?: (id: string, r: Range) => Promise<EnergyInterval[]>,
+  billed = true,
 ) {
   const calls: Range[] = [];
   const source: DataSource = {
@@ -71,6 +81,7 @@ function fakeSource(
     getLiveStatus: () => Promise.reject(new Error("unused")),
     getHistory: vi.fn((id: string, r: Range) => {
       calls.push(r);
+      if (billed) bumpTotal();
       if (getHistory) return getHistory(id, r);
       const start = localMidnight(r.start_date.slice(0, 10), TZ);
       return Promise.resolve(
@@ -88,11 +99,23 @@ function fakeSource(
   };
   return { source, calls };
 }
+function bumpTotal() {
+  db.insert(schema.fleetRequests)
+    .values({ month: MONTH, total: 1 })
+    .onConflictDoUpdate({
+      target: schema.fleetRequests.month,
+      set: { total: sql`${schema.fleetRequests.total} + 1` },
+    })
+    .run();
+}
 const noFetch = vi.fn(() =>
   Promise.reject(new Error("no network in tests")),
 ) as unknown as typeof fetch;
-const step = (source: DataSource, limits = lim(), now = NOW): Promise<void> =>
-  backfillStep({ db, source, fetch: noFetch, now }, limits);
+const step = async (source: DataSource, limits = lim(), now = NOW) => {
+  const deps: Deps = { db, source, fetch: noFetch, now };
+  const site = firstSite(db);
+  if (site) await backfillStep(deps, site, limits);
+};
 const requested = (calls: Range[]) =>
   calls.map((c) => c.start_date.slice(0, 10));
 
@@ -342,31 +365,85 @@ describe("backfillStep", () => {
   });
 
   describe("errors", () => {
-    it("a failing fetch propagates, leaves the cursor and does not bump the counter", async () => {
+    const boom = () => Promise.reject(new Error("boom"));
+    const attempts = async (source: DataSource, n: number) => {
+      for (let i = 0; i < n; i++) await step(source).catch(() => undefined);
+    };
+
+    it("a billed 404 propagates, leaves the cursor and counts toward backfill", async () => {
       const site = addSite();
       startAt(site.id, "2026-09-25");
-      const { source, calls } = fakeSource(() =>
-        Promise.reject(new Error("boom")),
-      );
+      const { source, calls } = fakeSource(boom);
       await expect(step(source)).rejects.toThrow("boom");
       expect(calls).toHaveLength(1);
       expect(reload(site.id).backfillCursor).toBe("2026-09-25");
+      expect(budgetRow()).toMatchObject({ total: 1, backfill: 1 });
+    });
+
+    it("a failed token refresh (no Fleet request) is not counted", async () => {
+      const site = addSite();
+      startAt(site.id, "2026-09-25");
+      const { source } = fakeSource(
+        () => Promise.reject(new AuthExpired("refresh failed")),
+        false,
+      );
+      await expect(step(source)).rejects.toThrow("refresh failed");
       expect(budgetRow()?.backfill ?? 0).toBe(0);
     });
 
     it("the next call retries the same day", async () => {
       const site = addSite();
       startAt(site.id, "2026-09-25");
-      const bad = fakeSource(() => Promise.reject(new Error("boom")));
+      const bad = fakeSource(boom);
       await expect(step(bad.source)).rejects.toThrow("boom");
       const good = fakeSource();
       await step(good.source);
       expect(requested(good.calls)).toEqual(["2026-09-25"]);
       expect(reload(site.id).backfillCursor).toBe("2026-09-24");
     });
+
+    it("3 non-auth failures on one day step the cursor on the 3rd, then the previous day is fetched", async () => {
+      const site = addSite();
+      startAt(site.id, "2026-09-25");
+      const warn = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      const bad = fakeSource(boom);
+      await attempts(bad.source, 2);
+      expect(reload(site.id).backfillCursor).toBe("2026-09-25");
+      await expect(step(bad.source)).rejects.toThrow("boom");
+      expect(reload(site.id).backfillCursor).toBe("2026-09-24");
+      expect(warn).toHaveBeenCalledWith(
+        "[worker] backfill skipped a day after 3 failures",
+      );
+      const good = fakeSource();
+      await step(good.source);
+      expect(requested(good.calls)).toEqual(["2026-09-24"]);
+      warn.mockRestore();
+    });
+
+    it("AuthExpired never steps the cursor, however often it repeats", async () => {
+      const site = addSite();
+      startAt(site.id, "2026-09-25");
+      const { source } = fakeSource(
+        () => Promise.reject(new AuthExpired("expired")),
+        false,
+      );
+      await attempts(source, 4);
+      expect(reload(site.id).backfillCursor).toBe("2026-09-25");
+    });
+
+    it("with MAX = 2 a permanently failing day makes at most 2 attempts in the month", async () => {
+      const site = addSite();
+      startAt(site.id, "2026-09-25");
+      const { source, calls } = fakeSource(boom);
+      for (let i = 0; i < 5; i++)
+        await step(source, lim(2)).catch(() => undefined);
+      expect(calls).toHaveLength(2);
+      expect(budgetRow()?.backfill).toBe(2);
+    });
   });
 });
-
 describe("backfillState", () => {
   it("before the first run: running with 0 of 0", () => {
     const site = addSite();
