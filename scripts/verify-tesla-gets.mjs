@@ -1,5 +1,5 @@
 /**
- * Read-only check that 5 Tesla Fleet API GETs work; saves anonymized fixtures.
+ * Read-only check that 6 Tesla Fleet API GETs work; saves anonymized fixtures.
  * Usage: pnpm verify:tesla   (needs .env.local: TESLA_CLIENT_ID, TESLA_CLIENT_SECRET,
  * VOLTOPS_SECRET_KEY; optional DATABASE_PATH, default ./data/voltops.db).
  * Rotated refresh token is saved back to the SQLite DB.
@@ -201,7 +201,7 @@ export async function run(deps) {
     }
     // B040: no period/dates on purpose; field names and unit are unverified until the PO runs this.
     const backup = await call("backup_history", `${base}/calendar_history`, "?kind=backup");
-    if (backup) log(`backup_history events: ${Array.isArray(backup) ? backup.length : Array.isArray(backup.events) ? backup.events.length : 0}`);
+    if (backup) log(`backup_history events: ${Array.isArray(backup) ? backup.length : Array.isArray(backup.events) ? backup.events.length : "unknown shape, see fixtures/fleet-api/backup_history.json"}`);
   }
 
   log("\n" + results.map((r) => `${r.ok ? "OK  " : "FAIL"} ${String(r.status).padEnd(4)} ${r.name.padEnd(24)} ${anonymize(r.path, secrets)}`).join("\n"));
