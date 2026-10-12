@@ -27,7 +27,6 @@ export type ObservedHour = {
 
 const FIVE = 300_000;
 const HOUR = 3_600_000;
-const GAP_DAYS = 92;
 /** UTC hour bucket of an interval start, shared by every hourly GROUP BY. */
 const bucket = sql<number>`cast(${s.energyIntervals.start} / 3600000 as integer) * 3600000`;
 
@@ -201,7 +200,6 @@ export function energyHistory(
     },
 
     weatherGaps(today: string): string[] {
-      const from = localMidnight(addDays(today, -GAP_DAYS), tz);
       const to = localMidnight(today, tz);
       // distinct UTC hour buckets instead of every 5-min interval;
       // same local-date set for whole-hour time zones
@@ -211,13 +209,7 @@ export function energyHistory(
             hour: sql<number>`(${e.start} / ${HOUR}) * ${HOUR}`,
           })
           .from(e)
-          .where(
-            and(
-              eq(e.siteId, site.id),
-              gte(e.start, new Date(from)),
-              lt(e.start, new Date(to)),
-            ),
-          )
+          .where(and(eq(e.siteId, site.id), lt(e.start, new Date(to))))
           .all()
           .map((r) => localDate(Number(r.hour), tz)),
       );
@@ -225,13 +217,7 @@ export function energyHistory(
       for (const r of db
         .select({ hour: w.hour })
         .from(w)
-        .where(
-          and(
-            eq(w.siteId, site.id),
-            gte(w.hour, new Date(from)),
-            lt(w.hour, new Date(to)),
-          ),
-        )
+        .where(and(eq(w.siteId, site.id), lt(w.hour, new Date(to))))
         .all()) {
         const d = localDate(r.hour.getTime(), tz);
         have.set(d, (have.get(d) ?? 0) + 1);
