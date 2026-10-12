@@ -119,7 +119,9 @@ export async function backfillStep(
       fails.set(key, n);
       if (n >= SKIP_AFTER) {
         fails.delete(key);
-        console.warn("[worker] backfill skipped a day after 3 failures");
+        console.warn(
+          `[worker] backfill skipped a day after ${SKIP_AFTER} failures`,
+        );
         cursor = addDays(cursor, -1);
         save();
       }
