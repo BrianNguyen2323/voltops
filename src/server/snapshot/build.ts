@@ -259,7 +259,7 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
     },
     weatherTomorrow,
     system:
-      i.site.batteryCount != null && i.systemExtras
+      i.site.batteryCount != null
         ? {
             batteries: {
               count: i.site.batteryCount,
