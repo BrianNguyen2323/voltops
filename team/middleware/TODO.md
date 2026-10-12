@@ -231,3 +231,11 @@ The front-end hand-off (SPEC Rev 8, briefs B036–B038) fixes the contract, the 
 
 Answer e.g. "all recommended" or "Q1 B, rest recommended".
 - Answer (PO, 2026-10-12): **Q1 A, Q2 A, Q3 A, Q4 A.** The lead calls stand.
+
+## USER INPUT REQUIRED — Run the outage probe once (B040 merged on `middleware`, 2026-10-12)
+B041 (grid outages in the change log) needs one recording of Tesla's outage history. Its field names have never been recorded.
+1. Check out `middleware` (b17559a or later). Stop the app and worker that use your Tesla login's DB first, because the script refreshes the token without the lease.
+2. Run `pnpm verify:tesla`.
+3. Paste the `backup_history events: …` line here. The script saves `fixtures/fleet-api/backup_history.json` (anonymized). **Don't commit it yourself.** The lead runs the Haiku sensitive-data scan first, then commits it as `chore(fixtures): …`.
+- If it says `events: 0`, B041 can't verify the format yet. Outages then stay out of the change log until an outage happens and you re-run the probe.
+- Answer:
