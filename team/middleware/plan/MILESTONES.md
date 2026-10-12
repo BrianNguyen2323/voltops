@@ -49,3 +49,15 @@ Skipped: `pnpm format:check` (453 files, repo-wide, touches other scopes' files)
 - B031 Worker daily `site-sync` job + replay seed via `mapSiteInfo` (tester → implementer; needs B029, B030)
 
 Order: wave 1 = B028 tester + B030 tester → B028 implementer → B029 → B030 implementer → B031.
+
+## M5: Your system + Equipment health + backfill (Rev 4, R004) — STARTED 2026-10-12 on `middleware` (from 591a3c0)
+The "Your system" section on `/home` shows real batteries, panels, plan, firmware and change log; Equipment health shows the four measurements; a one-time backfill fills past history inside the Tesla budget.
+- B039 Migration 0003 (site facts, `site_events`, `fleet_requests`)
+- B040 `verify:tesla` records `backup_history` (then the PO runs it)
+- B036 `system` from site_info + panel env + best hour + change log (tester → implementer; implementer after B039)
+- B037 Pure `src/lib/health` module (tester → implementer; new files only)
+- B038 Request counter + backfill + archive weather (tester → implementer; implementer after B039 and B036)
+- B042 Snapshot wiring of `equipmentHealth` + backfill progress (after B036, B037, B038)
+- B041 Outages from `backup_history` (after B040 and the PO's recorded fixture)
+
+Order: wave 1 = B039, B040, testers of B036/B037/B038 → wave 2 = B037 implementer, B036 implementer (on B039) → wave 3 = B038 implementer → wave 4 = B042 → B041 when the fixture lands. A reviewer per brief.

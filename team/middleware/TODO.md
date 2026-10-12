@@ -202,7 +202,7 @@ Everything is on **`middleware`** (last merge 5b5f119; **+ B033 31ceb81**: the S
 Reply with: (a) approved (and you open the PR); (b) changes (list them); or (c) anything you saw.
 - Answer (PO, 2026-10-08): **a, approved.** The PO opened the PR `middleware` → `main` (M4 + B027 prettier + B033).
 
-## Decision round 4: Your system + Equipment health (B036–B038, 2026-10-12) — USER INPUT REQUIRED
+## Decision round 4: Your system + Equipment health (B036–B038, 2026-10-12) — ANSWERED 2026-10-12 (all A; see design/revisions/R004.md)
 
 The front-end hand-off (SPEC Rev 8, briefs B036–B038) fixes the contract, the thresholds and the backfill budget, and the UI is already on `main` (591a3c0). `middleware` is level with `main`. The questions below cover only the gaps the lead found while checking the briefs against the stored data.
 
@@ -230,3 +230,4 @@ The front-end hand-off (SPEC Rev 8, briefs B036–B038) fixes the contract, the 
 - `installation_date` is RFC 3339 with an offset (checked in git history with the digits masked). `installedOn` is its site-local date.
 
 Answer e.g. "all recommended" or "Q1 B, rest recommended".
+- Answer (PO, 2026-10-12): **Q1 A, Q2 A, Q3 A, Q4 A.** The lead calls stand.
