@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DataSource, SiteInfo } from "~/lib/core/types";
 import { mapSiteInfo } from "~/lib/sources/fleet-api/map";
 import { openDb } from "~/server/db";
-import { sites, tariffSchedule } from "~/server/db/schema";
+import { siteEvents, sites, tariffSchedule } from "~/server/db/schema";
 import { syncSite } from "./site-sync";
 
 const EXT = "ext-1";
@@ -165,5 +165,104 @@ describe("syncSite", () => {
   it("stores source.id as the site source", async () => {
     await syncSite(db, fake(fixtureInfo, "replay").source, EXT);
     expect(rows()[0]!.source).toBe("replay");
+  });
+
+  describe("site facts and change events", () => {
+    const events = () =>
+      db
+        .select()
+        .from(siteEvents)
+        .all()
+        .sort((a, b) => a.kind.localeCompare(b.kind));
+    const facts = {
+      batteryCount: 2,
+      batteryModel: "Powerwall 3",
+      maxPowerW: 11520,
+      firmware: "26.26.11",
+      installedOn: "2024-03-09",
+    };
+    const base: SiteInfo = { ...fixtureInfo, ...facts };
+
+    it("stores the 5 facts on the site row", async () => {
+      await syncSite(db, fake(base).source, EXT);
+      expect(rows()[0]).toMatchObject(facts);
+    });
+
+    it("the first sync logs no event", async () => {
+      await syncSite(db, fake(base).source, EXT);
+      expect(events()).toEqual([]);
+    });
+
+    it("a re-sync with the same values logs no event", async () => {
+      await syncSite(db, fake(base).source, EXT);
+      await syncSite(db, fake(base).source, EXT);
+      expect(events()).toEqual([]);
+    });
+
+    it("a firmware change adds one event, with the new value", async () => {
+      const id = await syncSite(db, fake(base).source, EXT);
+      const before = Date.now();
+      await syncSite(db, fake({ ...base, firmware: "26.30.1" }).source, EXT);
+      const [e, ...rest] = events();
+      expect(rest).toEqual([]);
+      expect(e).toMatchObject({
+        siteId: id,
+        kind: "firmware",
+        text: "Firmware 26.30.1",
+      });
+      expect(e!.at.getTime()).toBeGreaterThanOrEqual(before);
+      expect(e!.at.getTime()).toBeLessThanOrEqual(Date.now());
+      expect(rows()[0]!.firmware).toBe("26.30.1");
+    });
+
+    it("a battery-count change adds one event, with the new value", async () => {
+      const id = await syncSite(db, fake(base).source, EXT);
+      await syncSite(db, fake({ ...base, batteryCount: 3 }).source, EXT);
+      const [e, ...rest] = events();
+      expect(rest).toEqual([]);
+      expect(e).toMatchObject({
+        siteId: id,
+        kind: "batteries",
+        text: "Batteries: 3",
+      });
+      expect(rows()[0]!.batteryCount).toBe(3);
+    });
+
+    it("syncing the changed value again adds nothing more", async () => {
+      await syncSite(db, fake(base).source, EXT);
+      const next = { ...base, firmware: "26.30.1", batteryCount: 3 };
+      await syncSite(db, fake(next).source, EXT);
+      await syncSite(db, fake(next).source, EXT);
+      expect(events().map((e) => e.kind)).toEqual(["batteries", "firmware"]);
+    });
+
+    it("a null from Tesla never clears a stored fact and logs nothing", async () => {
+      await syncSite(db, fake(base).source, EXT);
+      const nulls: SiteInfo = {
+        ...base,
+        batteryCount: null,
+        batteryModel: null,
+        maxPowerW: null,
+        firmware: null,
+        installedOn: null,
+      };
+      await syncSite(db, fake(nulls).source, EXT);
+      expect(rows()[0]).toMatchObject(facts);
+      expect(events()).toEqual([]);
+      // a later real value is still compared with the kept one
+      await syncSite(db, fake(base).source, EXT);
+      expect(events()).toEqual([]);
+    });
+
+    it("a fact first seen after a null start logs nothing (no stored value)", async () => {
+      await syncSite(
+        db,
+        fake({ ...base, firmware: null, batteryCount: null }).source,
+        EXT,
+      );
+      await syncSite(db, fake(base).source, EXT);
+      expect(events()).toEqual([]);
+      expect(rows()[0]).toMatchObject(facts);
+    });
   });
 });
