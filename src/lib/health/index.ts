@@ -37,7 +37,6 @@ export function equipmentHealth(i: {
   const obsAt = new Map(observed.map((o) => [o.hour, o]));
   const dateOf = new Map<number, string>();
   for (const h of hours) dateOf.set(h.start, localDate(h.start, tz));
-  const hoursIn = hours.filter((h) => dateOf.get(h.start)!.startsWith(month));
 
   // solarClearDay
   const clearRatios = (mon: string) =>
@@ -52,15 +51,16 @@ export function equipmentHealth(i: {
     });
   const cur = clearRatios(month);
   const base = clearRatios(baselineMonth);
-  const solarClearDay =
-    cur.length < 20 || base.length < 20
+  const baseMedian = base.length < 20 ? 0 : median(base);
+  const pctOfBaseline =
+    cur.length < 20 || baseMedian === 0
       ? null
-      : {
-          month,
-          baselineMonth,
-          pctOfBaseline: Math.round((100 * median(cur)) / median(base)),
-          clearHours: cur.length,
-        };
+      : Math.round((100 * median(cur)) / baseMedian);
+  // checkSnapshot allows 0-200; above that the comparison month is bad data.
+  const solarClearDay =
+    pctOfBaseline === null || pctOfBaseline > 200
+      ? null
+      : { month, baselineMonth, pctOfBaseline, clearHours: cur.length };
 
   // sunnyDayMiss
   const today = localDate(now, tz);
@@ -87,7 +87,9 @@ export function equipmentHealth(i: {
       const o = obsAt.get(h.start);
       if (!o || o.ghiWm2 < 50 || dateOf.get(h.start) === day) continue;
       const lh = localParts(h.start, tz).hour;
-      byHour.set(lh, [...(byHour.get(lh) ?? []), h.solarWh / o.ghiWm2]);
+      const rs = byHour.get(lh) ?? [];
+      rs.push(h.solarWh / o.ghiWm2);
+      byHour.set(lh, rs);
     }
     const expected = sum(
       dayRows.map((h) => {
@@ -104,8 +106,7 @@ export function equipmentHealth(i: {
       };
   }
 
-  // batteryCapacity: discharge only. Discharge Wh is metered AC out, the same basis as the AC
-  // nameplate; charge Wh includes conversion losses and would overstate capacity.
+  // batteryCapacity: discharge only (metered AC out, same basis as the AC nameplate).
   const samples = [...soc].sort((a, b) => a.ts - b.ts);
   const estimates: number[] = [];
   const closeRun = (run: typeof samples) => {
@@ -143,17 +144,17 @@ export function equipmentHealth(i: {
         };
 
   // efficiency
+  const hoursIn = hours.filter((h) => dateOf.get(h.start)!.startsWith(month));
   const charge = sum(hoursIn.map((h) => h.batteryChargeWh));
   const days = new Set(hoursIn.map((h) => dateOf.get(h.start))).size;
-  const efficiency =
+  const effPct =
     days < 10 || charge === 0
       ? null
-      : {
-          month,
-          pct: Math.round(
-            (100 * sum(hoursIn.map((h) => h.batteryDischargeWh))) / charge,
-          ),
-        };
+      : Math.round(
+          (100 * sum(hoursIn.map((h) => h.batteryDischargeWh))) / charge,
+        );
+  const efficiency =
+    effPct === null || effPct > 200 ? null : { month, pct: effPct };
 
   return { solarClearDay, sunnyDayMiss, batteryCapacity, efficiency };
 }
