@@ -337,20 +337,31 @@ describe("weatherGaps", () => {
     ]);
   });
 
-  it("excludes today and days older than 92 days, includes today-92", () => {
+  it("excludes today but has no age floor: days older than 92 days are returned (B038)", () => {
     const h = hist();
     for (const d of [
       today,
       addDays(today, -1),
       addDays(today, -92),
       addDays(today, -93),
+      addDays(today, -400),
     ]) {
       h.putIntervals([iv(localMidnight(d, TZ) + H)]);
     }
     expect(h.weatherGaps(today)).toEqual([
+      addDays(today, -400),
+      addDays(today, -93),
       addDays(today, -92),
       addDays(today, -1),
     ]);
+  });
+
+  it("an old day with full weather is not a gap", () => {
+    const h = hist();
+    const old = addDays(today, -200);
+    h.putIntervals([iv(localMidnight(old, TZ) + H)]);
+    seedWeather(h, old, 15);
+    expect(h.weatherGaps(today)).toEqual([]);
   });
 
   it("uses the day's hour count on DST days", () => {

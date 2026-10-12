@@ -685,13 +685,13 @@ describe("B017 fillWeatherGaps", () => {
     ]);
   });
 
-  it("window is 92 days: day 92 back is filled, day 93 and 100 back are ignored", async () => {
+  it("day 92 back still goes through the forecast API (past_days 92), not the archive", async () => {
     const site = addSite(LL);
     seedEnergy(site.id, addDays("2026-10-05", -92));
-    seedEnergy(site.id, addDays("2026-10-05", -93));
-    seedEnergy(site.id, addDays("2026-10-05", -100));
     const f = meteo(NOW);
     await run(f, NOW, site);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(urlOf(f).hostname).toBe("api.open-meteo.com");
     expect(urlOf(f).searchParams.get("past_days")).toBe("92");
     expect(obsHours(site.id)).toEqual(dayHours(addDays("2026-10-05", -92)));
   });
@@ -780,6 +780,140 @@ describe("B017 fillWeatherGaps", () => {
     expect(obsHours(site.id)).toEqual(dayHours("2026-10-02"));
     await run(f, now, site);
     expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  // B038: gaps older than 92 days come from ONE archive request.
+  describe("B038 archive for old gaps", () => {
+    /** Fake router: forecast host -> meteo(); archive host -> UTC hourly start_date 00:00Z .. end_date 23:00Z, no precipitation_probability. */
+    function router(now: number) {
+      const forecast = meteo(now);
+      const archive: string[] = [];
+      const fn = vi.fn((url: string) => {
+        const u = new URL(url);
+        if (u.hostname !== "archive-api.open-meteo.com") return forecast(url);
+        archive.push(url);
+        const t0 = Date.parse(`${u.searchParams.get("start_date")}T00:00:00Z`);
+        const t1 = Date.parse(`${u.searchParams.get("end_date")}T23:00:00Z`);
+        const time = Array.from(
+          { length: Math.round((t1 - t0) / HOUR) + 1 },
+          (_, i) => (t0 + i * HOUR) / 1000,
+        );
+        const col = (v: number) => time.map(() => v);
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              hourly: {
+                time,
+                temperature_2m: col(7),
+                cloud_cover: col(40),
+                shortwave_radiation: col(90),
+                precipitation: col(0),
+              },
+            }),
+          ),
+        );
+      });
+      return { fn, forecast, archive };
+    }
+    const asF = (r: ReturnType<typeof router>) =>
+      r.fn as unknown as typeof fetch;
+    const OLD1 = addDays("2026-10-05", -100);
+    const OLD2 = addDays("2026-10-05", -93);
+    const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+    it("only old gaps: one archive request, no forecast request, rows for the gap days only", async () => {
+      const site = addSite(LL);
+      seedEnergy(site.id, OLD1);
+      seedEnergy(site.id, OLD2);
+      const r = router(NOW);
+      await fillWeatherGaps(mkDeps(fakeSource().source, NOW, asF(r)), site);
+      expect(r.fn).toHaveBeenCalledTimes(1);
+      expect(r.forecast).not.toHaveBeenCalled();
+      const p = new URL(r.archive[0]!).searchParams;
+      expect(p.get("hourly")).toBe(
+        "temperature_2m,cloud_cover,shortwave_radiation,precipitation",
+      );
+      expect(p.get("timezone")).toBe("UTC");
+      expect(p.get("timeformat")).toBe("unixtime");
+      expect(p.get("latitude")).toBe("34.05");
+      expect(p.get("longitude")).toBe("-118.24");
+      expect(p.get("start_date")! <= utcDay(localMidnight(OLD1, TZ))).toBe(
+        true,
+      );
+      expect(
+        p.get("end_date")! >=
+          utcDay(localMidnight(addDays(OLD2, 1), TZ) - HOUR),
+      ).toBe(true);
+      // the days between the two gaps have no energy, so they are not written
+      expect(obsHours(site.id)).toEqual([...dayHours(OLD1), ...dayHours(OLD2)]);
+      expect(
+        db
+          .select()
+          .from(schema.weatherObserved)
+          .all()
+          .every((x) => x.tempC === 7 && x.precipMm === 0),
+      ).toBe(true);
+    });
+
+    it("old and recent gaps: one archive request for the old, the forecast path for the recent", async () => {
+      const site = addSite(LL);
+      seedEnergy(site.id, OLD1);
+      seedEnergy(site.id, "2026-10-02");
+      const r = router(NOW);
+      await fillWeatherGaps(mkDeps(fakeSource().source, NOW, asF(r)), site);
+      expect(r.archive).toHaveLength(1);
+      expect(r.forecast).toHaveBeenCalledTimes(1);
+      const fp = new URL(String(r.forecast.mock.calls[0]![0])).searchParams;
+      expect(fp.get("past_days")).toBe("3");
+      // the archive range stops before the recent gap
+      expect(
+        new URL(r.archive[0]!).searchParams.get("end_date")! < "2026-10-02",
+      ).toBe(true);
+      expect(obsHours(site.id)).toEqual([
+        ...dayHours(OLD1),
+        ...dayHours("2026-10-02"),
+      ]);
+    });
+
+    it("a single old gap day is filled by the archive", async () => {
+      const site = addSite(LL);
+      seedEnergy(site.id, OLD2);
+      const r = router(NOW);
+      await fillWeatherGaps(mkDeps(fakeSource().source, NOW, asF(r)), site);
+      expect(r.archive).toHaveLength(1);
+      expect(obsHours(site.id)).toEqual(dayHours(OLD2));
+    });
+
+    it("is idempotent: a second run makes no request", async () => {
+      const site = addSite(LL);
+      seedEnergy(site.id, OLD1);
+      const r = router(NOW);
+      await fillWeatherGaps(mkDeps(fakeSource().source, NOW, asF(r)), site);
+      const before = db.select().from(schema.weatherObserved).all();
+      await fillWeatherGaps(mkDeps(fakeSource().source, NOW, asF(r)), site);
+      expect(r.fn).toHaveBeenCalledTimes(1);
+      expect(db.select().from(schema.weatherObserved).all()).toEqual(before);
+    });
+
+    it("an archive failure throws and writes nothing", async () => {
+      const site = addSite(LL);
+      seedEnergy(site.id, OLD1);
+      const f = vi.fn(() =>
+        Promise.resolve(new Response("x", { status: 500 })),
+      ) as unknown as typeof fetch;
+      await expect(
+        fillWeatherGaps(mkDeps(fakeSource().source, NOW, f), site),
+      ).rejects.toThrow("open-meteo: 500");
+      expect(obsHours(site.id)).toHaveLength(0);
+    });
+
+    it("no lat/lon: no archive request either", async () => {
+      const site = addSite();
+      seedEnergy(site.id, OLD1);
+      const r = router(NOW);
+      await fillWeatherGaps(mkDeps(fakeSource().source, NOW, asF(r)), site);
+      expect(r.fn).not.toHaveBeenCalled();
+    });
   });
 });
 
