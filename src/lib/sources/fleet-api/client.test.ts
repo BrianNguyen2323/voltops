@@ -10,7 +10,7 @@ process.env.VOLTOPS_SECRET_KEY = "ab".repeat(32);
 import { AuthExpired, RateLimited, SourceUnavailable } from "~/lib/core/types";
 import { decrypt, encrypt } from "~/lib/crypto";
 import { openDb } from "~/server/db";
-import { credentials, sites } from "~/server/db/schema";
+import { credentials, fleetRequests, sites } from "~/server/db/schema";
 import { createFleetClient } from "./client";
 
 const BASE = "https://fleet.test";
@@ -595,5 +595,89 @@ describe("site info (B030)", () => {
       expect(new Headers(init!.headers).get("authorization")).toBe(
         "Bearer primed-at",
       );
+  });
+});
+
+// B038 request counter: fleet_requests[UTC month].total += 1 per response with status < 500.
+describe("request counter (B038)", () => {
+  const month = (m: string) =>
+    db.select().from(fleetRequests).where(eq(fleetRequests.month, m)).get();
+  const isToken = (u: string | URL) =>
+    String(u).startsWith("https://auth.tesla.com/");
+
+  it("counts a 200", async () => {
+    seed();
+    await mk().getLiveStatus(SITE);
+    expect(month("2026-10")?.total).toBe(1);
+  });
+
+  it("counts a 404 (Tesla bills it), even though the call throws", async () => {
+    seed();
+    await expect(mk().getSiteInfo(SITE)).rejects.toBeInstanceOf(
+      SourceUnavailable,
+    );
+    expect(month("2026-10")?.total).toBe(1);
+  });
+
+  it("does not count a 500", async () => {
+    seed();
+    fetchMock.mockImplementation((u) =>
+      Promise.resolve(isToken(u) ? tok() : json({}, 500)),
+    );
+    await expect(mk().getLiveStatus(SITE)).rejects.toBeInstanceOf(
+      SourceUnavailable,
+    );
+    expect(month("2026-10")?.total ?? 0).toBe(0);
+  });
+
+  it("does not count a network failure", async () => {
+    seed();
+    fetchMock.mockImplementation((u) =>
+      isToken(u)
+        ? Promise.resolve(tok())
+        : Promise.reject(new TypeError("fetch failed")),
+    );
+    await expect(mk().getLiveStatus(SITE)).rejects.toBeInstanceOf(
+      SourceUnavailable,
+    );
+    expect(month("2026-10")?.total ?? 0).toBe(0);
+  });
+
+  it("does not count the token endpoint: one refresh + one API call = 1", async () => {
+    seed();
+    await mk().getLiveStatus(SITE);
+    expect(tokenCalls()).toHaveLength(1);
+    expect(month("2026-10")?.total).toBe(1);
+  });
+
+  it("accumulates within a month and leaves backfill alone", async () => {
+    seed();
+    const c = mk();
+    await c.getLiveStatus(SITE);
+    await c.getLiveStatus(SITE);
+    await c.getHistory(SITE, {
+      start_date: "2026-10-04T00:00:00-07:00",
+      end_date: "2026-10-04T23:59:59-07:00",
+      time_zone: "America/Los_Angeles",
+    });
+    expect(month("2026-10")).toMatchObject({ total: 3, backfill: 0 });
+  });
+
+  it("a new UTC month starts a new row", async () => {
+    seed();
+    const c = mk();
+    now = Date.parse("2026-10-31T23:59:00Z");
+    await c.getLiveStatus(SITE);
+    now = Date.parse("2026-11-01T00:01:00Z");
+    await c.getLiveStatus(SITE);
+    expect(month("2026-10")?.total).toBe(1);
+    expect(month("2026-11")?.total).toBe(1);
+  });
+
+  it("two clients on one DB share the same row", async () => {
+    seed();
+    await mk().getLiveStatus(SITE);
+    await mk().getLiveStatus(SITE);
+    expect(month("2026-10")?.total).toBe(2);
   });
 });
