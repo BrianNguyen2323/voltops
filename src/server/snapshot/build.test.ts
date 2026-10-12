@@ -134,6 +134,14 @@ function input(now: number, o: Opts = {}): BuildInput {
       ? hourly.map((h) => ({ hour: h.start, ghiWm2: h.solarWh / 5 }))
       : [],
     forecast,
+    equipmentHealth: {
+      solarClearDay: null,
+      sunnyDayMiss: null,
+      batteryCapacity: null,
+      efficiency: null,
+      backfill: { state: "off", daysDone: 0, daysTotal: 0 },
+    },
+    backfillMaxPerMonth: 2500,
     peakEstimate: o.peakEstimate ?? {
       historyDays: 0,
       today: null,
@@ -504,5 +512,49 @@ describe("buildSnapshot", () => {
       "Live reading unavailable: showing the last stored reading",
       "No tariff from Tesla",
     ]);
+  });
+});
+
+// B042 assumption: BuildInput gains `equipmentHealth` (the full block, backfill included) and
+// `backfillMaxPerMonth`; buildSnapshot passes the block through and sets
+// health.estRequestsPerMonth = 1440 + min(daysTotal - daysDone, max) only while running.
+describe("buildSnapshot equipment health", () => {
+  const eh = (
+    state: "off" | "running" | "paused-budget" | "done",
+    daysDone: number,
+    daysTotal: number,
+  ) => ({
+    solarClearDay: {
+      month: "2026-04",
+      baselineMonth: "2025-04",
+      pctOfBaseline: 100,
+      clearHours: 270,
+    },
+    sunnyDayMiss: null,
+    batteryCapacity: { month: "2026-04", estimatedWh: 15000, swings: 30 },
+    efficiency: { month: "2026-04", pct: 90 },
+    backfill: { state, daysDone, daysTotal },
+  });
+  const build = (health: ReturnType<typeof eh>, max: number) =>
+    buildSnapshot({
+      ...input(NORMAL),
+      equipmentHealth: health,
+      backfillMaxPerMonth: max,
+    });
+
+  it("passes the equipment health block through", () => {
+    const s = build(eh("running", 5, 10), 3);
+    expect(s.equipmentHealth).toEqual(eh("running", 5, 10));
+    expect(checkSnapshot(s)).toEqual([]);
+  });
+
+  it.each([
+    ["running, remaining below MAX", eh("running", 5, 10), 2500, 1445],
+    ["running, remaining above MAX", eh("running", 5, 10), 3, 1443],
+    ["paused-budget", eh("paused-budget", 5, 10), 3, 1440],
+    ["done", eh("done", 10, 10), 3, 1440],
+    ["off", eh("off", 0, 0), 0, 1440],
+  ])("estRequestsPerMonth, %s", (_n, health, max, want) => {
+    expect(build(health, max).health.estRequestsPerMonth).toBe(want);
   });
 });

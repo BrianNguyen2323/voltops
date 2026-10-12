@@ -52,6 +52,10 @@ export type BuildInput = {
   hourly: HourEnergy[];
   samples: { ts: number; socPct: number }[];
   observed: { hour: number; ghiWm2: number }[];
+  /** From `equipmentHealth()` + `backfillState()`; passed through. */
+  equipmentHealth: DashboardSnapshot["equipmentHealth"];
+  /** TESLA_BACKFILL_MAX_PER_MONTH, for the request estimate. */
+  backfillMaxPerMonth: number;
   /** Latest-issued row per target hour. */
   forecast: {
     hour: number;
@@ -254,7 +258,15 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
     accuracy: [],
     health: {
       lastPollAt: new Date(i.lastSampleTs ?? updatedMs).toISOString(),
-      estRequestsPerMonth: 1440,
+      estRequestsPerMonth:
+        1440 +
+        (i.equipmentHealth.backfill.state === "running"
+          ? Math.min(
+              i.equipmentHealth.backfill.daysTotal -
+                i.equipmentHealth.backfill.daysDone,
+              i.backfillMaxPerMonth,
+            )
+          : 0),
       warnings,
     },
     weatherTomorrow,
@@ -285,12 +297,6 @@ export function buildSnapshot(i: BuildInput): DashboardSnapshot {
             })),
           }
         : null,
-    equipmentHealth: {
-      solarClearDay: null,
-      sunnyDayMiss: null,
-      batteryCapacity: null,
-      efficiency: null,
-      backfill: { state: "off", daysDone: 0, daysTotal: 0 },
-    },
+    equipmentHealth: i.equipmentHealth,
   };
 }
