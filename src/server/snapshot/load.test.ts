@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gte } from "drizzle-orm";
+import { eq, gte } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource, LiveSample } from "~/lib/core/types";
@@ -702,5 +702,114 @@ describe("firstSiteId", () => {
         })
         .run();
     expect(mod.firstSiteId(db)).toBe(1);
+  });
+});
+
+describe("loadSnapshot system", () => {
+  const facts = {
+    batteryCount: 2,
+    batteryModel: "Powerwall 3",
+    maxPowerW: 11520,
+    firmware: "26.26.11",
+    installedOn: "2024-03-09",
+  };
+  afterEach(() => {
+    delete process.env.SITE_PANEL_COUNT;
+    delete process.env.SITE_PANEL_WATTS;
+  });
+  const setFacts = (siteId: number) =>
+    db.update(schema.sites).set(facts).where(eq(schema.sites.id, siteId)).run();
+  const ev = (siteId: number, at: number, kind: string, text: string) =>
+    db
+      .insert(schema.siteEvents)
+      .values({ siteId, at: new Date(at), kind, text })
+      .run();
+
+  it("is null before the Site has its facts", async () => {
+    const siteId = seed({ now: NORMAL });
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.system).toBeNull();
+    expect(checkSnapshot(s)).toEqual([]);
+  });
+
+  it("is filled once the facts exist", async () => {
+    process.env.SITE_PANEL_COUNT = "24";
+    process.env.SITE_PANEL_WATTS = "410";
+    const siteId = seed({ now: NORMAL });
+    setFacts(siteId);
+    db.update(schema.tariffSchedule)
+      .set({ utility: "Test Utility", name: "Test Plan" })
+      .where(eq(schema.tariffSchedule.siteId, siteId))
+      .run();
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    const best = Math.max(
+      ...Array.from({ length: 24 }, (_, h) => hourRow(h * HOUR).solarWh),
+    );
+    expect(s.system).toMatchObject({
+      batteries: {
+        count: 2,
+        model: "Powerwall 3",
+        capacityWh: 13500,
+        maxPowerW: 11520,
+        backupReservePct: 20,
+      },
+      solar: { panelCount: 24, panelWatts: 410, bestHourWh: best },
+      plan: { utility: "Test Utility", name: "Test Plan" },
+      firmware: "26.26.11",
+      installedOn: "2024-03-09",
+      changes: [],
+    });
+    const at = s.system!.solar.bestHourAt!;
+    expect(new Date(at).toISOString()).toBe(at);
+    expect(hourRow(Date.parse(at)).solarWh).toBe(best);
+    expect(checkSnapshot(s)).toEqual([]);
+  });
+
+  it("panel env unset or empty gives null panel fields; no history gives null best hour", async () => {
+    process.env.SITE_PANEL_COUNT = "";
+    const siteId = seed({ now: NORMAL, intervals: false });
+    setFacts(siteId);
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.system?.solar).toEqual({
+      panelCount: null,
+      panelWatts: null,
+      bestHourWh: null,
+      bestHourAt: null,
+    });
+    expect(checkSnapshot(s)).toEqual([]);
+  });
+
+  it("plan is null/null with no tariff row", async () => {
+    const siteId = seed({ now: NORMAL, tariff: false });
+    setFacts(siteId);
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.system?.plan).toEqual({ utility: null, name: null });
+  });
+
+  it("changes: newest 5 of this Site's events, newest first, at as ISO UTC", async () => {
+    const siteId = seed({ now: NORMAL });
+    setFacts(siteId);
+    const other = db
+      .insert(schema.sites)
+      .values({ source: "fleet-api", externalId: "EXT-2" })
+      .returning({ id: schema.sites.id })
+      .all()[0]!.id;
+    const base = NORMAL - 40 * 24 * HOUR;
+    for (let i = 0; i < 7; i++)
+      ev(
+        siteId,
+        base + i * 24 * HOUR,
+        i % 2 ? "batteries" : "firmware",
+        `e${i}`,
+      );
+    ev(other, NORMAL, "firmware", "other site");
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.system?.changes).toEqual(
+      [6, 5, 4, 3, 2].map((i) => ({
+        at: new Date(base + i * 24 * HOUR).toISOString(),
+        text: `e${i}`,
+      })),
+    );
+    expect(checkSnapshot(s)).toEqual([]);
   });
 });
