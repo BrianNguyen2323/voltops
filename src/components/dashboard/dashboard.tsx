@@ -53,7 +53,7 @@ const CHIP: Record<HealthStatus, [string, string]> = {
   ok: ["OK", "bg-secondary text-secondary-foreground"],
   watch: ["Watch", "bg-solar/15 text-solar"],
   check: ["Check", "bg-destructive/10 text-destructive"],
-  learning: ["Learning", "border-border text-foreground"],
+  learning: ["Learning", "bg-emerald-800 text-foreground"],
 };
 const Chip = ({ status }: { status: HealthStatus }) => (
   <Badge className={CHIP[status][1]}>{CHIP[status][0]}</Badge>
@@ -537,7 +537,10 @@ export function Dashboard({
                     </p>
                   )}
                   <div className="text-sm">
-                    <Chip status={capStatus} />
+                    <div className="flex items-center gap-2">
+                      <p>Battery health:</p>
+                      <Chip status={capStatus} />
+                    </div>
                     {eq.batteryCapacity ? (
                       <p>
                         {`Est. capacity ${formatKwh(eq.batteryCapacity.estimatedWh)} (${Math.round((100 * eq.batteryCapacity.estimatedWh) / sys.batteries.capacityWh)}% of ${formatKwh(sys.batteries.capacityWh)})`}
@@ -587,7 +590,10 @@ export function Dashboard({
                     </p>
                   )}
                   <div className="text-sm">
-                    <Chip status={solStatus} />
+                    <div className="flex items-center gap-2">
+                      <p>Solar health:</p>
+                      <Chip status={solStatus} />
+                    </div>
                     {eq.solarClearDay ? (
                       <p>{`Clear-day output ${eq.solarClearDay.pctOfBaseline}% of ${monthLabel(eq.solarClearDay.baselineMonth)}`}</p>
                     ) : (

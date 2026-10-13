@@ -3,7 +3,7 @@ import { server } from "~/env.schema.js";
 import { eq } from "drizzle-orm";
 import type { DataSource } from "~/lib/core/types";
 import { addDays, localDate, localMidnight, localParts } from "~/lib/time";
-import { fetchWeather } from "~/lib/weather/open-meteo";
+import { fetchArchive, fetchWeather } from "~/lib/weather/open-meteo";
 import type { openDb } from "~/server/db";
 import * as s from "~/server/db/schema";
 import { energyHistory } from "~/server/history";
@@ -118,33 +118,59 @@ export async function fillWeatherGaps({ db, fetch, now }: Deps, site: Site) {
   const tz = site.timezone ?? "UTC";
   const today = localDate(now, tz);
   const history = energyHistory(db, site);
+  // Open-Meteo runs with timezone=UTC, so past_days counts UTC days back
+  const age = (d: string) =>
+    Math.floor(now / DAY_MS) - Math.floor(localMidnight(d, tz) / DAY_MS);
   const gaps = history.weatherGaps(today);
-  if (!gaps.length) return;
-  const w = await fetchWeather({
-    fetch,
-    lat: site.latitude,
-    lon: site.longitude,
-    now,
-    // Open-Meteo runs with timezone=UTC, so past_days counts UTC days back
-    pastDays: Math.min(
-      GAP_DAYS,
-      Math.max(
-        1,
-        Math.floor(now / DAY_MS) -
-          Math.floor(localMidnight(gaps[0]!, tz) / DAY_MS),
-      ),
-    ),
-    forecastDays: 1,
-  });
-  const gapSet = new Set(gaps);
-  history.putObserved(
-    w.observed.filter((r) => gapSet.has(localDate(r.hour, tz))),
-  );
+  const recent = gaps.filter((d) => age(d) <= GAP_DAYS);
+  const old = gaps.filter((d) => age(d) > GAP_DAYS);
+  const keep = (set: string[]) => {
+    const g = new Set(set);
+    return (r: { hour: number }) => g.has(localDate(r.hour, tz));
+  };
+  if (recent.length) {
+    const w = await fetchWeather({
+      fetch,
+      lat: site.latitude,
+      lon: site.longitude,
+      now,
+      pastDays: Math.max(1, age(recent[0]!)),
+      forecastDays: 1,
+    });
+    history.putObserved(w.observed.filter(keep(recent)));
+  }
+  if (old.length) {
+    // one request: the archive end must include the hour after the last gap day (GHI shift in mapForecast)
+    const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+    const w = await fetchArchive({
+      fetch,
+      lat: site.latitude,
+      lon: site.longitude,
+      now,
+      start: day(localMidnight(old[0]!, tz)),
+      end: day(localMidnight(addDays(old.at(-1)!, 1), tz)),
+    });
+    history.putObserved(w.observed.filter(keep(old)));
+  }
 }
 
 /** "" counts as unset; "0" is a real 0. */
-export function parseSiteSettings(env: Record<string, string | undefined>) {
-  const pick = (k: string) => (env[k] === "" ? undefined : env[k]);
+type Env = Record<string, string | undefined>;
+const pick = (env: Env, k: string) => (env[k] === "" ? undefined : env[k]);
+
+export function parseBackfillLimits(env: Env) {
+  return z
+    .object({
+      TESLA_BACKFILL_MAX_PER_MONTH: server.TESLA_BACKFILL_MAX_PER_MONTH,
+      TESLA_MONTHLY_REQUEST_CAP: server.TESLA_MONTHLY_REQUEST_CAP,
+    })
+    .parse({
+      TESLA_BACKFILL_MAX_PER_MONTH: pick(env, "TESLA_BACKFILL_MAX_PER_MONTH"),
+      TESLA_MONTHLY_REQUEST_CAP: pick(env, "TESLA_MONTHLY_REQUEST_CAP"),
+    });
+}
+
+export function parseSiteSettings(env: Env) {
   return z
     .object({
       SITE_LATITUDE: server.SITE_LATITUDE,
@@ -152,9 +178,9 @@ export function parseSiteSettings(env: Record<string, string | undefined>) {
       TEMPERATURE_UNIT: server.TEMPERATURE_UNIT,
     })
     .parse({
-      SITE_LATITUDE: pick("SITE_LATITUDE"),
-      SITE_LONGITUDE: pick("SITE_LONGITUDE"),
-      TEMPERATURE_UNIT: pick("TEMPERATURE_UNIT"),
+      SITE_LATITUDE: pick(env, "SITE_LATITUDE"),
+      SITE_LONGITUDE: pick(env, "SITE_LONGITUDE"),
+      TEMPERATURE_UNIT: pick(env, "TEMPERATURE_UNIT"),
     });
 }
 
@@ -190,7 +216,7 @@ export function prepareTick(
 }
 
 /** Never logs externalId, tokens or bodies: only job, internal site id, error name and message. */
-async function guarded(job: string, site: Site, f: () => Promise<void>) {
+export async function guarded(job: string, site: Site, f: () => Promise<void>) {
   try {
     await f();
   } catch (e) {

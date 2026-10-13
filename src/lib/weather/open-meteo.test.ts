@@ -88,6 +88,22 @@ describe("mapForecast", () => {
     expect(observed[0]).toMatchObject({ precipMm: 0, precipProbPct: 0 });
   });
 
+  // B038: the archive response has no precipitation_probability.
+  it("accepts a response without precipitation_probability (archive shape): probability 0", () => {
+    const body: { hourly: Record<string, unknown> } = small();
+    delete body.hourly.precipitation_probability;
+    const { observed } = mapForecast(body, 10 * HOUR);
+    expect(observed).toHaveLength(3);
+    expect(observed[1]).toEqual({
+      hour: HOUR,
+      tempC: 11,
+      cloudPct: 30,
+      ghiWm2: 300,
+      precipMm: 0.5,
+      precipProbPct: 0,
+    });
+  });
+
   it("drops rows with null temp, cloud, or ghi", () => {
     const { observed } = mapForecast(
       small({ temperature_2m: [10, null, 12, 13] }),

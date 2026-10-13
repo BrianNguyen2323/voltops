@@ -714,7 +714,9 @@ describe("checkSnapshot: system and equipment health rules (Rev 8)", () => {
   it("reports negative Wh", () =>
     bad((s) => (sys(s).batteries.capacityWh = -1)));
   it("reports efficiency pct 250", () =>
-    bad((s) => (s.equipmentHealth.efficiency = { month: "2026-06", pct: 250 })));
+    bad(
+      (s) => (s.equipmentHealth.efficiency = { month: "2026-06", pct: 250 }),
+    ));
   it("reports pctOfBaseline 250", () =>
     bad(
       (s) =>

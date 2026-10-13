@@ -1,12 +1,15 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gte } from "drizzle-orm";
+import { eq, gte } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource, LiveSample } from "~/lib/core/types";
 import { checkSnapshot, peakEstimateWh, reservePlan } from "~/lib/dashboard";
-import { addDays, localDate, localMidnight } from "~/lib/time";
+import { equipmentHealth } from "~/lib/health";
+import { addDays, localDate, localMidnight, localParts } from "~/lib/time";
+import type { HourEnergy, ObservedHour } from "~/server/history";
+import { seedReplay } from "~/server/replay/seed";
 import { openDb } from "~/server/db";
 import * as schema from "~/server/db/schema";
 import type * as LoadMod from "./load";
@@ -702,5 +705,324 @@ describe("firstSiteId", () => {
         })
         .run();
     expect(mod.firstSiteId(db)).toBe(1);
+  });
+});
+
+describe("loadSnapshot system", () => {
+  const facts = {
+    batteryCount: 2,
+    batteryModel: "Powerwall 3",
+    maxPowerW: 11520,
+    firmware: "26.26.11",
+    installedOn: "2024-03-09",
+  };
+  afterEach(() => {
+    delete process.env.SITE_PANEL_COUNT;
+    delete process.env.SITE_PANEL_WATTS;
+  });
+  const setFacts = (siteId: number) =>
+    db.update(schema.sites).set(facts).where(eq(schema.sites.id, siteId)).run();
+  const ev = (siteId: number, at: number, kind: string, text: string) =>
+    db
+      .insert(schema.siteEvents)
+      .values({ siteId, at: new Date(at), kind, text })
+      .run();
+
+  it("is null before the Site has its facts", async () => {
+    const siteId = seed({ now: NORMAL });
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.system).toBeNull();
+    expect(checkSnapshot(s)).toEqual([]);
+  });
+
+  it("is filled once the facts exist", async () => {
+    process.env.SITE_PANEL_COUNT = "24";
+    process.env.SITE_PANEL_WATTS = "410";
+    const siteId = seed({ now: NORMAL });
+    setFacts(siteId);
+    db.update(schema.tariffSchedule)
+      .set({ utility: "Test Utility", name: "Test Plan" })
+      .where(eq(schema.tariffSchedule.siteId, siteId))
+      .run();
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    const best = Math.max(
+      ...Array.from({ length: 24 }, (_, h) => hourRow(h * HOUR).solarWh),
+    );
+    expect(s.system).toMatchObject({
+      batteries: {
+        count: 2,
+        model: "Powerwall 3",
+        capacityWh: 13500,
+        maxPowerW: 11520,
+        backupReservePct: 20,
+      },
+      solar: { panelCount: 24, panelWatts: 410, bestHourWh: best },
+      plan: { utility: "Test Utility", name: "Test Plan" },
+      firmware: "26.26.11",
+      installedOn: "2024-03-09",
+      changes: [],
+    });
+    const at = s.system!.solar.bestHourAt!;
+    expect(new Date(at).toISOString()).toBe(at);
+    expect(hourRow(Date.parse(at)).solarWh).toBe(best);
+    expect(checkSnapshot(s)).toEqual([]);
+  });
+
+  it("panel env unset or empty gives null panel fields; no history gives null best hour", async () => {
+    process.env.SITE_PANEL_COUNT = "";
+    const siteId = seed({ now: NORMAL, intervals: false });
+    setFacts(siteId);
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.system?.solar).toEqual({
+      panelCount: null,
+      panelWatts: null,
+      bestHourWh: null,
+      bestHourAt: null,
+    });
+    expect(checkSnapshot(s)).toEqual([]);
+  });
+
+  it("plan is null/null with no tariff row", async () => {
+    const siteId = seed({ now: NORMAL, tariff: false });
+    setFacts(siteId);
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.system?.plan).toEqual({ utility: null, name: null });
+  });
+
+  it("changes: newest 5 of this Site's events, newest first, at as ISO UTC", async () => {
+    const siteId = seed({ now: NORMAL });
+    setFacts(siteId);
+    const other = db
+      .insert(schema.sites)
+      .values({ source: "fleet-api", externalId: "EXT-2" })
+      .returning({ id: schema.sites.id })
+      .all()[0]!.id;
+    const base = NORMAL - 40 * 24 * HOUR;
+    for (let i = 0; i < 7; i++)
+      ev(
+        siteId,
+        base + i * 24 * HOUR,
+        i % 2 ? "batteries" : "firmware",
+        `e${i}`,
+      );
+    ev(other, NORMAL, "firmware", "other site");
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.system?.changes).toEqual(
+      [6, 5, 4, 3, 2].map((i) => ({
+        at: new Date(base + i * 24 * HOUR).toISOString(),
+        text: `e${i}`,
+      })),
+    );
+    expect(checkSnapshot(s)).toEqual([]);
+  });
+});
+
+// ---- B042: equipment health + backfill wiring ----
+// Assumption: loadSnapshot reads TESLA_BACKFILL_MAX_PER_MONTH / TESLA_MONTHLY_REQUEST_CAP from the
+// env at call time (like the panel env above) and passes them to backfillState; unset = 2500 / 4500.
+describe("loadSnapshot equipment health", () => {
+  const KEYS = ["TESLA_BACKFILL_MAX_PER_MONTH", "TESLA_MONTHLY_REQUEST_CAP"];
+  const saved = new Map(KEYS.map((k) => [k, process.env[k]]));
+  afterEach(() => {
+    for (const [k, v] of saved)
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+  });
+
+  // Every day: ghi 700 W/m2 local 08-16, 300 at 07 and 17; solar = 4 x ghi (2 x on the miss day);
+  // charge 5000 Wh at local 11 and 12, discharge 3000 Wh at local 17-19; SoC 90 at 17, 70, 50, 30 at 20.
+  const MISS_DAY = "2026-05-18";
+  const START = "2025-03-20"; // ~14 months before NORMAL
+  function seedHealth(siteId: number, cloudy = (_date: string) => false) {
+    const hours: HourEnergy[] = [];
+    const observed: ObservedHour[] = [];
+    const soc: { ts: number; socPct: number }[] = [];
+    const lastFull = Math.floor(NORMAL / HOUR) * HOUR - HOUR;
+    for (let t = localMidnight(START, TZ); t <= lastFull; t += HOUR) {
+      const h = localParts(t, TZ).hour;
+      const ghiWm2 = h >= 8 && h <= 16 ? 700 : h === 7 || h === 17 ? 300 : 0;
+      const solarWh = ghiWm2 * (localDate(t, TZ) === MISS_DAY ? 2 : 4);
+      const batteryChargeWh = h === 11 || h === 12 ? 5000 : 0;
+      const batteryDischargeWh = h >= 17 && h <= 19 ? 3000 : 0;
+      const net = 1000 + batteryChargeWh - solarWh - batteryDischargeWh;
+      hours.push({
+        start: t,
+        solarWh,
+        loadWh: 1000,
+        gridImportWh: Math.max(0, net),
+        gridExportWh: Math.max(0, -net),
+        batteryChargeWh,
+        batteryDischargeWh,
+      });
+      const cloudPct = cloudy(localDate(t, TZ)) ? 100 : 5;
+      observed.push({ hour: t, tempC: 15, cloudPct, ghiWm2, precipMm: 0 });
+      const socPct =
+        h < 10 ? 30 : h <= 17 ? 90 : h === 18 ? 70 : h === 19 ? 50 : 30;
+      soc.push({ ts: t, socPct });
+    }
+    for (let i = 0; i < hours.length; i += 500) {
+      db.insert(schema.energyIntervals)
+        .values(
+          hours
+            .slice(i, i + 500)
+            .map((r) => ({ ...r, siteId, start: new Date(r.start) })),
+        )
+        .run();
+      db.insert(schema.weatherObserved)
+        .values(
+          observed
+            .slice(i, i + 500)
+            .map((r) => ({ ...r, siteId, hour: new Date(r.hour) })),
+        )
+        .run();
+      db.insert(schema.samples)
+        .values(
+          soc.slice(i, i + 500).map((r) => ({
+            siteId,
+            ts: new Date(r.ts),
+            solarW: 0,
+            loadW: 0,
+            batteryW: 0,
+            gridW: 0,
+            socPct: r.socPct,
+            gridStatus: "connected",
+          })),
+        )
+        .run();
+    }
+    return { hours, observed, soc };
+  }
+  const bare = () => seed({ now: NORMAL, intervals: false, weather: false });
+
+  it("14 months of history: all four measurements, equal to equipmentHealth() on the same data", async () => {
+    const siteId = bare();
+    const data = seedHealth(siteId);
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(checkSnapshot(s)).toEqual([]);
+    expect(s.equipmentHealth).toMatchObject({
+      solarClearDay: {
+        month: "2026-04",
+        baselineMonth: "2025-04",
+        pctOfBaseline: 100,
+        clearHours: 270,
+      },
+      sunnyDayMiss: { date: MISS_DAY, expectedWh: 27600, actualWh: 13800 },
+      batteryCapacity: { month: "2026-04", estimatedWh: 15000, swings: 30 },
+      efficiency: { month: "2026-04", pct: 90 },
+    });
+    expect(s.equipmentHealth).toMatchObject(
+      equipmentHealth({ ...data, tz: TZ, now: NORMAL }),
+    );
+  });
+
+  describe("backfill", () => {
+    // site-local today 2026-05-20, UTC month 2026-05: FROM = today - 8, install 05-03 to FROM 05-12 inclusive = 10 days; a finished walk leaves the cursor at 05-02.
+    const setBackfill = (siteId: number, cursor: string, max = "3") => {
+      process.env.TESLA_BACKFILL_MAX_PER_MONTH = max;
+      process.env.TESLA_MONTHLY_REQUEST_CAP = "4500";
+      db.update(schema.sites)
+        .set({
+          installedOn: "2026-05-03",
+          backfillFrom: "2026-05-12",
+          backfillCursor: cursor,
+        })
+        .where(eq(schema.sites.id, siteId))
+        .run();
+    };
+    const load = async (siteId: number) => {
+      const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+      expect(checkSnapshot(s)).toEqual([]);
+      return s;
+    };
+
+    it("running: progress shown and the request estimate adds min(remaining, MAX)", async () => {
+      const siteId = seed({ now: NORMAL });
+      setBackfill(siteId, "2026-05-07");
+      const s = await load(siteId);
+      expect(s.equipmentHealth.backfill).toEqual({
+        state: "running",
+        daysDone: 5,
+        daysTotal: 10,
+      });
+      expect(s.health.estRequestsPerMonth).toBe(1443); // min(5, 3)
+    });
+
+    it("running with a roomy budget adds the days remaining", async () => {
+      const siteId = seed({ now: NORMAL });
+      setBackfill(siteId, "2026-05-07", "2500");
+      const s = await load(siteId);
+      expect(s.health.estRequestsPerMonth).toBe(1445);
+    });
+
+    it("paused-budget keeps the counts and drops the extra requests", async () => {
+      const siteId = seed({ now: NORMAL });
+      setBackfill(siteId, "2026-05-07");
+      db.insert(schema.fleetRequests)
+        .values({ month: "2026-05", total: 10, backfill: 3 })
+        .run();
+      const s = await load(siteId);
+      expect(s.equipmentHealth.backfill).toEqual({
+        state: "paused-budget",
+        daysDone: 5,
+        daysTotal: 10,
+      });
+      expect(s.health.estRequestsPerMonth).toBe(1440);
+    });
+
+    it("done: full progress and the estimate is back to the constant", async () => {
+      const siteId = seed({ now: NORMAL });
+      setBackfill(siteId, "2026-05-02");
+      const s = await load(siteId);
+      expect(s.equipmentHealth.backfill).toEqual({
+        state: "done",
+        daysDone: 10,
+        daysTotal: 10,
+      });
+      expect(s.health.estRequestsPerMonth).toBe(1440);
+    });
+
+    it("off when TESLA_BACKFILL_MAX_PER_MONTH is 0", async () => {
+      const siteId = seed({ now: NORMAL });
+      setBackfill(siteId, "2026-05-07", "0");
+      const s = await load(siteId);
+      expect(s.equipmentHealth.backfill.state).toBe("off");
+      expect(s.health.estRequestsPerMonth).toBe(1440);
+    });
+  });
+
+  it("reads the whole baseline month, even its first days", async () => {
+    const siteId = bare();
+    // Only 2025-04-01..04 are clear in the baseline month: 4 days x 9 clear hours = 36.
+    const data = seedHealth(
+      siteId,
+      (d) => d >= "2025-04-05" && d <= "2025-04-30",
+    );
+    const s = await run(NORMAL, siteId, fakeSource(NORMAL).source);
+    expect(s.equipmentHealth.solarClearDay).toEqual({
+      month: "2026-04",
+      baselineMonth: "2025-04",
+      pctOfBaseline: 100,
+      clearHours: 270,
+    });
+    expect(s.equipmentHealth).toMatchObject(
+      equipmentHealth({ ...data, tz: TZ, now: NORMAL }),
+    );
+  });
+
+  it("demo seed: all four measurements null, checkSnapshot clean", async () => {
+    const now = Date.parse("2026-10-06T19:32:10Z");
+    seedReplay(db, now);
+    const site = db.select().from(schema.sites).get()!;
+    const s = await mod.loadSnapshot(
+      { db, source: fakeSource(now, "replay").source, now },
+      site.id,
+    );
+    expect(checkSnapshot(s)).toEqual([]);
+    expect(s.equipmentHealth).toMatchObject({
+      solarClearDay: null,
+      sunnyDayMiss: null,
+      batteryCapacity: null,
+      efficiency: null,
+    });
   });
 });

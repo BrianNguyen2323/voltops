@@ -1,10 +1,13 @@
-﻿import { fleetClient } from "~/lib/sources/fleet-api/client";
+import { fleetClient } from "~/lib/sources/fleet-api/client";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db";
 import { sites } from "~/server/db/schema";
 import { seedReplay } from "~/server/replay/seed";
+import { backfillStep, firstSite } from "./backfill";
 import {
+  guarded,
   isTeslaIdle,
+  parseBackfillLimits,
   parseSiteSettings,
   prepareTick,
   runSiteSync,
@@ -13,6 +16,7 @@ import {
 } from "./jobs";
 
 const settings = parseSiteSettings(process.env);
+const limits = parseBackfillLimits(process.env);
 
 const HOUR = 3_600_000;
 let idleLogged = false;
@@ -49,6 +53,9 @@ async function tick(first = false) {
       lastWeather = now;
       await runWeather(deps);
     }
+    const site = isTeslaIdle(db) ? undefined : firstSite(db);
+    if (site)
+      await guarded("backfill", site, () => backfillStep(deps, site, limits));
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
     console.error(`[worker] tick ${err.name}: ${err.message}`);

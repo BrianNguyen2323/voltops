@@ -1,10 +1,11 @@
 # SPEC — Middleware: real data into the dashboard
 
-Revision 3
+Revision 4
 
 Decision round 1 (2026-10-06): all recommended (Q1–Q10 A). See `revisions/R001.md`, `research/mvp-scope/README.md`.
 Rev 2 (2026-10-07): peak estimate, reserve advice and weather gap-fill from the front-end's Decision round 4 (`team/front-end/TODO.md`, front-end R006). See `revisions/R002.md`.
 Rev 3 (2026-10-08): the Energy history module and Site sync, from O1's `/improve-codebase-architecture` (Decision round 3 Q1: "1, then 2"; grilling rounds 1–2 all recommended). See `revisions/R003.md`.
+Rev 4 (2026-10-12): Your system + Equipment health + one-time backfill, from the front-end hand-off (front-end SPEC Rev 8, R008) and Decision round 4 (Q1–Q4 A). See `revisions/R004.md`.
 
 ## Goal
 `/home` shows a real `DashboardSnapshot` (contract: `src/lib/dashboard.ts`, `docs/dashboard-snapshot.md`) built from the DB plus one live Tesla call. With no site in the DB, `/home` keeps `sampleSnapshot` (`isSample`).
@@ -207,3 +208,61 @@ One module owns every read and write of `energy_intervals` and `weather_observed
 - **Login** (`/api/auth/callback`): token exchange → store credentials → `primeToken(access, expiresAt)` on the fleet client (so no extra refresh) → `listSites()` → `syncSite` for the first one. A sync failure is logged (`[Tesla OAuth] site sync <ErrorName>`) and the login still redirects to `/home`. The callback's own fetches, `FLEET_BASE` and `findNameplate` are deleted.
 - **Worker:** a daily `site-sync` job (first tick, then every 24 h) for each `fleet-api` site, ~30 requests/month. Errors log like the other jobs (`[worker] site-sync site=<n> <ErrorName>`). No `job_runs` table exists, so there's no dashboard warning beyond today's "No tariff from Tesla".
 - **Replay:** `seedReplay` takes timezone, capacity, backup reserve and tariff from `mapSiteInfo(site_info.json)`; the name stays "Demo home" and lat/lon stay fixed.
+
+## Your system + Equipment health (Rev 4; front-end SPEC Rev 8, Decision round 4 Q1–Q4 A)
+Contract: `system` and `equipmentHealth` in `src/lib/dashboard.ts`. The front-end owns the contract and the `checkSnapshot` rules. The middleware supplies values only. Thresholds and status live in the front-end view.
+
+### Storage (B039, migration `0003`)
+- `sites` gains `battery_count int`, `battery_model text`, `max_power_w int`, `firmware text`, `installed_on text` (YYYY-MM-DD, site-local), `backfill_from text` and `backfill_cursor text` (both YYYY-MM-DD; null = not started). All nullable.
+- `site_events(site_id fk cascade, at ts, kind text, text text)`, PK `(site_id, at, kind)`. `kind` is `firmware`, `batteries` or `outage`. Writes use `onConflictDoNothing`, so re-runs are idempotent.
+- `fleet_requests(month text PK "YYYY-MM" in UTC, total int, backfill int)`.
+
+### Site facts (B036)
+- `SiteInfo` gains `batteryCount`, `batteryModel`, `maxPowerW`, `firmware` and `installedOn`, all `| null`. `mapSiteInfo` reads:
+  - `battery_count`;
+  - `components.gateways[0].part_name`;
+  - `nameplate_power`;
+  - `version` up to the first space;
+  - `installation_date` (RFC 3339 with offset) → its first 10 chars. The offset is local, so that is the site-local date.
+  - Never read `components.batteries[]`: expansion units report "Unknown" and zeros.
+- `syncSite` writes the 5 facts. When the stored `firmware` or `battery_count` is non-null and differs from the new value, it inserts a `site_events` row at sync time with text "Firmware {v}" or "Batteries: {n}". The first sync logs nothing.
+- A new history module op, `bestSolarHour(): { start: number; wh: number } | null`, returns the max of the UTC-hour GROUP BY of `solar_wh` over all stored intervals.
+- `SITE_PANEL_COUNT` and `SITE_PANEL_WATTS` are `z.coerce.number().int().positive().optional()` in `src/env.schema.js`. The snapshot loader reads them (both containers load `.env`), so no columns.
+- `system` is null until the Site has `battery_count` (the first sync with the new mapper). `batteries.capacityWh` = `usable_capacity_wh`. `plan` comes from `tariff_schedule` (`utility`, `name`). `changes` = the newest 5 `site_events`, `at` as ISO UTC.
+
+### Outages (B040 → PO → B041; Q1 A)
+- Tesla `GET /api/1/energy_sites/{id}/calendar_history?kind=backup` "Returns the backup (off-grid) event history of the site in duration of seconds" (developer.tesla.com energy endpoints, checked 2026-10-12). The field names and the duration unit stay **unverified** until `verify:tesla` records `fixtures/fleet-api/backup_history.json` (B040; the PO runs it). No mapper is written before that fixture exists.
+- `DataSource` gains `getOutages(siteId): Promise<{ at: string; durationS: number }[]>`. A daily worker job (next to site-sync, ~30 req/month) writes `site_events` of kind `outage` with text "Grid outage, {h} h {m} min" ("Grid outage, {m} min" under an hour).
+
+### Equipment health (B037 pure, B042 wiring)
+- A pure module `src/lib/health/index.ts`, no I/O. Inputs are `hours: HourEnergy[]` and `observed: ObservedHour[]` (history module), `soc: { ts: number; socPct: number }[]` (`samples`), `tz` and `now`. The output is the four measurements of `equipmentHealth` (everything except `backfill`). Months are site-local `YYYY-MM`. "Last complete month" is the site-local month before the one holding `now`.
+- **solarClearDay:**
+  - a clear hour has `cloudPct <= 10` and `ghiWm2 >= 600`; its ratio is `solarWh / ghiWm2`;
+  - take the median ratio for the last complete month and for the same month a year earlier; `pctOfBaseline = round(100 × m / b)`; `clearHours` is the month's count;
+  - null if either month has < 20 clear hours, the baseline median is 0, or the result would exceed 200 (R004).
+- **sunnyDayMiss:**
+  - check each of the last 7 complete site-local days, newest first;
+  - a clear day has a mean `cloudPct` ≤ 15 over its hours with `ghiWm2 > 0`;
+  - expected Wh = Σ over its hours of `ghi × ratio(local hour of day)`. ratio(h) is the median `solarWh / ghi` for that local hour over the 60 days before the checked day, using hours with `ghi >= 50`;
+  - the first clear day with actual < 75% of expected wins; null if none, or if fewer than 14 days hold data.
+- **batteryCapacity (Q2 A, recorded SoC only):**
+  - a swing is a run of consecutive samples ≤ 75 min apart with strictly falling `socPct` and a total drop ≥ 40 points;
+  - Wh = Σ `batteryDischargeWh` of the UTC hours `[hour(t1), hour(t2))`; estimate = Wh / points × 100;
+  - **discharge only.** Discharge Wh is metered AC out, the same basis as the AC nameplate. Charge Wh includes conversion losses and would overstate capacity;
+  - the median over swings that end in the last complete month, rounded; null with < 5 swings.
+- **efficiency:** for the last complete month, `round(100 × Σ discharge / Σ charge)`; null with < 10 days holding data, with Σ charge = 0, or above 200 (R004).
+- The loader reads `hours` and `observed` from the 1st of the baseline month (the month 13 months before the current one) through today (~10k rows, GROUP BY, ADR 0001) plus that window's `samples`.
+
+### Request budget + backfill (B038; Q4 A)
+- The fleet client's `call` upserts `fleet_requests[current UTC month].total += 1` for each response with status < 500. Tesla bills those. The token endpoint isn't a Fleet request. Both processes count.
+- Env (`src/env.schema.js` + `.env.example`): `TESLA_BACKFILL_MAX_PER_MONTH` (int ≥ 0, default 2500; 0 = off) and `TESLA_MONTHLY_REQUEST_CAP` (int ≥ 1, default 4500).
+- The worker job `backfillStep` runs every tick for the first `fleet-api` Site with `installed_on`, and makes **at most 1 Tesla request per tick**:
+  1. first run: `backfill_from = backfill_cursor = today − 8` (syncEnergy owns the last 7 days);
+  2. while `cursor >= installed_on` and the day is complete (`isComplete`), step `cursor` back one day without a request;
+  3. if `cursor < installed_on`, it's done, for good;
+  4. if this month's `backfill >= MAX` or `total >= CAP`, it's paused; return;
+  5. otherwise `getHistory(cursor)` → `putIntervals` → step `cursor` back. **Every billed attempt counts:** after the attempt, success or not, `backfill += 1` when the month's `total` went up during it (the client counted a status < 500). A failed token refresh never reaches the Fleet API and isn't counted (R004, B038 review).
+  6. on an error the cursor stays, and the error propagates to `guarded`. After 3 failed attempts on the same day (in memory; a restart resets it), the cursor steps past that day and the worker logs `[worker] backfill skipped a day after 3 failures`. `AuthExpired` and `RateLimited` don't count toward the 3, so an expired login never skips history.
+- `backfillState(db, site, env, now)` returns `off` (MAX = 0 or no `installed_on`), `done`, `paused-budget` or `running`, plus `daysTotal = days(installed_on .. backfill_from)` and `daysDone = days(cursor + 1 .. backfill_from)` (0 and 0 before the first run).
+- Weather: `weatherGaps` drops its 92-day floor and returns every gap day. `fillWeatherGaps` fetches gaps within 92 UTC days as it does today, and older gaps in **one** Open-Meteo archive request: `https://archive-api.open-meteo.com/v1/archive?latitude&longitude&start_date&end_date&hourly=temperature_2m,cloud_cover,shortwave_radiation,precipitation&timezone=UTC&timeformat=unixtime`. Verified 2026-10-12: the same `hourly` shape without `precipitation_probability`. The GHI index shift is the same as in `mapForecast`.
+- Snapshot (B042): `equipmentHealth.backfill` comes from `backfillState`. `health.estRequestsPerMonth` adds `min(daysTotal − daysDone, MAX)` while the state is `running`.

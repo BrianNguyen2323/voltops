@@ -27,7 +27,8 @@ export type ObservedHour = {
 
 const FIVE = 300_000;
 const HOUR = 3_600_000;
-const GAP_DAYS = 92;
+/** UTC hour bucket of an interval start, shared by every hourly GROUP BY. */
+const bucket = sql<number>`cast(${s.energyIntervals.start} / 3600000 as integer) * 3600000`;
 
 // Bounds are JS-computed integers, so they're safe to inline as literals.
 const lit = (n: number) => {
@@ -113,7 +114,6 @@ export function energyHistory(
 
     hours(from: string, to: string): HourEnergy[] {
       const [a, b] = range(from, to);
-      const bucket = sql<number>`cast(${e.start} / 3600000 as integer) * 3600000`;
       return db
         .select({
           start: bucket,
@@ -200,7 +200,6 @@ export function energyHistory(
     },
 
     weatherGaps(today: string): string[] {
-      const from = localMidnight(addDays(today, -GAP_DAYS), tz);
       const to = localMidnight(today, tz);
       // distinct UTC hour buckets instead of every 5-min interval;
       // same local-date set for whole-hour time zones
@@ -210,13 +209,7 @@ export function energyHistory(
             hour: sql<number>`(${e.start} / ${HOUR}) * ${HOUR}`,
           })
           .from(e)
-          .where(
-            and(
-              eq(e.siteId, site.id),
-              gte(e.start, new Date(from)),
-              lt(e.start, new Date(to)),
-            ),
-          )
+          .where(and(eq(e.siteId, site.id), lt(e.start, new Date(to))))
           .all()
           .map((r) => localDate(Number(r.hour), tz)),
       );
@@ -224,13 +217,7 @@ export function energyHistory(
       for (const r of db
         .select({ hour: w.hour })
         .from(w)
-        .where(
-          and(
-            eq(w.siteId, site.id),
-            gte(w.hour, new Date(from)),
-            lt(w.hour, new Date(to)),
-          ),
-        )
+        .where(and(eq(w.siteId, site.id), lt(w.hour, new Date(to))))
         .all()) {
         const d = localDate(r.hour.getTime(), tz);
         have.set(d, (have.get(d) ?? 0) + 1);
@@ -275,6 +262,21 @@ export function energyHistory(
         similarTempAvgWh:
           similarTempDays < 3 ? null : Math.round(sim?.avg ?? 0),
       };
+    },
+
+    bestSolarHour(): { start: number; wh: number } | null {
+      const wh = sql<number>`sum(${e.solarWh})`;
+      const r = db
+        .select({ start: bucket, wh })
+        .from(e)
+        .where(eq(e.siteId, site.id))
+        .groupBy(bucket)
+        .orderBy(sql`${wh} desc`, asc(bucket))
+        .limit(1)
+        .get();
+      return r && Number(r.wh) > 0
+        ? { start: Number(r.start), wh: Number(r.wh) }
+        : null;
     },
 
     latestStart(): number | null {

@@ -20,10 +20,14 @@ export const server = {
   VOLTOPS_SECRET_KEY: z.string().min(64),
   SITE_LATITUDE: z.coerce.number().min(-90).max(90).optional(),
   SITE_LONGITUDE: z.coerce.number().min(-180).max(180).optional(),
+  SITE_PANEL_COUNT: z.coerce.number().int().positive().optional(),
+  SITE_PANEL_WATTS: z.coerce.number().int().positive().optional(),
   VOLTOPS_DEMO: z
     .enum(["true"], {
       errorMap: () => ({ message: 'must be "true" or unset' }),
     })
     .optional(),
   TEMPERATURE_UNIT: z.enum(["F", "C"]).optional(),
+  TESLA_BACKFILL_MAX_PER_MONTH: z.coerce.number().int().min(0).default(2500),
+  TESLA_MONTHLY_REQUEST_CAP: z.coerce.number().int().min(1).default(4500),
 };

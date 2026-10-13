@@ -337,20 +337,31 @@ describe("weatherGaps", () => {
     ]);
   });
 
-  it("excludes today and days older than 92 days, includes today-92", () => {
+  it("excludes today but has no age floor: days older than 92 days are returned (B038)", () => {
     const h = hist();
     for (const d of [
       today,
       addDays(today, -1),
       addDays(today, -92),
       addDays(today, -93),
+      addDays(today, -400),
     ]) {
       h.putIntervals([iv(localMidnight(d, TZ) + H)]);
     }
     expect(h.weatherGaps(today)).toEqual([
+      addDays(today, -400),
+      addDays(today, -93),
       addDays(today, -92),
       addDays(today, -1),
     ]);
+  });
+
+  it("an old day with full weather is not a gap", () => {
+    const h = hist();
+    const old = addDays(today, -200);
+    h.putIntervals([iv(localMidnight(old, TZ) + H)]);
+    seedWeather(h, old, 15);
+    expect(h.weatherGaps(today)).toEqual([]);
   });
 
   it("uses the day's hour count on DST days", () => {
@@ -498,5 +509,62 @@ describe("timezone null", () => {
     h.putObserved([obs(Date.parse("2026-03-08T00:00:00Z"))]);
     expect(h.observed("2026-03-08", "2026-03-09")).toHaveLength(1);
     expect(h.weatherGaps("2026-03-10")).toEqual(["2026-03-08", "2026-03-09"]);
+  });
+});
+
+describe("bestSolarHour", () => {
+  /** Seeds local `date`: `solar(slotStart)` Wh per 5-min slot. */
+  const seedSolar = (h: Hist, date: string, solar: (t: number) => number) => {
+    const rows: EnergyInterval[] = [];
+    for (
+      let t = localMidnight(date, TZ);
+      t < localMidnight(addDays(date, 1), TZ);
+      t += FIVE
+    )
+      rows.push({ ...iv(t), solarWh: solar(t) });
+    h.putIntervals(rows);
+  };
+
+  it("is null on an empty DB", () => {
+    expect(hist().bestSolarHour()).toBeNull();
+  });
+
+  it("is null when every interval has 0 solar", () => {
+    seedSolar(hist(), "2026-05-20", () => 0);
+    expect(hist().bestSolarHour()).toBeNull();
+  });
+
+  it.each([
+    ["spring-forward", "2026-03-08"],
+    ["fall-back", "2026-11-01"],
+  ])("%s day: the max per-UTC-hour sum, with its start", (_n, date) => {
+    const h = hist();
+    const noon = localTime(date, 720, TZ);
+    const other = localTime(addDays(date, -1), 720, TZ);
+    // 1 Wh per slot everywhere (12 Wh/h), 7 in the noon hour (84), 5 the day before (60).
+    seedSolar(h, addDays(date, -1), (t) =>
+      t >= other && t < other + H ? 5 : 1,
+    );
+    seedSolar(h, date, (t) => (t >= noon && t < noon + H ? 7 : 1));
+    expect(h.bestSolarHour()).toEqual({ start: noon, wh: 84 });
+  });
+
+  it("sums by UTC hour even when the Site's local hours straddle them", () => {
+    const h = hist(siteId, "Asia/Kolkata"); // UTC+5:30
+    const t0 = Date.parse("2026-05-20T06:00:00Z");
+    h.putIntervals(
+      Array.from({ length: 24 }, (_, i) => ({
+        ...iv(t0 + i * FIVE),
+        solarWh: i < 12 ? 2 : 3,
+      })),
+    );
+    expect(h.bestSolarHour()).toEqual({ start: t0 + H, wh: 36 });
+  });
+
+  it("only counts this Site's intervals", () => {
+    const t = Date.parse("2026-05-20T18:00:00Z");
+    hist(otherId).putIntervals([{ ...iv(t), solarWh: 9999 }]);
+    hist().putIntervals([{ ...iv(t), solarWh: 5 }]);
+    expect(hist().bestSolarHour()).toEqual({ start: t, wh: 5 });
   });
 });
